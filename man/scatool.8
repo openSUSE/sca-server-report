@@ -1,0 +1,71 @@
+.TH scatool 8 "08 Nov 2013" "scatool" "Supportconfig Analysis Manual"
+.SH NAME
+scatool - Supportconfig Analysis Server Report Tool
+.SH SYNOPSIS
+scatool [OPTIONS]
+.SH DESCRIPTION
+The \fBscatool\fR is used to analyze the local server using supportconfig and the Supportconfig Analysis patterns.
+.SH OPTIONS
+.TP
+\fB\-h\fR
+Displays the help screen.
+.TP
+\fB\-a\fR \fI/path/to/supportconfig/tarball\fR
+Analyze the tarred compressed tar ball spacified with the -a paramenter.
+.TP
+\fB\-o\fR \fI/path/to/output/file/\fR
+The HTML report file will be written to this directory. If -o is not specified, the output file will be in the same location as the supportconfig file or directory.
+.PD
+.SH CONSOLE OPERATIONS
+Running scatool without any options or with invalid options will 
+load the console. You can press the <tab> key to see a list of 
+commands. The console also supports tab completion when selecting 
+commands to run. The following commands are available:
+.TP
+\fBhelp\fR
+Shows the list of commands and their usage. Use the help followed 
+by the command to get detailed help about that specific command. 
+.TP
+\fBanalyze\fR [\fI/path/to/supportconfig/archive\fR]
+Without any options, scatool will run a supportconfig on the server, 
+analyze it using the available SCA patterns, and display the results 
+as an HTML report. If you specify a supportconfig archive, scatool 
+will decompress and analyze it before displaying the results.
+.TP
+\fBview\fR [\fI/path/to/report.html\fR]
+Opens the w3m text browser to view HTML reports. If no path given, it 
+will try to open the most current report.
+.TP
+\fBexit\fR
+Exits the console
+.PD
+.SH EXAMPLES
+.TP
+\fBscatool\fR
+Start the scatool console (see CONSOLE OPERATIONS above). If any startup option is invalid, or -a is missing, the scatool console will be invoked automatically.
+.TP
+\fBscatool -a\fR
+Runs supportconfig and analyzes its output saving the HTML report file to the same location at the supportconfig with the same name, but ending in .html.
+.TP
+\fBscatool -a /var/log/nts_localhost_131107_1315.tbz\fR
+Analyzes the supportconfig archive file specified. The path can be a tarred compressed supportconfig archive or its extracted directory, either will work.
+.TP
+\fBscatool -a -o /opt/sca/reports/\fR
+Runs supportconfig and analyzes its output saving the HTML report file in the path specified instead of the default path of the supportconfig tarball.
+.PD
+.SH AUTHOR
+David Hamner <dhamner@novell.com>
+.SH COPYRIGHT
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+.PP
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
