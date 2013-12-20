@@ -55,7 +55,7 @@ obsetup:
 	@rm -rf Novell:NTS:SCA
 	@osc co Novell:NTS:SCA/$(OBSPACKAGE)
 
-obs: obsetup push
+obs: push obsetup
 	@echo [obs]: Committing changes to OBS Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc up Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc del Novell:NTS:SCA/$(OBSPACKAGE)/*
