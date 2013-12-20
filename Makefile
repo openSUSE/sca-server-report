@@ -55,7 +55,7 @@ obsetup:
 	@rm -rf Novell:NTS:SCA
 	@osc co Novell:NTS:SCA/$(OBSPACKAGE)
 
-obs: push obsetup
+obs: commit push obsetup
 	@echo [obs]: Committing changes to OBS Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc up Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc del Novell:NTS:SCA/$(OBSPACKAGE)/*
@@ -71,7 +71,7 @@ commit: build
 	@echo [commit]: Committing changes to GIT
 	@git commit -a -m "Committing Source: $(OBSPACKAGE)-$(VERSION)-$(RELEASE)"
 
-push: commit
+push:
 	@echo [push]: Pushing changes to GIT
 	@git push -u origin master
 
