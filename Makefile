@@ -87,7 +87,7 @@ help:
 	@echo ' dist       Creates the src directory and distribution tar ball'
 	@echo ' build      Builds the RPM packages (default)'
 	@echo ' obsetup    Checks out the OBS repository for this package'
-	@echo ' obs        Commits and pushs all changes to GIT and checks files into OBS'
+	@echo ' obs        Builds the packages and checks files into OBS'
 	@echo ' commit     Commits all changes to GIT'
 	@echo ' push       Pushes commits to public GIT'
 	@echo
