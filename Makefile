@@ -6,7 +6,7 @@ SRCDIR=$(OBSPACKAGE)-$(VERSION)
 SRCFILE=$(SRCDIR).tar
 BUILDDIR=/usr/src/packages
 
-default: help
+default: build
 
 install: dist
 	@echo [install]: Installing source files into build directory
@@ -85,7 +85,7 @@ help:
 	@echo ' install    Installs source files to the build directory'
 	@echo ' uninstall  Removes files from the build directory'
 	@echo ' dist       Creates the src directory and distribution tar ball'
-	@echo ' build      Builds the RPM packages'
+	@echo ' build      Builds the RPM packages (default)'
 	@echo ' obsetup    Checks out the OBS repository for this package'
 	@echo ' obs        Commits and pushs all changes to GIT and checks files into OBS'
 	@echo ' commit     Commits all changes to GIT'
