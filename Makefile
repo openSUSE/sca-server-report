@@ -6,7 +6,7 @@ SRCDIR=$(OBSPACKAGE)-$(VERSION)
 SRCFILE=$(SRCDIR).tar
 BUILDDIR=/usr/src/packages
 
-default: build
+default: help
 
 install: dist
 	@echo [install]: Installing source files into build directory
@@ -37,12 +37,7 @@ clean: uninstall
 	@rm -rf $(OBSPACKAGE)*
 	@for i in $(SVNDIRS); do rm -f $$i/*~; done
 	@rm -f *~
-	@rm -rf src
-	@echo
-	@ls -al ${LS_OPTIONS}
-	@echo
-	@git status --short
-	@echo
+	@rm -rf src Novell:NTS:SCA
 
 build: clean install
 	@echo [build]: Building RPM package
@@ -60,7 +55,7 @@ obsetup:
 	@rm -rf Novell:NTS:SCA
 	@osc co Novell:NTS:SCA/$(OBSPACKAGE)
 
-obs: push
+obs: obsetup push
 	@echo [obs]: Committing changes to OBS Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc up Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc del Novell:NTS:SCA/$(OBSPACKAGE)/*
@@ -82,9 +77,23 @@ push: commit
 
 help:
 	@clear
-	@make -v
-	@echo
 	@echo Make options for package: $(OBSPACKAGE)
-	@echo make {clean, install, uninstall, dist, build[default], obsetup, obs, commit, push}
+	@echo make [COMMAND]
+	@echo
+	@echo COMMAND
+	@echo ' clean      Uninstalls build directory and cleans up build files'
+	@echo ' install    Installs source files to the build directory'
+	@echo ' uninstall  Removes files from the build directory'
+	@echo ' dist       Creates the src directory and distribution tar ball'
+	@echo ' build      Builds the RPM packages'
+	@echo ' obsetup    Checks out the OBS repository for this package'
+	@echo ' obs        Commits and pushs all changes to GIT and checks files into OBS'
+	@echo ' commit     Commits all changes to GIT'
+	@echo ' push       Pushes commits to public GIT'
+	@echo
+	@ls -l ${LS_OPTIONS}
+	@echo
+	@echo GIT Status
+	@git status --short
 	@echo
 

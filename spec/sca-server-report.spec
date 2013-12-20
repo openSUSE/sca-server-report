@@ -18,7 +18,7 @@ License:      GPLv2
 Group:        System/Management
 Autoreqprov:  on
 Version:      0.1
-Release:      1.131119.DEV.1
+Release:      1.131120.DEV.1
 Source:       %{name}-%{version}.tar.gz
 Summary:      Supportconfig Analysis Server Report
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
