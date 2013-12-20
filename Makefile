@@ -55,14 +55,10 @@ build: clean install
 	@git status --short
 	@echo
 
-obsetup: dist
+obsetup:
 	@echo [obsetup]: Setup OBS Novell:NTS:SCA/$(OBSPACKAGE)
 	@rm -rf Novell:NTS:SCA
 	@osc co Novell:NTS:SCA/$(OBSPACKAGE)
-	@rm -f Novell:NTS:SCA/$(OBSPACKAGE)/*
-	@cp spec/$(OBSPACKAGE).spec Novell:NTS:SCA/$(OBSPACKAGE)
-	@cp src/$(SRCFILE).gz Novell:NTS:SCA/$(OBSPACKAGE)
-	@osc status Novell:NTS:SCA/$(OBSPACKAGE)
 
 obs: push
 	@echo [obs]: Committing changes to OBS Novell:NTS:SCA/$(OBSPACKAGE)
@@ -71,22 +67,18 @@ obs: push
 	@osc ci -m "Removing old files before committing: $(OBSPACKAGE)-$(VERSION)-$(RELEASE)" Novell:NTS:SCA/$(OBSPACKAGE)
 	@rm -f Novell:NTS:SCA/$(OBSPACKAGE)/*
 	@cp spec/$(OBSPACKAGE).spec Novell:NTS:SCA/$(OBSPACKAGE)
-	@cp spec/$(OBSPACKAGE).changes Novell:NTS:SCA/$(OBSPACKAGE)
 	@cp src/$(SRCFILE).gz Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc add Novell:NTS:SCA/$(OBSPACKAGE)/*
 	@osc up Novell:NTS:SCA/$(OBSPACKAGE)
 	@osc ci -m "Committing to OBS: $(OBSPACKAGE)-$(VERSION)-$(RELEASE)" Novell:NTS:SCA/$(OBSPACKAGE)
-	@echo
 
 commit: build
 	@echo [commit]: Committing changes to GIT
 	@git commit -a -m "Committing Source: $(OBSPACKAGE)-$(VERSION)-$(RELEASE)"
-	@echo
 
 push: commit
 	@echo [push]: Pushing changes to GIT
 	@git push -u origin master
-	@echo
 
 help:
 	@clear
