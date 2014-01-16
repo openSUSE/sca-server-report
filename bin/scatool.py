@@ -12,7 +12,7 @@ import time
 
 #setup environment and PWD
 #setup environment and PWD
-patDir = "/var/opt/sca/patterns/"
+patDir = "/usr/lib/sca/patterns/"
 try:
   os.chdir(os.environ["PWD"])
   setup = os.environ["SCA_READY"]

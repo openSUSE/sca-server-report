@@ -1,7 +1,7 @@
 #!/bin/bash
 BIN_PATH=/usr/sbin
-export PERL5LIB=/var/opt/sca/patterns/lib/perl/
-export PYTHONPATH=/var/opt/sca/patterns/lib/python/
-export BASHLIB=/var/opt/sca/patterns/lib/bash
+export PERL5LIB=/usr/lib/sca/patterns/lib/perl/
+export PYTHONPATH=/usr/lib/sca/patterns/lib/python/
+export BASHLIB=/usr/lib/sca/patterns/lib/bash
 export SCA_READY="True"
 ${BIN_PATH}/scatool.py "$@"

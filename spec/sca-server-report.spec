@@ -18,8 +18,8 @@ URL:          https://bitbucket.org/g23guy/sca-server-report
 License:      GPL-2.0
 Group:        System/Management
 Autoreqprov:  on
-Version:      0.1
-Release:      1.131120.DEV.1
+Version:      0.9
+Release:      1
 Source:       %{name}-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Requires:     sca-patterns-base
@@ -62,6 +62,9 @@ install -m 644 scatool.8.gz $RPM_BUILD_ROOT/usr/share/man/man8
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Jan 16 2014 jrecord@suse.com
+- updated paths to match FHS change
+
 * Fri Nov 15 2013 dhamner@novell.com
 - Fixed HTML ouput
 - Analyze run from console will auto start w3m
