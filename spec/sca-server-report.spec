@@ -1,7 +1,7 @@
+# spec file for package sca-patterns-base
 #
-# spec file for package sca-server-report (Version 0.1)
+# Copyright (C) 2014 SUSE LLC
 #
-# Copyright (C) 2013 SUSE LLC
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #
@@ -19,7 +19,7 @@ License:      GPL-2.0
 Group:        System/Management
 Autoreqprov:  on
 Version:      0.9
-Release:      1
+Release:      4
 Source:       %{name}-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Requires:     sca-patterns-base
@@ -41,34 +41,23 @@ Authors:
 %setup -q
 
 %build
-gzip -9f scatool.8
+gzip -9f man/*
 
 %install
 pwd;ls -la
 rm -rf $RPM_BUILD_ROOT
 install -d $RPM_BUILD_ROOT/usr/sbin
 install -d $RPM_BUILD_ROOT/usr/share/man/man8
-install -m 544 scatool $RPM_BUILD_ROOT/usr/sbin
-install -m 544 scatool.py $RPM_BUILD_ROOT/usr/sbin
-install -m 644 scatool.8.gz $RPM_BUILD_ROOT/usr/share/man/man8
+install -m 544 bin/* $RPM_BUILD_ROOT/usr/sbin
+install -m 644 man/*.8.gz $RPM_BUILD_ROOT/usr/share/man/man8
 
 %files
 %defattr(-,root,root)
-/usr/sbin/scatool
-/usr/sbin/scatool.py
+/usr/sbin/*
 %doc /usr/share/man/man8/*
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Thu Jan 16 2014 jrecord@suse.com
-- updated paths to match FHS change
-
-* Fri Nov 15 2013 dhamner@novell.com
-- Fixed HTML ouput
-- Analyze run from console will auto start w3m
-
-* Fri Nov 08 2013 jrecord@suse.com
-- initial package
 

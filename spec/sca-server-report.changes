@@ -1,0 +1,26 @@
+-------------------------------------------------------------------
+Fri Jan 31 21:28:38 UTC 2014 - ke7oxh@gmail.com
+
+- Updated the man page
+- Removed console as a default
+
+-------------------------------------------------------------------
+Thu Jan 31 23:51:43 UTC 2014 - dhamner@novell.com
+
+- Added .changes
+
+-------------------------------------------------------------------
+Thu Jan 16 23:51:43 UTC 2014 jrecord@suse.com
+
+- updated paths to match FHS change
+
+-------------------------------------------------------------------
+Fri Nov 15 23:51:43 UTC 2013 dhamner@novell.com
+
+- Fixed HTML ouput
+- Analyze run from console will auto start w3m
+
+-------------------------------------------------------------------
+Fri Nov 08 23:51:43 UTC 2013 jrecord@suse.com
+
+- initial package
