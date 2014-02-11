@@ -855,18 +855,24 @@ def help(*arg):
 arg = sys.argv[1:]
 analyzeServer = False
 analyzeFile = ""
-autoExit = False
+HELP = "Usage:\n\
+       -h     Displays this screen.\n\
+       -a /path/to/supportconfig/tarball\n\
+              Analyze the compressed or extracted supportconfig.\n\
+       -o /path/to/output/file/\n\
+              The  HTML report file will be written to this directory. If -o is not specified, the output file will be in the same location as the supportconfig file or directory.\n\
+       -k     Keep archive files\n\
+       -c     Enter SCAtool console\n\
+For examples run: man scatool"
+#Do not enter console unless given a -c
+autoExit = True
+if len(arg) == 0:
+  print HELP
 for x in range(0, len(arg)):
   #take a -h: scatool -h
   if arg[x].startswith("-") and "h" in arg[x]:
     autoExit = True
-    print "       -h     Displays this screen.\n\
-       -a /path/to/supportconfig/tarball\n\
-              Analyze the tarred compressed tar ball spacified with the -a paramenter.\n\
-       -o /path/to/output/file/\n\
-              The  HTML report file will be written to this directory. If -o is not specified, the output file will be in the same location as the supportconfig file or directory.\n\
-       -k     Keep archive files\n\
-       -c     Enter SCAtool console"
+    print HELP
   #take a -k: (keep archive files)
   if arg[x].startswith("-") and "k" in arg[x]:
     KeepArchive = True
