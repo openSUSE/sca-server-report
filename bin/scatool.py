@@ -260,10 +260,10 @@ def runPats(extractedSupportconfig):
   runHA = False
   runOES = False
   runSamba = False
-  SLE_SP = 0
-  SLE_version = 0
-  OES_SP = -1
-  OES_version = -1
+  SLE_SP = "0"
+  SLE_version = "0"
+  OES_SP = "-1"
+  OES_version = "-1"
   #reset black list
   whatNotToRun = []
   results = []
@@ -286,15 +286,15 @@ def runPats(extractedSupportconfig):
       
   #Check if various products are on system
   for line in RPMs:
-    if "heartbeat" in line:
+    if "heartbeat" in line and not line.startswith("sca-patterns"):
       runHA = True
-    if "oes" in line:
+    if "oes" in line and not line.startswith("sca-patterns"):
       runOES = True
-    if "edirectory" in line:
+    if "edirectory" in line and not line.startswith("sca-patterns"):
       runEdir = True
-    if "groupwise" in line:
+    if "groupwise" in line and not line.startswith("sca-patterns"):
       runGW = True
-    if "filr" in line:
+    if "filr" in line and not line.startswith("sca-patterns"):
       runFilr = True
     if line.startswith("samba"):
       runSamba = True
@@ -389,7 +389,7 @@ def runPats(extractedSupportconfig):
 	
 	#call parseOutput to see if output was expected
 	if not parseOutput(out, error):
-	  print >> sys.stderr, "Error in: " + files
+	  print >> sys.stderr, "Error in: " + file
 	  print >> sys.stderr, "------------------"
 	  print >> sys.stderr, error
 	  print >> sys.stderr, "------------------"

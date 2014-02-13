@@ -19,7 +19,7 @@ License:      GPL-2.0
 Group:        System/Management
 Autoreqprov:  on
 Version:      0.9
-Release:      7.1
+Release:      8
 Source:       %{name}-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Requires:     sca-patterns-base
