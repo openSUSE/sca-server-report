@@ -16,10 +16,10 @@ Name:         sca-server-report
 Summary:      Supportconfig Analysis Server Report
 URL:          https://bitbucket.org/g23guy/sca-server-report
 License:      GPL-2.0
-Group:        System/Management
+Group:        System/Monitoring
 Autoreqprov:  on
 Version:      0.9
-Release:      8
+Release:      9
 Source:       %{name}-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Requires:     sca-patterns-base
