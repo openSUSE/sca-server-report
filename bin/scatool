@@ -1,7 +1,34 @@
 #!/bin/bash
-BIN_PATH=/usr/sbin
-export PERL5LIB=/usr/lib/sca/perl/
-export PYTHONPATH=/usr/lib/sca/python/
-export BASHLIB=/usr/lib/sca/lib/bash
+##############################################################################
+# scatool - Supportconfig Analysis Report Tool Wrapper
+# Copyright (c) 2014 SUSE LLC
+#
+# Description:  Wrapper for /usr/lib/sca/python/scatool.py
+# Modified:     2014 Mar 20
+
+##############################################################################
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; version 2 of the License.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
+#
+#  Authors/Contributors:
+#     David Hamner (dhamner@suse.com)
+#     Jason Record (jrecord@suse.com)
+#
+##############################################################################
+
+BIN_PATH='/usr/lib/sca/python'
+export PERL5LIB='/usr/lib/sca/perl/'
+export PYTHONPATH='/usr/lib/sca/python/'
+export BASHLIB='/usr/lib/sca/lib/bash'
 export SCA_READY="True"
-${BIN_PATH}/scatool.py "$@"
+python ${BIN_PATH}/scatool.py "$@"

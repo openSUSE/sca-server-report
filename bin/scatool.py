@@ -1,4 +1,31 @@
 #!/usr/bin/python
+##############################################################################
+# scatool.py - Supportconfig Analysis Report Tool
+# Copyright (c) 2014 SUSE LLC
+#
+# Description:  Runs and analyzes local or remote supportconfigs
+# Modified:     2014 Mar 20
+
+##############################################################################
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; version 2 of the License.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
+#
+#  Authors/Contributors:
+#     David Hamner (dhamner@suse.com)
+#     Jason Record (jrecord@suse.com)
+#
+##############################################################################
+
 import readline
 import subprocess
 import os 

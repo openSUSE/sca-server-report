@@ -1,6 +1,8 @@
 -------------------------------------------------------------------
-Thu Mar 13 20:18:27 UTC 2014 - jrecord@suse.com
+Thu Mar 20 18:46:38 UTC 2014 - jrecord@suse.com
 
+- Updated man page header
+- Moved scatool.py to library
 - Fixed FSF address in files
 - Change to System/Monitoring spec Group
 

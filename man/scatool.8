@@ -1,6 +1,6 @@
-.TH scatool 8 "08 Nov 2013" "scatool" "Supportconfig Analysis Manual"
+.TH SCATOOL 8 "20 Mar 2014" "sca-server-report" "Supportconfig Analysis Manual"
 .SH NAME
-scatool - Supportconfig Analysis Server Report Tool
+scatool - Supportconfig Analysis Report Tool
 .SH SYNOPSIS
 scatool [OPTIONS]
 .SH DESCRIPTION
@@ -41,8 +41,8 @@ Exits the console
 .PD
 .SH EXAMPLES
 .TP
-\fBscatool\fR
-Start the scatool console (see CONSOLE OPERATIONS above). If any startup option is invalid, or -a is missing, the scatool console will be invoked automatically.
+\fBscatool -c\fR
+Start the scatool console (see CONSOLE OPERATIONS above).
 .TP
 \fBscatool -a\fR
 Runs supportconfig and analyzes its output saving the HTML report file to the same location at the supportconfig with the same name, but ending in .html.
@@ -52,9 +52,13 @@ Analyzes the supportconfig archive file specified. The path can be a tarred comp
 .TP
 \fBscatool -a -o /opt/sca/reports/\fR
 Runs supportconfig and analyzes its output saving the HTML report file in the path specified instead of the default path of the supportconfig tarball.
+.TP
+\fBscatool -a sles_server.company.com\fR
+Establishes an ssh connection to sles_server.company.com, runs supportconfig and analyzes its output saving the HTML report file to the default /var/log directory.
 .PD
 .SH AUTHOR
-David Hamner <dhamner@novell.com>
+Jason Record <jrecord@suse.com>
+David Hamner <dhamner@suse.com>
 .SH COPYRIGHT
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
