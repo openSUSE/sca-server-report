@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Mar 21 19:01:08 UTC 2014 - jrecord@suse.com
+Fri Mar 21 19:34:17 UTC 2014 - jrecord@suse.com
 
+- Clarified man page options
 - Removed scatool.py hash pling
 - Updated man page header
 - Moved scatool.py to library
