@@ -1,10 +1,9 @@
-#!/usr/bin/python
 ##############################################################################
 # scatool.py - Supportconfig Analysis Report Tool
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Mar 20
+# Modified:     2014 Mar 21
 
 ##############################################################################
 #
