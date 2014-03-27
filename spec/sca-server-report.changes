@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Mar 27 20:11:47 UTC 2014 - jrecord@suse.com
+
+- Fixed bash library path so bash patterns execute
+- Removed unused Samba filter
+
+-------------------------------------------------------------------
 Fri Mar 21 19:34:17 UTC 2014 - jrecord@suse.com
 
 - Clarified man page options

@@ -1,9 +1,9 @@
 ##############################################################################
-# scatool.py - Supportconfig Analysis Report Tool
+# scatool.py - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Mar 21
+# Modified:     2014 Mar 27
 
 ##############################################################################
 #
@@ -285,7 +285,6 @@ def runPats(extractedSupportconfig):
   runGW = False
   runHA = False
   runOES = False
-  runSamba = False
   SLE_SP = "0"
   SLE_version = "0"
   OES_SP = "-1"
@@ -320,10 +319,10 @@ def runPats(extractedSupportconfig):
       runEdir = True
     if "groupwise" in line and not line.startswith("sca-patterns"):
       runGW = True
+    if "datasync-common " in line and not line.startswith("sca-patterns"):
+      runGW = True
     if "filr" in line and not line.startswith("sca-patterns"):
       runFilr = True
-    if line.startswith("samba"):
-      runSamba = True
       
   #If we have OES what verson and what patters should we run
   #OES stuff:
@@ -352,7 +351,7 @@ def runPats(extractedSupportconfig):
   #if we don't have product X installed... black list it
   print "System Definition:"
   if runHA:
-    print "HA ",
+    print "HAE ",
   else:
     whatNotToRun.append("HAE")
   if runOES:
@@ -360,7 +359,7 @@ def runPats(extractedSupportconfig):
   else:
     whatNotToRun.append("OES")
   if runEdir:
-    print "edir ",
+    print "eDir ",
   else:
     whatNotToRun.append("eDirectory")
   if runGW:
@@ -368,13 +367,9 @@ def runPats(extractedSupportconfig):
   else:
     whatNotToRun.append("GroupWise")
   if runFilr:
-    print "filr ",
+    print "Filr ",
   else:
     whatNotToRun.append("Filr")
-  if runSamba:
-    print "samba ",
-  else:
-    whatNotToRun.append("Samba")
     
   print "\nSLES " + SLE_version + " SP" + SLE_SP
   if runOES:

@@ -1,10 +1,10 @@
 #!/bin/bash
 ##############################################################################
-# scatool - Supportconfig Analysis Report Tool Wrapper
+# scatool - Supportconfig Analysis (SCA) Tool Wrapper
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Wrapper for /usr/lib/sca/python/scatool.py
-# Modified:     2014 Mar 20
+# Modified:     2014 Mar 27
 
 ##############################################################################
 #
@@ -29,6 +29,6 @@
 BIN_PATH='/usr/lib/sca/python'
 export PERL5LIB='/usr/lib/sca/perl/'
 export PYTHONPATH='/usr/lib/sca/python/'
-export BASHLIB='/usr/lib/sca/lib/bash'
+export BASHLIB='/usr/lib/sca/bash'
 export SCA_READY="True"
 python ${BIN_PATH}/scatool.py "$@"
