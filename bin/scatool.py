@@ -39,7 +39,7 @@ import getopt
 
 def title():
 	print "#############################################################"
-	print "# SCA Tool v0.9.4"
+	print "# SCA Tool v0.9.6"
 	print "#############################################################"
 	print
 
@@ -73,7 +73,7 @@ if not setup:
 	sys.exit()
 
 #commands MUST have a function with the same name.
-COMMANDS = ["analyze", "exit", "quit", "view", "help"]
+COMMANDS = ["analyze", "exit", "view", "help"]
 #help pages: 
 #<command name>: <what it does>\n example: <command example>\n <other info>
 COMMANDS_HELP = ["analyze: analyze a supportconfig\nexample: analyze /path/to/supportconfig\nIf no supportconfig is given this will run a supportconfig then analyze the newly created supportconfig",
@@ -81,23 +81,22 @@ COMMANDS_HELP = ["analyze: analyze a supportconfig\nexample: analyze /path/to/su
 command = ""
 
 def tabSystem(text, size):
-  commandBuffer = readline.get_line_buffer()
-  compleateCommands = []
-  for i in COMMANDS:
-    #auto complete to command name
-    if i == commandBuffer.split(" ")[0]:
-      #if the command has an argument auto complete to path names (unless the command is help)
-      if len(commandBuffer.split(" ")) > 0 and commandBuffer.split(" ")[0] != "help":
-	if os.path.isdir((glob.glob(commandBuffer.split(" ")[1]+'*'))[size]):
-	  return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size] + "/"
-	return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size]
-    if i.startswith(text):
-      compleateCommands.append(i)
-  if size < len(compleateCommands):
-      return compleateCommands[size]
-  else:
-      return None
-      
+	commandBuffer = readline.get_line_buffer()
+	compleateCommands = []
+	for i in COMMANDS:
+		#auto complete to command name
+		if i == commandBuffer.split(" ")[0]:
+			#if the command has an argument auto complete to path names (unless the command is help)
+			if len(commandBuffer.split(" ")) > 0 and commandBuffer.split(" ")[0] != "help":
+				if os.path.isdir((glob.glob(commandBuffer.split(" ")[1]+'*'))[size]):
+					return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size] + "/"
+				return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size]
+		if i.startswith(text):
+			compleateCommands.append(i)
+	if size < len(compleateCommands):
+			return compleateCommands[size]
+	else:
+			return None
 
 #setup globals
 global results
@@ -126,137 +125,135 @@ verboseMode = False
 #Kernel Version:   2.6.16.60-0.99.1-default                      Supportconfig Version: 2.25-359
 
 def getHeader(*arg):
-  #reset variables
-  supportconfigVersion = ""
-  oesVersion = ""
-  oesPatchLevel = ""
-  OS = ""
-  OSVersion = ""
-  patchLevel = ""
-  kernelVersion = ""
-  serverName = ""
-  hardWare = ""
-  virtualization = ""
-  vmIdentity = ""
-  timeString = ""
-  returnHTML = ""
-  
-  #set archive name if given
-  if len(arg) == 2:
-    arcName = arg[1]
-  else:
-    arcName = ""
-  TIME = datetime.datetime.now()
-  
-  #set timeString (example: /10/7/2013 10:14)
-  timeString = "/" + str(TIME.month) + "/" + str(TIME.day) + "/" + str(TIME.year) + " " + str(TIME.hour) + ":" + str(TIME.minute).zfill(2)
-  
-  #open basic-environment
-  File = open(arg[0] + "basic-environment.txt")
-  File.readline()
-  File.readline()
-  
-  #get supportconfig version
-  supportconfigVersion = File.readline().split(':')[-1].strip()
-  
-  #read basic-environment line by line to pull out data. (pull: serverName, oesVersion, oesPatchLevel, etc)
-  while True:
-    line = File.readline()
-    if not line:
-      break
-      
-    #get hardWare
-    if line.startswith("Hardware:"):
-      hardWare = line.split(":")[1].strip()
-      
-    #get virtualization
-    if line.startswith("Hypervisor:"):
-      virtualization = line.split(":")[1].strip()
-      
-    #get virtualization identity
-    if line.startswith("Identity:"):
-      vmIdentity = line.split(":")[1].strip()
-      
-    #get kernel version and server name
-    if "/bin/uname -a" in line:
-      tmp = File.readline().split(" ")
-      kernelVersion = tmp[2].strip()
-      serverName = tmp[1].strip()
-      
-    #get OS Version and patch level
-    if "/etc/SuSE-release" in line:
-      OS = File.readline().strip()
-      OSVersion = File.readline().split('=')[-1].strip()
-      patchLevel = File.readline().split('=')[-1].strip()
-      
-    #get OES version and pathch level
-    if "/etc/novell-release" in line:
-      oesVersion = File.readline().strip()
-      #we don't need the oes version just SP so skip the next line
-      File.readline()
-      oesPatchLevel = File.readline().split('=')[-1].strip()
-  File.close()
-  
-  #create HTML from the data we just got
-  returnHTML = returnHTML + '<H1>Supportconfig Analysis Report</H1>\n'
-  returnHTML = returnHTML + '<H2><HR />Server Information</H2>\n'
+	#reset variables
+	supportconfigVersion = ""
+	oesVersion = ""
+	oesPatchLevel = ""
+	OS = ""
+	OSVersion = ""
+	patchLevel = ""
+	kernelVersion = ""
+	serverName = ""
+	hardWare = ""
+	virtualization = ""
+	vmIdentity = ""
+	timeString = ""
+	returnHTML = ""
 
-  returnHTML = returnHTML + '<TABLE WIDTH=100%>\n'
-  returnHTML = returnHTML + '<TR><TD><B>Analysis Date:</B></TD><TD>'
-  returnHTML = returnHTML + timeString
-  returnHTML = returnHTML + '</TD></TR>\n'
-  returnHTML = returnHTML + '<TR><TD><B>Archive File:</B></TD><TD>'
-  returnHTML = returnHTML + arcName
-  returnHTML = returnHTML + '</TD></TR>\n'
-  returnHTML = returnHTML + '</TABLE>\n'
-  
-  returnHTML = returnHTML + '<TABLE CELLPADDING="5">\n'
-  
-  returnHTML = returnHTML + '<TR><TD>&nbsp;</TD></TR>\n'
-  
-  returnHTML = returnHTML + '<TR></TR>\n'
-  
-  #Server name and hardWare
-  returnHTML = returnHTML + '<TR><TD><B>Server Name:</B></TD><TD>'
-  returnHTML = returnHTML + serverName
-  returnHTML = returnHTML + '</TD><TD><B>Hardware:</B></TD><TD>'
-  returnHTML = returnHTML + hardWare
-  returnHTML = returnHTML + '</TD></TR>\n'
-  
-  #OS and PatchLevel
-  returnHTML = returnHTML + '<TR><TD><B>Distribution:</B></TD><TD>'
-  returnHTML = returnHTML + OS
-  returnHTML = returnHTML + '</TD><TD><B>Service Pack:</B></TD><TD>'
-  returnHTML = returnHTML + patchLevel
-  returnHTML = returnHTML + '</TD></TR>\n'
-  
-  if oesVersion != "":
-    #OES version and OES patchLevel
-    returnHTML = returnHTML + '<TR><TD><B>OES Distribution:</B></TD><TD>'
-    returnHTML = returnHTML + oesVersion
-    returnHTML = returnHTML + '</TD><TD><B>OES Service Pack:</B></TD><TD>'
-    returnHTML = returnHTML + oesPatchLevel
-    returnHTML = returnHTML + '</TD></TR>\n'
-    
-  if virtualization != "None" and virtualization != "":
-    #hypervisor stuff
-    returnHTML = returnHTML + '<TR><TD><B>Hypervisor:</B></TD><TD>'
-    returnHTML = returnHTML + virtualization
-    returnHTML = returnHTML + '</TD><TD><B>Identity:</B></TD><TD>'
-    returnHTML = returnHTML + vmIdentity
-    returnHTML = returnHTML + '</TD></TR>\n'
-    
-  #kernel Version and Supportconfig version
-  returnHTML = returnHTML + '<TR><TD><B>Kernel Version:</B></TD><TD>'
-  returnHTML = returnHTML + kernelVersion
-  returnHTML = returnHTML + '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
-  returnHTML = returnHTML + supportconfigVersion
-  returnHTML = returnHTML + '</TD></TR>\n'
-  returnHTML = returnHTML + '</TABLE>\n'
-  returnHTML = returnHTML + '<HR />\n'
-  return returnHTML
+	#set archive name if given
+	if len(arg) == 2:
+		arcName = arg[1]
+	else:
+		arcName = ""
+	TIME = datetime.datetime.now()
 
+	#set timeString (example: /10/7/2013 10:14)
+	timeString = "/" + str(TIME.month) + "/" + str(TIME.day) + "/" + str(TIME.year) + " " + str(TIME.hour) + ":" + str(TIME.minute).zfill(2)
 
+	#open basic-environment
+	File = open(arg[0] + "/basic-environment.txt")
+	File.readline()
+	File.readline()
+
+	#get supportconfig version
+	supportconfigVersion = File.readline().split(':')[-1].strip()
+
+	#read basic-environment line by line to pull out data. (pull: serverName, oesVersion, oesPatchLevel, etc)
+	while True:
+		line = File.readline()
+		if not line:
+			break
+
+		#get hardWare
+		if line.startswith("Hardware:"):
+			hardWare = line.split(":")[1].strip()
+
+		#get virtualization
+		if line.startswith("Hypervisor:"):
+			virtualization = line.split(":")[1].strip()
+
+		#get virtualization identity
+		if line.startswith("Identity:"):
+			vmIdentity = line.split(":")[1].strip()
+
+		#get kernel version and server name
+		if "/bin/uname -a" in line:
+			tmp = File.readline().split(" ")
+			kernelVersion = tmp[2].strip()
+			serverName = tmp[1].strip()
+
+		#get OS Version and patch level
+		if "/etc/SuSE-release" in line:
+			OS = File.readline().strip()
+			OSVersion = File.readline().split('=')[-1].strip()
+			patchLevel = File.readline().split('=')[-1].strip()
+
+		#get OES version and pathch level
+		if "/etc/novell-release" in line:
+			oesVersion = File.readline().strip()
+			#we don't need the oes version just SP so skip the next line
+			File.readline()
+			oesPatchLevel = File.readline().split('=')[-1].strip()
+	File.close()
+
+	#create HTML from the data we just got
+	returnHTML = returnHTML + '<H1>Supportconfig Analysis Report</H1>\n'
+	returnHTML = returnHTML + '<H2><HR />Server Information</H2>\n'
+
+	returnHTML = returnHTML + '<TABLE WIDTH=100%>\n'
+	returnHTML = returnHTML + '<TR><TD><B>Analysis Date:</B></TD><TD>'
+	returnHTML = returnHTML + timeString
+	returnHTML = returnHTML + '</TD></TR>\n'
+	returnHTML = returnHTML + '<TR><TD><B>Archive File:</B></TD><TD>'
+	returnHTML = returnHTML + arcName
+	returnHTML = returnHTML + '</TD></TR>\n'
+	returnHTML = returnHTML + '</TABLE>\n'
+
+	returnHTML = returnHTML + '<TABLE CELLPADDING="5">\n'
+
+	returnHTML = returnHTML + '<TR><TD>&nbsp;</TD></TR>\n'
+
+	returnHTML = returnHTML + '<TR></TR>\n'
+
+	#Server name and hardWare
+	returnHTML = returnHTML + '<TR><TD><B>Server Name:</B></TD><TD>'
+	returnHTML = returnHTML + serverName
+	returnHTML = returnHTML + '</TD><TD><B>Hardware:</B></TD><TD>'
+	returnHTML = returnHTML + hardWare
+	returnHTML = returnHTML + '</TD></TR>\n'
+
+	#OS and PatchLevel
+	returnHTML = returnHTML + '<TR><TD><B>Distribution:</B></TD><TD>'
+	returnHTML = returnHTML + OS
+	returnHTML = returnHTML + '</TD><TD><B>Service Pack:</B></TD><TD>'
+	returnHTML = returnHTML + patchLevel
+	returnHTML = returnHTML + '</TD></TR>\n'
+
+	if oesVersion != "":
+		#OES version and OES patchLevel
+		returnHTML = returnHTML + '<TR><TD><B>OES Distribution:</B></TD><TD>'
+		returnHTML = returnHTML + oesVersion
+		returnHTML = returnHTML + '</TD><TD><B>OES Service Pack:</B></TD><TD>'
+		returnHTML = returnHTML + oesPatchLevel
+		returnHTML = returnHTML + '</TD></TR>\n'
+
+	if virtualization != "None" and virtualization != "":
+		#hypervisor stuff
+		returnHTML = returnHTML + '<TR><TD><B>Hypervisor:</B></TD><TD>'
+		returnHTML = returnHTML + virtualization
+		returnHTML = returnHTML + '</TD><TD><B>Identity:</B></TD><TD>'
+		returnHTML = returnHTML + vmIdentity
+		returnHTML = returnHTML + '</TD></TR>\n'
+
+	#kernel Version and Supportconfig version
+	returnHTML = returnHTML + '<TR><TD><B>Kernel Version:</B></TD><TD>'
+	returnHTML = returnHTML + kernelVersion
+	returnHTML = returnHTML + '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
+	returnHTML = returnHTML + supportconfigVersion
+	returnHTML = returnHTML + '</TD></TR>\n'
+	returnHTML = returnHTML + '</TABLE>\n'
+	returnHTML = returnHTML + '<HR />\n'
+	return returnHTML
 
 #take a look at the html
 #once analyze is run you can use "view" to look at the data
@@ -322,18 +319,18 @@ def runPats(extractedSupportconfig):
   #black list anything that does not apply to the system
   
   #open rpm.txt
-  if os.path.isfile(extractedSupportconfig + "rpm.txt"):
-    rpmFile = open(extractedSupportconfig + "rpm.txt")
+  if os.path.isfile(extractedSupportconfig + "/rpm.txt"):
+    rpmFile = open(extractedSupportconfig + "/rpm.txt")
     RPMs = rpmFile.readlines()
     rpmFile.close()
   else:
-    print >> sys.stderr, "Error: File not found: " + str(extractedSupportconfig + "rpm.txt")
+    print >> sys.stderr, "Error: File not found: " + str(extractedSupportconfig + "/rpm.txt")
     print >> sys.stderr
     sys.exit()
   
   #open basic-environment
   #find Sles verson
-  basicEnv = open(extractedSupportconfig + "basic-environment.txt")
+  basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
   basicEnvLines = basicEnv.readlines()
   for lineNumber in range(0, len(basicEnvLines)):
     if "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
@@ -974,7 +971,7 @@ readline.parse_and_bind("tab: complete")
 #tell readline to use tab complete stuff
 readline.set_completer(tabSystem)
 #main command line input loop
-while command != "exit" or command != "quit":
+while command != "exit":
 	#get command (this will use the auto-complete I created.)
 	command = raw_input("^^~ ")
 	#run the command: <argument1>(<argument2>): example "analyze /home/support/nts_123456.tbz" will call "analyze(/home/support/nts_123456.tbz)"
