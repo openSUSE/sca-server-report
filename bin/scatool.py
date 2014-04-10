@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Mar 27
+# Modified:     2014 Apr 10
 
 ##############################################################################
 #
@@ -35,26 +35,51 @@ import shutil
 import datetime
 import socket
 import time
+import getopt
 
+def title():
+	print "#############################################################"
+	print "# SCA Tool v0.9.4"
+	print "#############################################################"
+	print
+
+def usage():
+	print "Usage:"
+	print " -h       Displays this screen"
+	print " -s       Analyze the local server"
+	print " -a path  Analyze the supportconfig directory or archive"
+	print "          The path may also be an IP address of a server to analyze"
+	print " -o path  HTML report output directory"
+	print " -k       Keep archive files"
+	print " -c       Enter SCA Tool console"
+	print
+
+
+title()
 #setup environment and PWD
 #setup environment and PWD
 patDir = "/usr/lib/sca/patterns/"
 try:
-  os.chdir(os.environ["PWD"])
-  setup = os.environ["SCA_READY"]
+	os.chdir(os.environ["PWD"])
+	setup = os.environ["SCA_READY"]
 except Exception:
-  print >> sys.stderr, "Error: Do not run directly"
-  sys.exit()
+	usage()
+	print >> sys.stderr, "Error: Do not run directly"
+	print >> sys.stderr
+	sys.exit()
 if not setup:
-  sys.exit()
+	usage()
+	print >> sys.stderr
+	sys.exit()
 
 #commands MUST have a function with the same name.
-COMMANDS = ["analyze", "exit", "view", "help"]
+COMMANDS = ["analyze", "exit", "quit", "view", "help"]
 #help pages: 
 #<command name>: <what it does>\n example: <command example>\n <other info>
 COMMANDS_HELP = ["analyze: analyze a supportconfig\nexample: analyze /path/to/supportconfig\nIf no supportconfig is given this will run a supportconfig then analyze the newly created supportconfig",
 		 "view: view report files\nexample: view /path/to/report.html\nIf no path given it will try to open newly created report."]
 command = ""
+
 def tabSystem(text, size):
   commandBuffer = readline.get_line_buffer()
   compleateCommands = []
@@ -86,6 +111,7 @@ knownClasses = []
 results = []
 HtmlOutputFile = ""
 KeepArchive = False
+verboseMode = False
 
 #returns html code. This is the about server part.
 ####example####
@@ -296,9 +322,14 @@ def runPats(extractedSupportconfig):
   #black list anything that does not apply to the system
   
   #open rpm.txt
-  rpmFile = open(extractedSupportconfig + "rpm.txt")
-  RPMs = rpmFile.readlines()
-  rpmFile.close()
+  if os.path.isfile(extractedSupportconfig + "rpm.txt"):
+    rpmFile = open(extractedSupportconfig + "rpm.txt")
+    RPMs = rpmFile.readlines()
+    rpmFile.close()
+  else:
+    print >> sys.stderr, "Error: File not found: " + str(extractedSupportconfig + "rpm.txt")
+    print >> sys.stderr
+    sys.exit()
   
   #open basic-environment
   #find Sles verson
@@ -677,7 +708,7 @@ def analyze(*arg):
   
   #if we want to run and analyze a supportconfig
   if len(arg) == 0:
-    print "running supportconfig"
+    print "Running supportconfig on local host"
     #run supportconfig
     try:
       p = subprocess.Popen(['/sbin/supportconfig', '-b'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -686,6 +717,7 @@ def analyze(*arg):
     #if we cannot run supportconfig
     except Exception:
       print >> sys.stderr, "Error: Cannot run supportconfig. Please see http://www.novell.com/communities/node/2332/supportconfig-linux#install"
+      print >> sys.stderr
       return
     condition = True
     alloutput = ""
@@ -718,16 +750,16 @@ def analyze(*arg):
     try:
       socket.inet_aton(arg[0])
       host = arg[0]
-      print "Received reply from server"
+      print "Received reply from " + arg[0]
       isIP = True
     except socket.error:
       try:
 	host = socket.gethostbyname(arg[0].strip("\n"))
-	print "Received reply from server"
+	print "Received reply from " + arg[0]
 	isIP = True
       except:
 	if isIP:
-	  print >> sys.stderr, "Error: unable to reach server"
+	  print >> sys.stderr, "Error: Unable to reach " + arg[0]
 	  return
 
     if host == "None":
@@ -735,6 +767,7 @@ def analyze(*arg):
       supportconfigPath = arg[0]
     else:
       #we have an IP
+      print "Running supportconfig on " + arg[0]
       print "Please enter your credentials for " + arg[0]
       remoteSupportconfigName = timeStamp
       remoteSupportconfigPath = "/var/log"
@@ -749,7 +782,7 @@ def analyze(*arg):
 	#remove local archive
 	deleteArchive = True
 	condition = True
-	endOfSupportcofing = False
+	endOfSupportconfig = False
 
 	#this acts like a do-while. I love do-while :)
 	#print output of the subprocess (the long ssh command)
@@ -757,7 +790,7 @@ def analyze(*arg):
 	while condition:
 	  out = p.stdout.read(1)
 	  #if the end of supportconfig output... start saving output
-	  if(endOfSupportcofing):
+	  if(endOfSupportconfig):
 	    #save to local supportconfig
 	    localSupportconfig.write(out)
 	  elif out != '':
@@ -766,32 +799,33 @@ def analyze(*arg):
 	      sys.stdout.flush()
 	  #if we are ate the end of the file output
 	  if out == "~":
-	    endOfSupportcofing = True
+	    endOfSupportconfig = True
 		
 	#--WHILE--
 	  condition = not bool(out == "" and p.poll() != None)
 	#close the local copy of the remote supportconfig.
 	localSupportconfig.close()
 	supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz"
+	print
+	print "Copied supportconfig on " + arg[0] + " to local host for analysis"
+
       except Exception:
 	print >> sys.stderr, "Error: Cannot run supportconfig on " + arg[0] + "."
 	return
 
-
-      
   else:
     #too many arguments
-    print >> sys.stderr, "please run: \"help analyze\""
+    print >> sys.stderr, "Please run: \"help analyze\""
     
+  if not supportconfigPath.startswith("/") and not supportconfigPath.startswith("./"):
+    supportconfigPath = "./" + supportconfigPath
   #if supportconfig not extract. Extract supportconfig
   if os.path.isfile(supportconfigPath):
     #extract file
     #find the extracting path
-    print "Extracting " + supportconfigPath
     tmp = supportconfigPath.split('/')
     del tmp[-1]
     extractedPath = '/'.join(tmp) 
-    
     #set TarFile and find the path of the soon to be extracted supportconfig
     try:
       TarFile = tarfile.open(supportconfigPath)
@@ -801,11 +835,13 @@ def analyze(*arg):
 	  HtmlOutputFile = HtmlOutputFile + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
       else:
 	HtmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
-      print "Extracted to " + extractedSupportconfig 
+      print "Extracting " + supportconfigPath
       TarFile.extractall(path=extractedPath, members=None)
+      print "Extracted to " + extractedSupportconfig 
     except tarfile.ReadError:
       #cannot open the tar file
-      print >> sys.stderr, "Cannot open " + supportconfigPath
+      print >> sys.stderr, "Error: Invalid supportconfig archive: " + supportconfigPath
+      print >> sys.stderr
       return
   #if given an extracted supportconfig
   elif os.path.isdir(supportconfigPath):
@@ -820,15 +856,19 @@ def analyze(*arg):
   #lets check that this is a supportconfig...
   if not os.path.isfile(extractedSupportconfig + "/basic-environment.txt"):
     #not a supportconfig. quit out
-    print >> sys.stderr, "Error: " + extractedSupportconfig + " does not look like a supportconfig"
+    print >> sys.stderr, "Error:   Invalid supportconfig archive"
+    print >> sys.stderr, "Missing: " + extractedSupportconfig + "/basic-environment.txt"
+    print >> sys.stderr
     return
   
   #At this point we should have a extracted supportconfig 
   #run pats on supportconfig
-  print "Running patterns"
+  print "Analyzing supportconfig"
   runPats(extractedSupportconfig)
   getHtml(HtmlOutputFile, extractedSupportconfig)
-  print "output file: " + HtmlOutputFile
+  print
+  print "SCA Report file: " + HtmlOutputFile
+  print
 
   #if command was run via console run view
   if command != "exit":
@@ -840,9 +880,10 @@ def analyze(*arg):
     shutil.rmtree(extractedSupportconfig)
   if deleteArchive and not KeepArchive:
     os.remove(supportconfigPath)
+    if os.path.isfile(supportconfigPath + ".md5"):
+      os.remove(supportconfigPath + ".md5")
       
 def help(*arg):
-  
   #help run without any command name given. print available commands (if a help page is available for a command print first line of help page)
   if len(arg) == 0:
     printed = False
@@ -873,67 +914,59 @@ def help(*arg):
       print >> sys.stderr, "Error: " + arg[0] + " is not a command"
 
 #read in arguments
-arg = sys.argv[1:]
 analyzeServer = False
 analyzeFile = ""
-HELP = "Usage:\n\
-       -h     Displays this screen.\n\
-       -a /path/to/supportconfig/tarball\n\
-              Analyze the compressed or extracted supportconfig.\n\
-       -o /path/to/output/file/\n\
-              The  HTML report file will be written to this directory. If -o is not specified, the output file will be in the same location as the supportconfig file or directory.\n\
-       -k     Keep archive files\n\
-       -c     Enter SCAtool console\n\
-For examples run: man scatool"
 #Do not enter console unless given a -c
-autoExit = True
-if len(arg) == 0:
-  print HELP
-for x in range(0, len(arg)):
-  #take a -h: scatool -h
-  if arg[x].startswith("-") and "h" in arg[x]:
-    autoExit = True
-    print HELP
-  #take a -k: (keep archive files)
-  if arg[x].startswith("-") and "k" in arg[x]:
-    KeepArchive = True
 
-  #take a -o: scatool -a <path to supportconfig> -o <path to output file>
-  if arg[x].startswith("-") and "o" in arg[x]:
-    if len(arg) > x + 1:
-      outputFileGiven = True
-      HtmlOutputFile = arg[x + 1]
-    else:
-      print >> sys.stderr, "Invalid startup arguments"
-      sys.exit()
-  # take a -a: scatool -a <path to supportconfig>
-  if arg[x].startswith("-") and "a" in arg[x]:
-    analyzeServer = True
-    autoExit = True
-    #run analyze and exit
-    if (len(arg) >= 2) and not arg[x + 1].startswith("-"):
-      analyzeFile = arg[x + 1]
-    elif (len(arg) == 1) or arg[x + 1].startswith("-"):
-      analyzeServer = True
-    else:
-      print >> sys.stderr, "Invalid startup arguments"
-  
-  
-  #take a -c: (open console)
-  if arg[x].startswith("-") and "c" in arg[x]:
-    autoExit = False
-    
+# Process command line arguments
+if( len(sys.argv[1:]) > 0 ):
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "ha:so:kcv")
+	except getopt.GetoptError as err:
+		# print help information and exit:
+		print "Error: " + str(err) # will print something like "option -b not recognized"
+		print
+		usage()
+		sys.exit(2)
+
+	autoExit = True
+	analyzeServer = False
+	analyzeFile = ""
+	for startUpOption, startUpOptionValue in opts:
+		if startUpOption == "-h":
+			usage()
+			sys.exit()
+		elif startUpOption in ("-k"):
+			KeepArchive = True
+		elif startUpOption in ("-c"):
+			autoExit = False
+		elif startUpOption in ("-s"):
+			analyzeServer = True
+		elif startUpOption in ("-v"):
+			verboseMode = True
+		elif startUpOption in ("-a"):
+			analyzeServer = True
+			analyzeFile = startUpOptionValue
+		elif startUpOption in ("-o"):
+			outputFileGiven = True
+			HtmlOutputFile = startUpOptionValue
+		else:
+			assert False, "Invalid option"
+else:
+	usage()
+	sys.exit()
+
 #auto exit.. or not:
 #if autoExit and analyzeServer:
 if autoExit:
-  command = "exit"
+	command = "exit"
 #clean off any "/" from the end of a path name:
 if HtmlOutputFile.endswith("/"):
-  HtmlOutputFile = HtmlOutputFile[:-1]
+	HtmlOutputFile = HtmlOutputFile[:-1]
 if analyzeServer == True and analyzeFile != "":
-  analyze(analyzeFile)
+	analyze(analyzeFile)
 elif analyzeServer == True and analyzeFile == "":
-  analyze()
+	analyze()
 
 #get user input:
 readline.set_completer_delims(' \t\n;')
@@ -941,17 +974,18 @@ readline.parse_and_bind("tab: complete")
 #tell readline to use tab complete stuff
 readline.set_completer(tabSystem)
 #main command line input loop
-while command != "exit":
-  #get command (this will use the auto-complete I created.)
-  command = raw_input("^^~ ")
-  #run the command: <argument1>(<argument2>): example "analyze /home/support/nts_123456.tbz" will call "analyze(/home/support/nts_123456.tbz)"
-  if len(command.split(" ")) > 1:
-    if command.split(" ")[0] in COMMANDS:
-      eval(command.split(" ")[0] + "(\"" + command.split(" ")[1] + "\")")
-    else:
-      print >> sys.stderr, command.split(" ")[0] + " command not found, please run \"help\""
-  else:
-    if command in COMMANDS:
-      eval(command + "()")
-    else:
-      print >> sys.stderr, command + " command not found, please run \"help\""
+while command != "exit" or command != "quit":
+	#get command (this will use the auto-complete I created.)
+	command = raw_input("^^~ ")
+	#run the command: <argument1>(<argument2>): example "analyze /home/support/nts_123456.tbz" will call "analyze(/home/support/nts_123456.tbz)"
+	if len(command.split(" ")) > 1:
+		if command.split(" ")[0] in COMMANDS:
+			eval(command.split(" ")[0] + "(\"" + command.split(" ")[1] + "\")")
+		else:
+			print >> sys.stderr, command.split(" ")[0] + " command not found, please run \"help\""
+	else:
+		if command in COMMANDS:
+			eval(command + "()")
+		else:
+			print >> sys.stderr, command + " command not found, please run \"help\""
+

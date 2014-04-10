@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Thu Apr 10 20:33:03 UTC 2014 - jrecord@suse.com
+
+- Added verbose option -v
+- Fixed command line option handling using getopt
+- Separated -s from -a, -s is a local server analysis
+- Added a title
+
+-------------------------------------------------------------------
 Thu Mar 27 20:11:47 UTC 2014 - jrecord@suse.com
 
 - Fixed bash library path so bash patterns execute
