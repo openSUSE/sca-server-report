@@ -31,7 +31,8 @@
 # DONE: invalid Archive File in html report header -- lists the html file, not the tgz
 # DONE: scatool -a /var/log/nts_host_server -- doubles up host name on html file
 # DONE: html header -- fix static hostname
-# scatool -a nts_host_server -- attempts to connect as ssh
+# DONE: scatool -a nts_host_server -- attempts to connect as ssh
+# DONE: add supportconfig run date to report header
 # add -v verbose logging
 
 import readline
@@ -48,7 +49,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v0.9.6_dev.6"
+	print "#   SCA Tool v0.9.6_dev.7"
 	print "################################################################################"
 	print
 
@@ -65,7 +66,6 @@ def usage():
 
 
 title()
-#setup environment and PWD
 #setup environment and PWD
 patDir = "/usr/lib/sca/patterns/"
 try:
@@ -148,7 +148,8 @@ def getHeader(*arg):
 	hardWare = ""
 	virtualization = ""
 	vmIdentity = ""
-	timeString = ""
+	timeAnalysis = ""
+	timeArchiveRun = "0000-00-00 00:00:00"
 	returnHTML = ""
 
 	#set archive name if given
@@ -158,8 +159,8 @@ def getHeader(*arg):
 		arcName = ""
 	TIME = datetime.datetime.now()
 
-	#set timeString (example: 2014-04-10 17:45:15)
-	timeString = str(TIME.year) + "-" + str(TIME.month).zfill(2) + "-" + str(TIME.day).zfill(2) + " " + str(TIME.hour).zfill(2) + ":" + str(TIME.minute).zfill(2) + ":" + str(TIME.second).zfill(2)
+	#set timeAnalysis (example: 2014-04-10 17:45:15)
+	timeAnalysis = str(TIME.year) + "-" + str(TIME.month).zfill(2) + "-" + str(TIME.day).zfill(2) + " " + str(TIME.hour).zfill(2) + ":" + str(TIME.minute).zfill(2) + ":" + str(TIME.second).zfill(2)
 
 	#open basic-environment
 	File = open(arg[0] + "/basic-environment.txt")
@@ -186,6 +187,36 @@ def getHeader(*arg):
 		#get virtualization identity
 		if line.startswith("Identity:"):
 			vmIdentity = line.split(":")[1].strip()
+
+		#get supportconfig run date and time
+		if "/bin/date" in line:
+			tmp = File.readline().split(" ")
+			tmpMonth = tmp[1].strip()
+			if "Jan" in tmpMonth:
+				tmpMonth = "01"
+			elif "Feb" in tmpMonth:
+				tmpMonth = "02"
+			elif "Mar" in tmpMonth:
+				tmpMonth = "03"
+			elif "Apr" in tmpMonth:
+				tmpMonth = "04"
+			elif "May" in tmpMonth:
+				tmpMonth = "05"
+			elif "Jun" in tmpMonth:
+				tmpMonth = "06"
+			elif "Jul" in tmpMonth:
+				tmpMonth = "07"
+			elif "Aug" in tmpMonth:
+				tmpMonth = "08"
+			elif "Sep" in tmpMonth:
+				tmpMonth = "09"
+			elif "Oct" in tmpMonth:
+				tmpMonth = "10"
+			elif "Nov" in tmpMonth:
+				tmpMonth = "11"
+			elif "Dec" in tmpMonth:
+				tmpMonth = "12"
+			timeArchiveRun = tmp[-1].strip() + "-" + tmpMonth + "-" + tmp[2].strip().zfill(2) + " " + tmp[3].strip()
 
 		#get kernel version and server name
 		if "/bin/uname -a" in line:
@@ -216,7 +247,10 @@ def getHeader(*arg):
 
 	returnHTML = returnHTML + '<TABLE WIDTH=100%>\n'
 	returnHTML = returnHTML + '<TR><TD><B>Analysis Date:</B></TD><TD>'
-	returnHTML = returnHTML + timeString
+	returnHTML = returnHTML + timeAnalysis
+	returnHTML = returnHTML + '</TD></TR>\n'
+	returnHTML = returnHTML + '<TR><TD><B>Supportconfig Run Date:</B></TD><TD>'
+	returnHTML = returnHTML + timeArchiveRun
 	returnHTML = returnHTML + '</TD></TR>\n'
 	returnHTML = returnHTML + '<TR><TD><B>Supportconfig File:</B></TD><TD>'
 	returnHTML = returnHTML + arcName
