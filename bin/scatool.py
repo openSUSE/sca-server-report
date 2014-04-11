@@ -28,9 +28,9 @@
 # TODO
 # DONE: report date
 # DONE: oes distribution when no oes -- shows oes distro as SLES distro
-# invalid Archive File in html report header -- lists the html file, not the tgz
+# DONE: invalid Archive File in html report header -- lists the html file, not the tgz
 # scatool -a /var/log/nts_host_server -- doubles up host name on html file
-# html header -- fix static hostname
+# DONE: html header -- fix static hostname
 # scatool -a nts_host_server -- attempts to connect as ssh
 # add -v verbose logging
 
@@ -48,7 +48,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v0.9.6_dev.4"
+	print "#   SCA Tool v0.9.6_dev.5"
 	print "################################################################################"
 	print
 
@@ -114,12 +114,14 @@ global HTML
 global outputFileGiven
 global HtmlOutputFile 
 global KeepArchive
+global serverName
 outputFileGiven = False
 knownClasses = []
 results = []
 HtmlOutputFile = ""
 KeepArchive = False
 verboseMode = False
+serverName = "Unknown"
 
 #returns html code. This is the about server part.
 ####example####
@@ -134,6 +136,7 @@ verboseMode = False
 #Kernel Version:	 2.6.16.60-0.99.1-default											Supportconfig Version: 2.25-359
 
 def getHeader(*arg):
+	global serverName
 	#reset variables
 	supportconfigVersion = ""
 	oesVersion = ""
@@ -142,7 +145,6 @@ def getHeader(*arg):
 	OSVersion = ""
 	patchLevel = ""
 	kernelVersion = ""
-	serverName = ""
 	hardWare = ""
 	virtualization = ""
 	vmIdentity = ""
@@ -150,8 +152,8 @@ def getHeader(*arg):
 	returnHTML = ""
 
 	#set archive name if given
-	if len(arg) == 2:
-		arcName = arg[1]
+	if len(arg) == 3:
+		arcName = arg[2]
 	else:
 		arcName = ""
 	TIME = datetime.datetime.now()
@@ -216,7 +218,7 @@ def getHeader(*arg):
 	returnHTML = returnHTML + '<TR><TD><B>Analysis Date:</B></TD><TD>'
 	returnHTML = returnHTML + timeString
 	returnHTML = returnHTML + '</TD></TR>\n'
-	returnHTML = returnHTML + '<TR><TD><B>Archive File:</B></TD><TD>'
+	returnHTML = returnHTML + '<TR><TD><B>Supportconfig File:</B></TD><TD>'
 	returnHTML = returnHTML + arcName
 	returnHTML = returnHTML + '</TD></TR>\n'
 	returnHTML = returnHTML + '</TABLE>\n'
@@ -481,10 +483,11 @@ def getClasses():
 #create the html code. :)
 #called by analyze
 #must be run after runPats
-def getHtml(OutPutFile, archivePath):
+def getHtml(OutPutFile, archivePath, archiveFile):
 	global knownClasses
 	global results
 	global HTML
+	global serverName
 	
 	#get known classes
 	getClasses()
@@ -494,20 +497,8 @@ def getHtml(OutPutFile, archivePath):
 	Main_Link = ""
 	links = ""
 	HTML = ""
-	
-	
-	#html top bit:
-	HTML = HTML + "<!DOCTYPE html>" + "\n"
-	HTML = HTML + "<HTML>" + "\n"
-	HTML = HTML + "<HEAD>" + "\n"
-	HTML = HTML + "<TITLE>SCA Report for tfg-fs-2</TITLE>" + "\n"
-	HTML = HTML + "<STYLE TYPE=\"text/css\">" + "\n"
-	HTML = HTML + "  a {text-decoration: none}  /* no underlined links */" + "\n"
-	HTML = HTML + "  a:link {color:#0000FF;}  /* unvisited link */" + "\n"
-	HTML = HTML + "  a:visited {color:#0000FF;}  /* visited link */" + "\n"
-	HTML = HTML + "</STYLE>" + "\n"
-	
-	
+	HTML_HEADER = ""
+
 	#html script...
 	script = "<SCRIPT>\n\
 	function toggle(className)\n\
@@ -533,7 +524,22 @@ def getHtml(OutPutFile, archivePath):
 	
 	#get header html
 	HTML = HTML + "<BODY BGPROPERTIES=FIXED BGCOLOR=\"#FFFFFF\" TEXT=\"#000000\">" + "\n"
-	HTML = HTML + getHeader(archivePath, OutPutFile)
+	HTML = HTML + getHeader(archivePath, OutPutFile, archiveFile)
+
+	# getHeader probes the archive for serverName, so the header has to be retrieved after getHeader is called.
+	# temporarily storing header in HTML_HEADER
+	#html top bit:
+	HTML_HEADER = HTML_HEADER + "<!DOCTYPE html>" + "\n"
+	HTML_HEADER = HTML_HEADER + "<HTML>" + "\n"
+	HTML_HEADER = HTML_HEADER + "<HEAD>" + "\n"
+	HTML_HEADER = HTML_HEADER + "<TITLE>SCA Report for " + serverName + "</TITLE>" + "\n"
+	HTML_HEADER = HTML_HEADER + "<STYLE TYPE=\"text/css\">" + "\n"
+	HTML_HEADER = HTML_HEADER + "  a {text-decoration: none}  /* no underlined links */" + "\n"
+	HTML_HEADER = HTML_HEADER + "  a:link {color:#0000FF;}  /* unvisited link */" + "\n"
+	HTML_HEADER = HTML_HEADER + "  a:visited {color:#0000FF;}  /* visited link */" + "\n"
+	HTML_HEADER = HTML_HEADER + "</STYLE>" + "\n"
+	HTML_HEADER = HTML_HEADER + HTML
+	HTML = HTML_HEADER
 	
 	#Critical table
 	HTML = HTML + '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
@@ -874,7 +880,7 @@ def analyze(*arg):
 	#run pats on supportconfig
 	print "Analyzing supportconfig"
 	runPats(extractedSupportconfig)
-	getHtml(HtmlOutputFile, extractedSupportconfig)
+	getHtml(HtmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
 	print
 	print "SCA Report file: " + HtmlOutputFile
 	print

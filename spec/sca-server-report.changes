@@ -1,6 +1,8 @@
 -------------------------------------------------------------------
-Fri Apr 11 00:03:32 UTC 2014 - jrecord@suse.com
+Fri Apr 11 01:08:31 UTC 2014 - jrecord@suse.com
 
+- Fixed archive file in report header
+- Fixed static html title to include archive server name
 - Report date matches SCA Appliance
 - Fixed duplicate SLED in OES Distribution header
 - Fixed command line option handling using getopt
