@@ -25,16 +25,6 @@
 #
 ##############################################################################
 
-# TODO
-# DONE: report date
-# DONE: oes distribution when no oes -- shows oes distro as SLES distro
-# DONE: invalid Archive File in html report header -- lists the html file, not the tgz
-# DONE: scatool -a /var/log/nts_host_server -- doubles up host name on html file
-# DONE: html header -- fix static hostname
-# DONE: scatool -a nts_host_server -- attempts to connect as ssh
-# DONE: add supportconfig run date to report header
-# DONE: add -v verbose logging
-
 import readline
 import subprocess
 import os 
@@ -49,7 +39,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.0"
+	print "#   SCA Tool v1.0.0_dev.1"
 	print "################################################################################"
 	print
 
@@ -811,18 +801,17 @@ def analyze(*arg):
 		try:
 			socket.inet_aton(arg[0])
 			host = arg[0]
-			print "Received reply from " + arg[0]
+			print "Received IP reply from " + arg[0]
 			isIP = True
 		except socket.error:
 			try:
 				host = socket.gethostbyname(arg[0].strip("\n"))
-				print "Received reply from " + arg[0]
+				print "Received hostnmame reply from " + arg[0]
 				isIP = True
 			except:
 				if isIP:
 					print >> sys.stderr, "Error: Unable to reach " + arg[0]
 					return
-
 		if host == "None":
 			#Not an IP. Lets hope it is a PATH
 			supportconfigPath = arg[0]
@@ -889,16 +878,22 @@ def analyze(*arg):
 		extractedPath = '/'.join(tmp) 
 		#set TarFile and find the path of the soon to be extracted supportconfig
 		try:
-			TarFile = tarfile.open(supportconfigPath)
-			extractedSupportconfig = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + "/"
-			if outputFileGiven:
-				if os.path.isdir(HtmlOutputFile):
-					HtmlOutputFile = HtmlOutputFile + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
+			fileInfo = os.stat(supportconfigPath)
+			if( fileInfo.st_size > 0 ):
+				TarFile = tarfile.open(supportconfigPath)
+				extractedSupportconfig = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + "/"
+				if outputFileGiven:
+					if os.path.isdir(HtmlOutputFile):
+						HtmlOutputFile = HtmlOutputFile + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
+				else:
+					HtmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
+				print "Extracting Supportconfig: " + supportconfigPath
+				TarFile.extractall(path=extractedPath, members=None)
+				print "Extracted Directory:      " + extractedSupportconfig 
 			else:
-				HtmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
-			print "Extracting Supportconfig: " + supportconfigPath
-			TarFile.extractall(path=extractedPath, members=None)
-			print "Extracted Directory:      " + extractedSupportconfig 
+				print >> sys.stderr, "Error: Zero byte file: " + supportconfigPath
+				print >> sys.stderr
+				return
 		except tarfile.ReadError:
 			#cannot open the tar file
 			print >> sys.stderr, "Error: Invalid supportconfig archive: " + supportconfigPath

@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Apr 11 12:34:39 UTC 2014 - jrecord@suse.com
+
+- Fixed errors on zero byte files (bnc#873076)
+
+-------------------------------------------------------------------
 Fri Apr 11 04:25:20 UTC 2014 - jrecord@suse.com
 
 - Fixed rpm file not found pything dump (bnc#872368)
