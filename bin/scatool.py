@@ -27,7 +27,8 @@
 
 # TODO
 # DONE: report date
-# oes distribution when no oes -- shows oes distro as SLES distro
+# DONE: oes distribution when no oes -- shows oes distro as SLES distro
+# invalid Archive File in html report header -- lists the html file, not the tgz
 # scatool -a /var/log/nts_host_server -- doubles up host name on html file
 # html header -- fix static hostname
 # scatool -a nts_host_server -- attempts to connect as ssh
@@ -46,9 +47,9 @@ import time
 import getopt
 
 def title():
-	print "#############################################################"
-	print "# SCA Tool v0.9.6_dev.3"
-	print "#############################################################"
+	print "################################################################################"
+	print "#   SCA Tool v0.9.6_dev.4"
+	print "################################################################################"
 	print
 
 def usage():
@@ -123,7 +124,7 @@ verboseMode = False
 #returns html code. This is the about server part.
 ####example####
 #Server Information
-#Analysis Date:	/10/7/2013 12:39
+#Analysis Date:	2014-04-10 17:45:15
 #Archive File:	/home/david/nts_DOCvGRPSdr_130528_1137.html
  
 #Server Name:			<Server Name>																		Hardware:							VMware Virtual Platform
@@ -155,8 +156,7 @@ def getHeader(*arg):
 		arcName = ""
 	TIME = datetime.datetime.now()
 
-	#set timeString (example: /10/7/2013 10:14)
-#	timeString = "/" + str(TIME.month) + "/" + str(TIME.day) + "/" + str(TIME.year) + " " + str(TIME.hour) + ":" + str(TIME.minute).zfill(2)
+	#set timeString (example: 2014-04-10 17:45:15)
 	timeString = str(TIME.year) + "-" + str(TIME.month).zfill(2) + "-" + str(TIME.day).zfill(2) + " " + str(TIME.hour).zfill(2) + ":" + str(TIME.minute).zfill(2) + ":" + str(TIME.second).zfill(2)
 
 	#open basic-environment
@@ -200,9 +200,12 @@ def getHeader(*arg):
 		#get OES version and pathch level
 		if "/etc/novell-release" in line:
 			oesVersion = File.readline().strip()
-			#we don't need the oes version just SP so skip the next line
-			File.readline()
-			oesPatchLevel = File.readline().split('=')[-1].strip()
+			if "Open Enterprise" in oesVersion:
+				#we don't need the oes version just SP so skip the next line
+				File.readline()
+				oesPatchLevel = File.readline().split('=')[-1].strip()
+			else:
+				oesVersion = ''
 	File.close()
 
 	#create HTML from the data we just got
