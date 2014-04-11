@@ -33,7 +33,7 @@
 # DONE: html header -- fix static hostname
 # DONE: scatool -a nts_host_server -- attempts to connect as ssh
 # DONE: add supportconfig run date to report header
-# add -v verbose logging
+# DONE: add -v verbose logging
 
 import readline
 import subprocess
@@ -49,7 +49,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v0.9.6_dev.7"
+	print "#   SCA Tool v1.0.0"
 	print "################################################################################"
 	print
 
@@ -61,6 +61,7 @@ def usage():
 	print "         The path may also be an IP address of a server to analyze"
 	print " -o path HTML report output directory"
 	print " -k      Keep archive files"
+	print " -v      Verbose output"
 	print " -c      Enter SCA Tool console"
 	print
 
@@ -115,6 +116,7 @@ global outputFileGiven
 global HtmlOutputFile 
 global KeepArchive
 global serverName
+global verboseMode
 outputFileGiven = False
 knownClasses = []
 results = []
@@ -351,6 +353,7 @@ def view(*arg):
 #does not return anything; however, it does set results[]
 def runPats(extractedSupportconfig):
 	global results
+	global verboseMode
 	runEdir = False
 	runFilr = False
 	runGW = False
@@ -425,32 +428,40 @@ def runPats(extractedSupportconfig):
 	basicEnv.close()
 	
 	#if we don't have product X installed... black list it
-	print "System Definition:"
+	if verboseMode:
+		print "System Definition:"
 	if runHA:
-		print "HAE ",
+		if verboseMode:
+			print "HAE ",
 	else:
 		whatNotToRun.append("HAE")
 	if runOES:
-		print "OES ",
+		if verboseMode:
+			print "OES ",
 	else:
 		whatNotToRun.append("OES")
 	if runEdir:
-		print "eDir ",
+		if verboseMode:
+			print "eDir ",
 	else:
 		whatNotToRun.append("eDirectory")
 	if runGW:
-		print "GW ",
+		if verboseMode:
+			print "GW ",
 	else:
 		whatNotToRun.append("GroupWise")
 	if runFilr:
-		print "Filr ",
+		if verboseMode:
+			print "Filr ",
 	else:
 		whatNotToRun.append("Filr")
 		
-	print "\nSLES " + SLE_version + " SP" + SLE_SP
+	if verboseMode:
+		print "\nSLES " + SLE_version + " SP" + SLE_SP
 	if runOES:
-		print "OES " + OES_version + " SP" + OES_SP
-	
+		if verboseMode:
+			print "OES " + OES_version + " SP" + OES_SP
+
 	#blacklist all sles patterns that are not for the SLES version
 	#for all sles versions
 	for folder in os.walk(patDir + "SLE"):
@@ -466,8 +477,6 @@ def runPats(extractedSupportconfig):
 			if "sle" + SLE_version + "sp" + SLE_SP not in fileName and "sle" + SLE_version + "all" not in fileName and fileName != "all":
 				whatNotToRun.append(fileName)
 
-	
-	
 	#for all patterns in patDir.. Yes it does this recursively. :P
 	for root, subFolders, files in os.walk(patDir):
 		#exclued any black listed folders
@@ -485,19 +494,21 @@ def runPats(extractedSupportconfig):
 				out, error = p.communicate()
 	
 				#call parseOutput to see if output was expected
-				if not parseOutput(out, error):
-					print >> sys.stderr, "Error in: " + file
-					print >> sys.stderr, "------------------"
-					print >> sys.stderr, error
-					print >> sys.stderr, "------------------"
-				else:
-					#print the ........'s
-					sys.stdout.write('.')
-					sys.stdout.flush()
+				if verboseMode:
+					if not parseOutput(out, error):
+						print >> sys.stderr, "Error in: " + file
+						print >> sys.stderr, "------------------"
+						print >> sys.stderr, error
+						print >> sys.stderr, "------------------"
+					else:
+						#print the ........'s
+						sys.stdout.write('.')
+						sys.stdout.flush()
 			except Exception:
 				print >> sys.stderr, "\nError executing: " + file
 	#make output look nice
-	print
+	if verboseMode:
+		print
 
 
 #find all class Names in results
@@ -741,6 +752,7 @@ def analyze(*arg):
 	global HtmlOutputFile
 	global outputFileGiven
 	global KeepArchive
+	global verboseMode
 	#reset stuff
 	timeStamp = time.time()
 	remoteSupportconfigName = ""
@@ -884,9 +896,9 @@ def analyze(*arg):
 					HtmlOutputFile = HtmlOutputFile + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
 			else:
 				HtmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
-			print "Extracting " + supportconfigPath
+			print "Extracting Supportconfig: " + supportconfigPath
 			TarFile.extractall(path=extractedPath, members=None)
-			print "Extracted to " + extractedSupportconfig 
+			print "Extracted Directory:      " + extractedSupportconfig 
 		except tarfile.ReadError:
 			#cannot open the tar file
 			print >> sys.stderr, "Error: Invalid supportconfig archive: " + supportconfigPath
@@ -917,11 +929,12 @@ def analyze(*arg):
 	
 	#At this point we should have a extracted supportconfig 
 	#run pats on supportconfig
-	print "Analyzing supportconfig"
+	print "Supportconfig Analysis:   In Progress"
 	runPats(extractedSupportconfig)
 	getHtml(HtmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
-	print
-	print "SCA Report file: " + HtmlOutputFile
+	if verboseMode:
+		print
+	print ("SCA Report file:          %s" % HtmlOutputFile)
 	print
 
 	#if command was run via console run view

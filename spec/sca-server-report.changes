@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Apr 11 02:15:49 UTC 2014 - jrecord@suse.com
+Fri Apr 11 04:23:20 UTC 2014 - jrecord@suse.com
 
+- Fixed verbose display with -v
 - Added Supportconfig Run Date to report header
 - Fixed invalid html report file for directories
 - Fixed archive file in report header
