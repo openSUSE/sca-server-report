@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Apr 11 12:34:39 UTC 2014 - jrecord@suse.com
+Fri Apr 11 15:51:12 UTC 2014 - jrecord@suse.com
 
+- Fixed invalid IP addr handling (bnc#873181)
 - Fixed errors on zero byte files (bnc#873076)
 
 -------------------------------------------------------------------

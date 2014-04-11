@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Apr 10
+# Modified:     2014 Apr 11
 
 ##############################################################################
 #
@@ -39,7 +39,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.0_dev.1"
+	print "#   SCA Tool v1.0.0_dev.3"
 	print "################################################################################"
 	print
 
@@ -797,28 +797,44 @@ def analyze(*arg):
 				
 	#if a path was given. analyze given file/folder
 	elif len(arg) == 1:
+		#validate the file/folder/ip given by the end user
+		givenSupportconfigPath = arg[0]
+
+		if os.path.isfile(givenSupportconfigPath):
+			print "Supportconfig File: %s" % givenSupportconfigPath
+		elif os.path.isdir(givenSupportconfigPath):
+			print "Supportconfig Directory: %s" % givenSupportconfigPath
+		else:
+			ping_server = subprocess.Popen(["/bin/ping", "-c1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			streamdata = ping_server.communicate()[0]
+			if ping_server.returncode == 0:
+				print "Supportconfig Remote Server: %s" % givenSupportconfigPath
+			else:
+				print >> sys.stderr, "Error: Invalid Supportconfig: " + givenSupportconfigPath
+				print >> sys.stderr
+				usage()
+				return
+
 		#test if we have an IP
 		try:
-			socket.inet_aton(arg[0])
-			host = arg[0]
-			print "Received IP reply from " + arg[0]
+			socket.inet_aton(givenSupportconfigPath)
+			host = givenSupportconfigPath
 			isIP = True
 		except socket.error:
 			try:
-				host = socket.gethostbyname(arg[0].strip("\n"))
-				print "Received hostnmame reply from " + arg[0]
+				host = socket.gethostbyname(givenSupportconfigPath.strip("\n"))
 				isIP = True
 			except:
 				if isIP:
-					print >> sys.stderr, "Error: Unable to reach " + arg[0]
+					print >> sys.stderr, "Error: Unable to reach " + givenSupportconfigPath
 					return
 		if host == "None":
 			#Not an IP. Lets hope it is a PATH
-			supportconfigPath = arg[0]
+			supportconfigPath = givenSupportconfigPath
 		else:
 			#we have an IP
-			print "Running supportconfig on " + arg[0]
-			print "Please enter your credentials for " + arg[0]
+			print "Running supportconfig on " + givenSupportconfigPath
+			print "Please enter your credentials for " + givenSupportconfigPath
 			remoteSupportconfigName = timeStamp
 			remoteSupportconfigPath = "/var/log"
 			
