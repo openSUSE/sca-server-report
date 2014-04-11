@@ -39,7 +39,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.2"
+	print "#   SCA Tool v1.0.2_dev.1"
 	print "################################################################################"
 	print
 
@@ -872,8 +872,15 @@ def analyze(*arg):
 				#close the local copy of the remote supportconfig.
 				localSupportconfig.close()
 				supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz"
-				print
-				print "Copied supportconfig:         " + givenSupportconfigPath + " -> local host"
+				fileInfo = os.stat(supportconfigPath)
+				if( fileInfo.st_size > 0 ):
+					print
+					print "Copied supportconfig:         " + givenSupportconfigPath + " -> localhost"
+				else:
+					print >> sys.stderr, "Error: Failed to connect to remote server"
+					print >> sys.stderr
+					os.remove(supportconfigPath)
+					return
 			except Exception:
 				print >> sys.stderr, "Error: Cannot run supportconfig on " + arg[0] + "."
 				return
