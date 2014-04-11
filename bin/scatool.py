@@ -39,7 +39,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.1"
+	print "#   SCA Tool v1.0.2"
 	print "################################################################################"
 	print
 
@@ -759,7 +759,7 @@ def analyze(*arg):
 	
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
-		print "Running supportconfig on local host"
+		print "Running supportconfig on:     local host"
 		#run supportconfig
 		try:
 			p = subprocess.Popen(['/sbin/supportconfig', '-b'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -801,14 +801,14 @@ def analyze(*arg):
 		givenSupportconfigPath = arg[0]
 
 		if os.path.isfile(givenSupportconfigPath):
-			print "Supportconfig File: %s" % givenSupportconfigPath
+			print "Supportconfig File:           %s" % givenSupportconfigPath
 		elif os.path.isdir(givenSupportconfigPath):
-			print "Supportconfig Directory: %s" % givenSupportconfigPath
+			print "Supportconfig Directory:      %s" % givenSupportconfigPath
 		else:
 			ping_server = subprocess.Popen(["/bin/ping", "-c1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			streamdata = ping_server.communicate()[0]
 			if ping_server.returncode == 0:
-				print "Supportconfig Remote Server: %s" % givenSupportconfigPath
+				print "Supportconfig Remote Server:  %s" % givenSupportconfigPath
 			else:
 				print >> sys.stderr, "Error: Invalid Supportconfig: " + givenSupportconfigPath
 				print >> sys.stderr
@@ -833,8 +833,8 @@ def analyze(*arg):
 			supportconfigPath = givenSupportconfigPath
 		else:
 			#we have an IP
-			print "Running supportconfig on " + givenSupportconfigPath
-			print "Please enter your credentials for " + givenSupportconfigPath
+			print "Running supportconfig on:     " + givenSupportconfigPath
+			print "Enter your credentials for:   " + givenSupportconfigPath
 			remoteSupportconfigName = timeStamp
 			remoteSupportconfigPath = "/var/log"
 			
@@ -873,8 +873,7 @@ def analyze(*arg):
 				localSupportconfig.close()
 				supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz"
 				print
-				print "Copied supportconfig on " + arg[0] + " to local host for analysis"
-
+				print "Copied supportconfig:         " + givenSupportconfigPath + " -> local host"
 			except Exception:
 				print >> sys.stderr, "Error: Cannot run supportconfig on " + arg[0] + "."
 				return
@@ -903,9 +902,9 @@ def analyze(*arg):
 						HtmlOutputFile = HtmlOutputFile + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
 				else:
 					HtmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
-				print "Extracting Supportconfig: " + supportconfigPath
+				print "Extracting Supportconfig:     " + supportconfigPath
 				TarFile.extractall(path=extractedPath, members=None)
-				print "Extracted Directory:      " + extractedSupportconfig 
+				print "Extracted Directory:          " + extractedSupportconfig 
 			else:
 				print >> sys.stderr, "Error: Zero byte file: " + supportconfigPath
 				print >> sys.stderr
@@ -940,12 +939,12 @@ def analyze(*arg):
 	
 	#At this point we should have a extracted supportconfig 
 	#run pats on supportconfig
-	print "Supportconfig Analysis:   In Progress"
+	print "Supportconfig Analysis:       In Progress"
 	runPats(extractedSupportconfig)
 	getHtml(HtmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
 	if verboseMode:
 		print
-	print ("SCA Report file:          %s" % HtmlOutputFile)
+	print ("SCA Report file:              %s" % HtmlOutputFile)
 	print
 
 	#if command was run via console run view
