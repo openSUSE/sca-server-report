@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Apr 11 04:23:20 UTC 2014 - jrecord@suse.com
+Fri Apr 11 04:25:20 UTC 2014 - jrecord@suse.com
 
+- Fixed rpm file not found pything dump (bnc#872368)
 - Fixed verbose display with -v
 - Added Supportconfig Run Date to report header
 - Fixed invalid html report file for directories
