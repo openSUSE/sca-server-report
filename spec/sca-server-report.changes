@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Apr 11 01:08:31 UTC 2014 - jrecord@suse.com
+Fri Apr 11 01:37:06 UTC 2014 - jrecord@suse.com
 
+- Fixed invalid html report file for directories
 - Fixed archive file in report header
 - Fixed static html title to include archive server name
 - Report date matches SCA Appliance

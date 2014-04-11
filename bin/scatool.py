@@ -29,7 +29,7 @@
 # DONE: report date
 # DONE: oes distribution when no oes -- shows oes distro as SLES distro
 # DONE: invalid Archive File in html report header -- lists the html file, not the tgz
-# scatool -a /var/log/nts_host_server -- doubles up host name on html file
+# DONE: scatool -a /var/log/nts_host_server -- doubles up host name on html file
 # DONE: html header -- fix static hostname
 # scatool -a nts_host_server -- attempts to connect as ssh
 # add -v verbose logging
@@ -48,7 +48,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v0.9.6_dev.5"
+	print "#   SCA Tool v0.9.6_dev.6"
 	print "################################################################################"
 	print
 
@@ -865,14 +865,19 @@ def analyze(*arg):
 			if os.path.isdir(HtmlOutputFile):
 				HtmlOutputFile = HtmlOutputFile + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
 		else:
-			HtmlOutputFile = extractedSupportconfig + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
+			HtmlOutputFile = extractedSupportconfig
+			if HtmlOutputFile.endswith("/"):
+				HtmlOutputFile = HtmlOutputFile[:-1]
+			tmp = HtmlOutputFile.split("/")
+			del tmp[-1]
+			HtmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
 		#we don't want to delete something we did not create.
 		cleanUp = False
 	#lets check that this is a supportconfig...
 	if not os.path.isfile(extractedSupportconfig + "/basic-environment.txt"):
 		#not a supportconfig. quit out
 		print >> sys.stderr, "Error:   Invalid supportconfig archive"
-		print >> sys.stderr, "Missing: " + extractedSupportconfig + "/basic-environment.txt"
+		print >> sys.stderr, "Missing: " + supportconfigPath + "/basic-environment.txt"
 		print >> sys.stderr
 		return
 	
