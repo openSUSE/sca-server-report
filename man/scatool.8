@@ -1,4 +1,4 @@
-.TH SCATOOL 8 "27 Mar 2014" "sca-server-report" "Supportconfig Analysis Manual"
+.TH SCATOOL 8 "11 Apr 2014" "sca-server-report" "Supportconfig Analysis Manual"
 .SH NAME
 scatool - Supportconfig Analysis (SCA) Tool
 .SH SYNOPSIS
@@ -10,11 +10,23 @@ The \fBscatool\fR is used to analyze the local server using supportconfig and th
 \fB\-h\fR
 Displays the help screen.
 .TP
-\fB\-a\fR \fI/path/to/supportconfig/tarball\fR
-Analyze the tarred compressed tar ball spacified with the -a paramenter.
+\fB\-s\fR
+Run supportconfig on the local server and analyze it.
 .TP
-\fB\-o\fR \fI/path/to/output/file/\fR
+\fB\-a\fR \fIpath\fR
+Analyze the tarred compressed tar ball specified with the -a paramenter. The path can be the path to a compressed supportconfig tar ball, a supportconfig extracted directory, or the IP address/hostname of a remote server to analyze. If an IP address is given, supportconfig will be run on the remote server. The supportconfig will be copied from the remote server to the local server for analysis.
+.TP
+\fB\-o\fR \fIpath\fR
 The HTML report file will be written to this directory. If -o is not specified, the output file will be in the same location as the supportconfig file or directory.
+.TP
+\fB\-k\fR
+Keep the supportconfig tar ball. Normally the supportconfig tar ball is deleted after its analysis; this options prevents its deletion.
+.TP
+\fB\-v\fR
+Run in verbose mode.
+.TP
+\fB\-c\fR
+Start scatool's console mode.
 .PD
 .SH CONSOLE OPERATIONS
 Running scatool without any options or with invalid options will load the console. You can press the <tab> key to see a list of commands. The console also supports tab completion when selecting commands to run. The following commands are available:
@@ -36,14 +48,14 @@ Exits the console
 \fBscatool -c\fR
 Start the scatool console (see CONSOLE OPERATIONS above).
 .TP
-\fBscatool -a\fR
+\fBscatool -s\fR
 Runs supportconfig on the local host and analyzes its output. It saves the HTML report file to the same location at the supportconfig with the same name, but ending in .html.
 .TP
 \fBscatool -a /var/log/nts_localhost_131107_1315.tbz\fR
 Analyzes the supportconfig archive file specified. The path can be a tarred compressed supportconfig archive or a suportconfig extracted directory, either will work. The HTML report file is saved in the save location as the supportconfig archive or directory.
 .TP
-\fBscatool -a -o /opt/sca/reports/\fR
-Runs supportconfig on the local host. It saves the HTML report file in the output path specified instead of the default path of the supportconfig tarball.
+\fBscatool -sk -o /opt/sca/reports/\fR
+Runs supportconfig on the local host. It saves the HTML report file in the output path specified instead of the default path of the supportconfig tarball. Keeps the supportconfig tar ball for future reference.
 .TP
 \fBscatool -a sles_server.company.com\fR
 Establishes an ssh connection to sles_server.company.com to run a supportconfig on the server. The supportconfig is then copied back to the local host to be analyzed. The HTML report file is saved to the default /var/log directory.

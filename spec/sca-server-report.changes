@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Apr 11 16:47:01 UTC 2014 - jrecord@suse.com
+Fri Apr 11 17:04:26 UTC 2014 - jrecord@suse.com
 
+- Updated man page with correct startup options
 - Fixed invalid IP addr handling (bnc#873181)
 - Fixed errors on zero byte files (bnc#873076)
 
