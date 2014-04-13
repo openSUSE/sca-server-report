@@ -808,75 +808,77 @@ def analyze(*arg):
 				isRemoteServer = True
 
 		#test if we have an IP
-		try:
-			socket.inet_aton(givenSupportconfigPath)
-			host = givenSupportconfigPath
-			isIP = True
-		except socket.error:
+		if isRemoteServer:
 			try:
-				host = socket.gethostbyname(givenSupportconfigPath.strip("\n"))
+				socket.inet_aton(givenSupportconfigPath)
+				host = givenSupportconfigPath
 				isIP = True
-			except:
-				if isIP:
-					print >> sys.stderr, "Error: Unable to reach " + givenSupportconfigPath
+			except socket.error:
+				try:
+					host = socket.gethostbyname(givenSupportconfigPath.strip("\n"))
+					isIP = True
+				except:
+					if isIP:
+						print >> sys.stderr, "Error: Unable to reach " + givenSupportconfigPath
+						return
+			if host == "None":
+				#Not an IP. Lets hope it is a PATH
+				supportconfigPath = givenSupportconfigPath
+			else:
+				#we have an IP
+				print "Running supportconfig on:     " + givenSupportconfigPath
+				print "Enter your credentials for:   " + givenSupportconfigPath
+				remoteSupportconfigName = timeStamp
+				remoteSupportconfigPath = "/var/log"
+				
+				#print "lets take a look at that IP "
+				try:
+					#run ssh root@host "supportconfig -R /var/log -B <timeStamp>; echo -n \~; cat <path to new supportconfig
+					#aka: run supportconfig then send the output back.
+					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -R ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+					#create a local verson of the supportconfig output
+					localSupportconfig = open(remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz", 'w')
+					#remove local archive
+					deleteArchive = True
+					condition = True
+					endOfSupportconfig = False
+	
+					#this acts like a do-while. I love do-while :)
+					#print output of the subprocess (the long ssh command)
+					#--DO--
+					while condition:
+						out = p.stdout.read(1)
+						#if the end of supportconfig output... start saving output
+						if(endOfSupportconfig):
+							#save to local supportconfig
+							localSupportconfig.write(out)
+						elif out != '':
+								#print non binary data to stdout
+								sys.stdout.write(out)
+								sys.stdout.flush()
+						#if we are ate the end of the file output
+						if out == "~":
+							endOfSupportconfig = True
+									
+					#--WHILE--
+						condition = not bool(out == "" and p.poll() != None)
+					#close the local copy of the remote supportconfig.
+					localSupportconfig.close()
+					supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz"
+					fileInfo = os.stat(supportconfigPath)
+					if( fileInfo.st_size > 0 ):
+						print
+						print "Copied supportconfig:         " + givenSupportconfigPath + " -> localhost"
+					else:
+						print >> sys.stderr, "Error: Failed to connect to remote server"
+						print >> sys.stderr
+						os.remove(supportconfigPath)
+						return
+				except Exception:
+					print >> sys.stderr, "Error: Cannot run supportconfig on " + arg[0] + "."
 					return
-		if host == "None":
-			#Not an IP. Lets hope it is a PATH
-			supportconfigPath = givenSupportconfigPath
 		else:
-			#we have an IP
-			print "Running supportconfig on:     " + givenSupportconfigPath
-			print "Enter your credentials for:   " + givenSupportconfigPath
-			remoteSupportconfigName = timeStamp
-			remoteSupportconfigPath = "/var/log"
-			
-			#print "lets take a look at that IP "
-			try:
-				#run ssh root@host "supportconfig -R /var/log -B <timeStamp>; echo -n \~; cat <path to new supportconfig
-				#aka: run supportconfig then send the output back.
-				p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -R ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				#create a local verson of the supportconfig output
-				localSupportconfig = open(remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz", 'w')
-				#remove local archive
-				deleteArchive = True
-				condition = True
-				endOfSupportconfig = False
-
-				#this acts like a do-while. I love do-while :)
-				#print output of the subprocess (the long ssh command)
-				#--DO--
-				while condition:
-					out = p.stdout.read(1)
-					#if the end of supportconfig output... start saving output
-					if(endOfSupportconfig):
-						#save to local supportconfig
-						localSupportconfig.write(out)
-					elif out != '':
-							#print non binary data to stdout
-							sys.stdout.write(out)
-							sys.stdout.flush()
-					#if we are ate the end of the file output
-					if out == "~":
-						endOfSupportconfig = True
-								
-				#--WHILE--
-					condition = not bool(out == "" and p.poll() != None)
-				#close the local copy of the remote supportconfig.
-				localSupportconfig.close()
-				supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz"
-				fileInfo = os.stat(supportconfigPath)
-				if( fileInfo.st_size > 0 ):
-					print
-					print "Copied supportconfig:         " + givenSupportconfigPath + " -> localhost"
-				else:
-					print >> sys.stderr, "Error: Failed to connect to remote server"
-					print >> sys.stderr
-					os.remove(supportconfigPath)
-					return
-			except Exception:
-				print >> sys.stderr, "Error: Cannot run supportconfig on " + arg[0] + "."
-				return
-
+			supportconfigPath = givenSupportconfigPath
 	else:
 		#too many arguments
 		print >> sys.stderr, "Please run: \"help analyze\""
@@ -950,8 +952,6 @@ def analyze(*arg):
 	#run pats on supportconfig
 	runPats(extractedSupportconfig)
 	getHtml(HtmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
-	if verboseMode:
-		print
 	print ("SCA Report file:              %s" % HtmlOutputFile)
 	print
 

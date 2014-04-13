@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Sun Apr 13 02:07:00 UTC 2014 - jrecord@suse.com
+Sun Apr 13 03:00:16 UTC 2014 - jrecord@suse.com
 
+- Fixed treating relative path as remote connection (bnc#873075)
 - Progress bar in normal mode
 - Each pattern listed in verbose mode
 - Uses standard SCA_LIBRARY_PATH
