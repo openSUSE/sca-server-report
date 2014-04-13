@@ -949,7 +949,7 @@ def analyze(*arg):
 		return
 	
 	#At this point we should have a extracted supportconfig 
-	#run pats on supportconfig
+	#run patterns on supportconfig
 	runPats(extractedSupportconfig)
 	getHtml(HtmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
 	print ("SCA Report file:              %s" % HtmlOutputFile)
