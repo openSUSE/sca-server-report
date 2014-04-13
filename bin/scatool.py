@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Apr 11
+# Modified:     2014 Apr 12
 
 ##############################################################################
 #
@@ -26,6 +26,7 @@
 ##############################################################################
 
 import readline
+import re
 import subprocess
 import os 
 import sys
@@ -39,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.2_dev.1"
+	print "#   SCA Tool v1.0.4-3"
 	print "################################################################################"
 	print
 
@@ -58,7 +59,6 @@ def usage():
 
 title()
 #setup environment and PWD
-patDir = "/usr/lib/sca/patterns/"
 try:
 	os.chdir(os.environ["PWD"])
 	setup = os.environ["SCA_READY"]
@@ -71,6 +71,11 @@ if not setup:
 	usage()
 	print >> sys.stderr
 	sys.exit()
+
+try:
+	SCA_PATTERN_PATH = os.environ["SCA_PATTERN_PATH"]
+except Exception:
+	SCA_PATTERN_PATH = "/usr/lib/sca/patterns"
 
 #commands MUST have a function with the same name.
 COMMANDS = ["analyze", "exit", "view", "help"]
@@ -338,167 +343,152 @@ def view(*arg):
 	else:
 		print >> sys.stderr, "Please run \"help view\""
 
+#determines which patterns apply to the supportconfig
+#returns a list of applicable patterns
+def patternPreProcessor(extractedSupportconfig):
+	global verboseMode
+	patternFileList = []
+	patternDirectories = [SCA_PATTERN_PATH + "/local/"] #always include the local patterns
+
+	#first get the pattern directory paths for all possible valid patterns
+	#build directory with SLE and OES versions from basic-environment.txt
+	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
+	basicEnvLines = basicEnv.readlines()
+	SLE_VERSION = 0
+	SLE_SP = 0
+	OES_VERSION = 0
+	OES_SP = 0
+	inOES = False
+	notOES = True
+	inSLES = False
+	for lineNumber in range(0, len(basicEnvLines)):
+		if inSLES:
+			if "#==[" in basicEnvLines[lineNumber] :
+				inSLES = False
+			elif basicEnvLines[lineNumber].startswith("VERSION"):
+				SLE_VERSION = basicEnvLines[lineNumber].split("=")[1].strip()
+			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
+				SLE_SP = basicEnvLines[lineNumber].split("=")[1].strip()
+		elif inOES:
+			if "#==[" in basicEnvLines[lineNumber] :
+				inOES = False
+			elif "Open Enterprise" in basicEnvLines[lineNumber]:
+				notOES = False
+			elif basicEnvLines[lineNumber].startswith("VERSION"):
+				OES_VERSION = basicEnvLines[lineNumber].split("=")[1].strip().split(".")[0]
+			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
+				OES_SP = basicEnvLines[lineNumber].split("=")[1].strip()
+		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
+			inSLES = True
+		elif "# /etc/novell-release" in basicEnvLines[lineNumber] :
+			inOES = True
+	if notOES:
+		OES_VERSION = 0
+	if( SLE_VERSION > 0 ):
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "all/")
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "sp" + str(SLE_SP) + "/")
+	if( OES_VERSION > 0 ):
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "all/")
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "sp" + str(OES_SP) + "/")
+
+	#build directory of additional required patterns by add-on products
+	rpmFile = open(extractedSupportconfig + "/rpm.txt")
+	RPMs = rpmFile.readlines()
+	rpmFile.close()
+	hae = re.compile("^heartbeat[[:space:]]|^openais[[:space:]]|^pacemaker[[:space:]]")
+	for line in RPMs:
+		if hae.search(line) and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
+		if "NDSserv " in line and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/eDirectory/"))
+		if "groupwise " in line and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/GroupWise/"))
+		if "datasync-common " in line and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/GroupWise/"))
+		if "filr-famtd " in line and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/Filr/"))
+
+	systemDefinition = []
+	for systemElement in patternDirectories:
+		systemDefinition.append(systemElement.split("/")[-2])
+	print "Pattern Definitions:          " + " ".join(systemDefinition)
+
+	#second build the list of valid patterns from the patternDirectories
+	#walk through each valid pattern directory
+	for patternDirectory in patternDirectories:
+		#only include patterns that exist
+		if os.path.isdir(patternDirectory):
+			#get the patterns from the valid directory
+			for root, dirs, patternFiles in os.walk(patternDirectory):
+				#joint the filenames with the root path
+				for patternFile in patternFiles:
+					patternFileList.append(os.path.join(root, patternFile))
+
+	return patternFileList
+
+
 #run all patterns
 #this is called by analyze.
 #does not return anything; however, it does set results[]
 def runPats(extractedSupportconfig):
 	global results
 	global verboseMode
-	runEdir = False
-	runFilr = False
-	runGW = False
-	runHA = False
-	runOES = False
-	SLE_SP = "0"
-	SLE_version = "0"
-	OES_SP = "-1"
-	OES_version = "-1"
-	#reset black list
-	whatNotToRun = []
 	results = []
-	
-	#black list anything that does not apply to the system
-	
-	#open rpm.txt
-	if os.path.isfile(extractedSupportconfig + "/rpm.txt"):
-		rpmFile = open(extractedSupportconfig + "/rpm.txt")
-		RPMs = rpmFile.readlines()
-		rpmFile.close()
+
+	validPatterns = patternPreProcessor(extractedSupportconfig)
+
+	progressBarWidth = 48
+	progressCount = 0
+	patternCount = 0
+	patternTotal = len(validPatterns)
+	patternFailures = 0
+	patternInterval = int(patternTotal / progressBarWidth)
+
+	print "Total Patterns to Apply:      " + str(patternTotal)
+	if verboseMode:
+		print "Analyzing Supportconfig:      In Progress"
 	else:
-		print >> sys.stderr, "Error: File not found: " + str(extractedSupportconfig + "/rpm.txt")
-		print >> sys.stderr
-		sys.exit()
+		sys.stdout.write("Analyzing Supportconfig:      [%s]" % (" " * progressBarWidth))
+		sys.stdout.flush()
+		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
 
-	#open basic-environment
-	#find Sles verson
-	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
-	basicEnvLines = basicEnv.readlines()
-	for lineNumber in range(0, len(basicEnvLines)):
-		if "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
-			SLE_version = basicEnvLines[lineNumber + 2].split("=")[1].strip()
-			SLE_SP = basicEnvLines[lineNumber + 3].split("=")[1].strip()
+	for patternFile in validPatterns:
+		patternCount += 1
+		try:
+			p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			out, error = p.communicate()
+			patternValidated = parseOutput(out, error)
+			if not patternValidated:
+				patternFailures += 1
 
-	#Check if various products are on system
-	for line in RPMs:
-		if "heartbeat" in line and not line.startswith("sca-patterns"):
-			runHA = True
-		if "oes" in line and not line.startswith("sca-patterns"):
-			runOES = True
-		if "edirectory" in line and not line.startswith("sca-patterns"):
-			runEdir = True
-		if "groupwise" in line and not line.startswith("sca-patterns"):
-			runGW = True
-		if "datasync-common " in line and not line.startswith("sca-patterns"):
-			runGW = True
-		if "filr" in line and not line.startswith("sca-patterns"):
-			runFilr = True
-			
-	#If we have OES what verson and what patters should we run
-	#OES stuff:
-	if runOES:
-		for lineNumber in range(0, len(basicEnvLines)):
-			if "# /etc/novell-release" in basicEnvLines[lineNumber] :
-				OES_version = basicEnvLines[lineNumber + 2].split("=")[1].strip().split(".")[0]
-				OES_SP = basicEnvLines[lineNumber + 3].split("=")[1].strip()
-		#blacklist all OES patterns that are not for the OES version
-		#for all sles versions
-		for folder in os.walk(patDir + "OES"):
-			#trim file name down to just the OES verson
-			fileName = folder[0].split("/")[-1]
-			#remove parent directory
-			if fileName == "OES":
-				continue
-			#check that the verson name maches
-			if "oes" + OES_version not in fileName and fileName != "all":
-				whatNotToRun.append(fileName)
+			#call parseOutput to see if output was expected
+			if verboseMode:
+				if patternValidated:
+					print " Done:  " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile
+				else:
+					print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile + " -- Invalid pattern output string"
 			else:
-				if "oes" + OES_version + "sp" + OES_SP not in fileName and "oes" + OES_version + "all" not in fileName and fileName != "all":
-					whatNotToRun.append(fileName)
-	#clean up open files
-	basicEnv.close()
-	
-	#if we don't have product X installed... black list it
-	if verboseMode:
-		print "System Definition:"
-	if runHA:
-		if verboseMode:
-			print "HAE ",
-	else:
-		whatNotToRun.append("HAE")
-	if runOES:
-		if verboseMode:
-			print "OES ",
-	else:
-		whatNotToRun.append("OES")
-	if runEdir:
-		if verboseMode:
-			print "eDir ",
-	else:
-		whatNotToRun.append("eDirectory")
-	if runGW:
-		if verboseMode:
-			print "GW ",
-	else:
-		whatNotToRun.append("GroupWise")
-	if runFilr:
-		if verboseMode:
-			print "Filr ",
-	else:
-		whatNotToRun.append("Filr")
-		
-	if verboseMode:
-		print "\nSLES " + SLE_version + " SP" + SLE_SP
-	if runOES:
-		if verboseMode:
-			print "OES " + OES_version + " SP" + OES_SP
-
-	#blacklist all sles patterns that are not for the SLES version
-	#for all sles versions
-	for folder in os.walk(patDir + "SLE"):
-		#trim file name down to just the sles verson
-		fileName = folder[0].split("/")[-1]
-		#remove parent directory
-		if fileName == "SLE":
-			continue
-		#check that the verson name maches
-		if "sle" + SLE_version not in fileName and fileName != "all":
-			whatNotToRun.append(fileName)
-		else:
-			if "sle" + SLE_version + "sp" + SLE_SP not in fileName and "sle" + SLE_version + "all" not in fileName and fileName != "all":
-				whatNotToRun.append(fileName)
-
-	#for all patterns in patDir.. Yes it does this recursively. :P
-	for root, subFolders, files in os.walk(patDir):
-		#exclued any black listed folders
-		for remove in whatNotToRun:
-			if remove in subFolders:
-				subFolders.remove(remove)
-		#exclude lib folder
-		if 'lib' in subFolders:
-			subFolders.remove('lib')
-		for file in files:
-			file = os.path.join(root, file)
-			#run pattern.. or try to anyway.
-			try:
-				p = subprocess.Popen([file, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				out, error = p.communicate()
-	
-				#call parseOutput to see if output was expected
-				if verboseMode:
-					if not parseOutput(out, error):
-						print >> sys.stderr, "Error in: " + file
-						print >> sys.stderr, "------------------"
-						print >> sys.stderr, error
-						print >> sys.stderr, "------------------"
-					else:
-						#print the ........'s
-						sys.stdout.write('.')
+				#advance the progress bar if it's not full yet
+				if( progressCount < progressBarWidth ):
+					#advance the progress bar in equal intervals
+					if( patternCount % patternInterval == 0 ):
+						progressCount += 1
+						sys.stdout.write("=")
 						sys.stdout.flush()
-			except Exception:
-				print >> sys.stderr, "\nError executing: " + file
+		except Exception:
+			print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile + " -- Pattern runtime error"
+			patternFailures += 1
+
 	#make output look nice
-	if verboseMode:
-		print
+	if not verboseMode:
+		while( progressCount < progressBarWidth ):
+			progressCount += 1
+			sys.stdout.write("=")
+			sys.stdout.flush()
+	sys.stdout.write("\n")
+
+	print "Pattern Execution Errors:     " + str(patternFailures)
+		
 
 
 #find all class Names in results
@@ -753,6 +743,7 @@ def analyze(*arg):
 	deleteArchive = False
 	isIP = False
 	host = "None"
+	isRemoteServer = False
 	if not outputFileGiven:
 		HtmlOutputFile = ""
 	cleanUp = True
@@ -805,15 +796,16 @@ def analyze(*arg):
 		elif os.path.isdir(givenSupportconfigPath):
 			print "Supportconfig Directory:      %s" % givenSupportconfigPath
 		else:
+			print "Supportconfig Remote Server:  %s" % givenSupportconfigPath
 			ping_server = subprocess.Popen(["/bin/ping", "-c1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			streamdata = ping_server.communicate()[0]
-			if ping_server.returncode == 0:
-				print "Supportconfig Remote Server:  %s" % givenSupportconfigPath
-			else:
+			if ping_server.returncode != 0:
 				print >> sys.stderr, "Error: Invalid Supportconfig: " + givenSupportconfigPath
 				print >> sys.stderr
 				usage()
 				return
+			else:
+				isRemoteServer = True
 
 		#test if we have an IP
 		try:
@@ -902,7 +894,7 @@ def analyze(*arg):
 		try:
 			fileInfo = os.stat(supportconfigPath)
 			if( fileInfo.st_size > 0 ):
-				TarFile = tarfile.open(supportconfigPath)
+				TarFile = tarfile.open(supportconfigPath, "r:*")
 				extractedSupportconfig = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + "/"
 				if outputFileGiven:
 					if os.path.isdir(HtmlOutputFile):
@@ -936,17 +928,26 @@ def analyze(*arg):
 			HtmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
 		#we don't want to delete something we did not create.
 		cleanUp = False
-	#lets check that this is a supportconfig...
-	if not os.path.isfile(extractedSupportconfig + "/basic-environment.txt"):
+
+	#check for required supportconfig files...
+	testFile = "/basic-environment.txt"
+	if not os.path.isfile(extractedSupportconfig + testFile):
 		#not a supportconfig. quit out
 		print >> sys.stderr, "Error:   Invalid supportconfig archive"
-		print >> sys.stderr, "Missing: " + supportconfigPath + "/basic-environment.txt"
+		print >> sys.stderr, "Missing: " + supportconfigPath + testFile
+		print >> sys.stderr
+		return
+
+	testFile = "/rpm.txt"
+	if not os.path.isfile(extractedSupportconfig + testFile):
+		#not a supportconfig. quit out
+		print >> sys.stderr, "Error:   Invalid supportconfig archive"
+		print >> sys.stderr, "Missing: " + supportconfigPath + testFile
 		print >> sys.stderr
 		return
 	
 	#At this point we should have a extracted supportconfig 
 	#run pats on supportconfig
-	print "Supportconfig Analysis:       In Progress"
 	runPats(extractedSupportconfig)
 	getHtml(HtmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
 	if verboseMode:

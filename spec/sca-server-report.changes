@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Sun Apr 13 02:07:00 UTC 2014 - jrecord@suse.com
+
+- Progress bar in normal mode
+- Each pattern listed in verbose mode
+- Uses standard SCA_LIBRARY_PATH
+
+-------------------------------------------------------------------
 Fri Apr 11 19:56:53 UTC 2014 - jrecord@suse.com
 
 - Fixed remote server failure processing (bnc#873289)

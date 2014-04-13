@@ -4,7 +4,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Wrapper for /usr/lib/sca/python/scatool.py
-# Modified:     2014 Mar 27
+# Modified:     2014 Apr 12
 
 ##############################################################################
 #
@@ -27,8 +27,13 @@
 ##############################################################################
 
 BIN_PATH='/usr/lib/sca/python'
-export PERL5LIB='/usr/lib/sca/perl/'
-export PYTHONPATH='/usr/lib/sca/python/'
-export BASHLIB='/usr/lib/sca/bash'
-export SCA_READY="True"
+SCA_LIBRARY_PATH="/usr/lib/sca"
+SCA_PATTERN_PATH="${SCA_LIBRARY_PATH}/patterns"
+BASHLIB="${SCA_LIBRARY_PATH}/bash"
+PERL5LIB="${PERL5LIB}:${SCA_LIBRARY_PATH}/perl/"
+PYTHONPATH="${PYTHONPATH}:${SCA_LIBRARY_PATH}/python/"
+SCA_READY="True"
+export SCA_LIBRARY_PATH SCA_PATTERN_PATH BASHLIB PERL5LIB PYTHONPATH SCA_READY
+
 python ${BIN_PATH}/scatool.py "$@"
+
