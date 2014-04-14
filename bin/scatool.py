@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-9"
+	print "#   SCA Tool v1.0.5-10"
 	print "################################################################################"
 	print
 
@@ -114,6 +114,7 @@ except Exception:
 
 #setup globals
 global results
+global patternErrorList
 global knownClasses
 global HTML
 global outputPath
@@ -124,6 +125,7 @@ global verboseMode
 global analysisDateTime
 knownClasses = []
 results = []
+patternErrorList = []
 
 if( ARCHIVE_MODE > 0 ):
 	KeepArchive = True
@@ -143,6 +145,8 @@ else:
 serverName = "Unknown"
 analysisDateTime = datetime.datetime.now()
 
+#order dependent list of pattern output elements
+RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
 #commands MUST have a function with the same name.
 COMMANDS = ["analyze", "exit", "view", "help"]
 #help pages: 
@@ -482,6 +486,7 @@ def patternPreProcessor(extractedSupportconfig):
 #does not return anything; however, it does set results[]
 def runPats(extractedSupportconfig):
 	global results
+	global patternErrorList
 	global verboseMode
 	results = []
 
@@ -491,7 +496,6 @@ def runPats(extractedSupportconfig):
 	progressCount = 0
 	patternCount = 0
 	patternTotal = len(validPatterns)
-	patternFailures = 0
 	patternInterval = int(patternTotal / progressBarWidth)
 
 	print "Total Patterns to Apply:      " + str(patternTotal)
@@ -507,16 +511,14 @@ def runPats(extractedSupportconfig):
 		try:
 			p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			out, error = p.communicate()
-			patternValidated = parseOutput(out, error)
-			if not patternValidated:
-				patternFailures += 1
+			patternValidated = parseOutput(out, error, patternFile)
 
 			#call parseOutput to see if output was expected
 			if verboseMode:
 				if patternValidated:
 					print " Done:  " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile
 				else:
-					print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile + " -- Invalid pattern output string"
+					print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternErrorList[-1]
 			else:
 				#advance the progress bar if it's not full yet
 				if( progressCount < progressBarWidth ):
@@ -526,9 +528,9 @@ def runPats(extractedSupportconfig):
 						sys.stdout.write("=")
 						sys.stdout.flush()
 		except Exception:
+			patternErrorList.append(patternFile + " -- Pattern runtime error")
 			if verboseMode:
-				print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile + " -- Pattern runtime error"
-			patternFailures += 1
+				print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternErrorList[-1]
 
 	#make output look nice
 	if not verboseMode:
@@ -538,10 +540,11 @@ def runPats(extractedSupportconfig):
 			sys.stdout.flush()
 	sys.stdout.write("\n")
 
-	print "Pattern Execution Errors:     " + str(patternFailures)
 	print "Applicable Patterns:          " + str(len(results))
-		
-
+	print "Pattern Execution Errors:     " + str(len(patternErrorList))
+	if not verboseMode:
+		for patternErrorStr in patternErrorList:
+			print "  " + patternErrorStr
 
 #find all class Names in results
 #does not return anything
@@ -766,17 +769,28 @@ def getTableHtml(val):
 	return(returnString)
 	
 
-#check output. If output is good add it to results
-def parseOutput(out, error):
+#check output. If output is good add it to results, updates patternErrorList with invalid pattern output
+def parseOutput(out, error, pat):
 	global results
+	global patternErrorList
 	#if no errors
 	if error == "":
 		output = out.strip().split("|")
+		if( len(output) < len(RESULT_ELEMENT) ):
+			patternErrorList.append(pat + " -- Insufficient output elements: " + str(len(output)) + " < " + str(len(RESULT_ELEMENT)))
+			return False
+
+		for i in range(0, len(RESULT_ELEMENT)):
+			if not RESULT_ELEMENT[i] in output[i]:
+				patternErrorList.append(pat + " -- Invalid output element: " + str(RESULT_ELEMENT[i]) + " not found in " + str(output[i]))
+				return False
+
 		#if overall outcome of pattern was valid
 		if int(output[5].split("=")[1]) >= 0 and int(output[5].split("=")[1]) < 5:
 			results.append(output)
 		return True
 	else:
+		patternErrorList.append(pat + " -- Output error: " + str(error))
 		return False
 
 #############################################################################
