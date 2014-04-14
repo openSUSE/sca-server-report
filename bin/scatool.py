@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-8"
+	print "#   SCA Tool v1.0.5-9"
 	print "################################################################################"
 	print
 
@@ -73,7 +73,7 @@ if not setup:
 	sys.exit()
 
 try:
-	SCA_PATTERN_PATH = os.environ["SCA_PATTERN_PATH"]
+	SCA_PATTERN_PATH = str(os.environ["SCA_PATTERN_PATH"])
 except Exception:
 	SCA_PATTERN_PATH = "/usr/lib/sca/patterns"
 
@@ -108,7 +108,7 @@ except Exception:
 	LOGLEVEL_VERBOSE = 2
 
 try:
-	LOGLEVEL = os.environ["LOGLEVEL"]
+	LOGLEVEL = int(os.environ["LOGLEVEL"])
 except Exception:
 	LOGLEVEL = LOGLEVEL_NORMAL
 
@@ -539,6 +539,7 @@ def runPats(extractedSupportconfig):
 	sys.stdout.write("\n")
 
 	print "Pattern Execution Errors:     " + str(patternFailures)
+	print "Applicable Patterns:          " + str(len(results))
 		
 
 
@@ -926,7 +927,7 @@ def analyze(*arg):
 						print
 						print "Copied supportconfig:         " + givenSupportconfigPath + " -> localhost"
 					else:
-						print >> sys.stderr, "Error: Failed to connect to remote server"
+						print >> sys.stderr, "Error: Failed to copy supportconfig from remote server"
 						print >> sys.stderr
 						os.remove(supportconfigPath)
 						return
