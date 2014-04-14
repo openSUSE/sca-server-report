@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-4"
+	print "#   SCA Tool v1.0.5-8"
 	print "################################################################################"
 	print
 
@@ -526,7 +526,8 @@ def runPats(extractedSupportconfig):
 						sys.stdout.write("=")
 						sys.stdout.flush()
 		except Exception:
-			print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile + " -- Pattern runtime error"
+			if verboseMode:
+				print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile + " -- Pattern runtime error"
 			patternFailures += 1
 
 	#make output look nice
@@ -776,7 +777,10 @@ def parseOutput(out, error):
 		return True
 	else:
 		return False
-		
+
+#############################################################################
+# analyze
+#############################################################################
 #analyze server or supportconfig
 def analyze(*arg):
 	global outputPath
@@ -883,6 +887,8 @@ def analyze(*arg):
 				
 				#print "lets take a look at that IP "
 				try:
+					if( len(outputPath) == 0 ):
+						outputPath = remoteSupportconfigPath
 					#run ssh root@host "supportconfig -R REMOTE_SC_PATH -B <timeStamp>; echo -n \~; cat <path to new supportconfig
 					#aka: run supportconfig then send the output back.
 					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -R ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
