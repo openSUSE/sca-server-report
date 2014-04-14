@@ -23,14 +23,14 @@ Valid options: 0 = Disable console mode, 1 = Enable console mode
 Default: 0
 .RE
 .TP
-HTML_OUTPUT_PATH
-The path where HTML report files are saved when processing local supportconfig archives or directories. If defined, all HTML report files will be saved in this location, regardless of the supportconfig archive or directory location. HTML_OUTPUT_PATH overrides HTML_REPORT_PATH. If left undefined or empty, HTML report files are saved in the same directory as the supportconfig archive or directory.
+OUTPUT_PATH
+The directory where HTML report and supportconfig archive files are saved. If ARCHIVE_MODE is enabled, supportconfig archives are saved here as well. If defined, all HTML report and supportconfig files will be saved in this directory, regardless of the supportconfig archive or directory location. If left undefined or empty, HTML report files are saved in the same directory as the supportconfig archive or directory.
 .RS
 Default: (Empty)
 .RE
 .TP
-HTML_REPORT_PATH
-The path where HTML report files are saved when processing remote server supportconfigs.
+REMOTE_SC_PATH
+The remote supportconfig path where the supportconfig tar ball is temporarily saved while running on the remote server. You generally don't want to change this path.
 .RS
 Default: /var/log
 .RE

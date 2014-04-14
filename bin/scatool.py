@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-3"
+	print "#   SCA Tool v1.0.5-4"
 	print "################################################################################"
 	print
 
@@ -50,7 +50,7 @@ def usage():
 	print " -s      Analyze the local server"
 	print " -a path Analyze the supportconfig directory or archive"
 	print "         The path may also be an IP address of a server to analyze"
-	print " -o path HTML report output directory (HTML_OUTPUT_PATH)"
+	print " -o path HTML report output directory (OUTPUT_PATH)"
 	print " -k      Keep archive files (ARCHIVE_MODE)"
 	print " -v      Verbose output (LOGLEVEL)"
 	print " -c      Enter SCA Tool console (CONSOLE_MODE)"
@@ -63,9 +63,9 @@ try:
 	os.chdir(os.environ["PWD"])
 	setup = os.environ["SCA_READY"]
 except Exception:
-	usage()
-	print >> sys.stderr, "Error: Do not run directly"
+	print >> sys.stderr, "Error: Do not run directly; use scatool"
 	print >> sys.stderr
+	usage()
 	sys.exit()
 if not setup:
 	usage()
@@ -88,14 +88,14 @@ except Exception:
 	CONSOLE_MODE = 0
 
 try:
-	HTML_REPORT_PATH = os.environ["HTML_REPORT_PATH"]
+	REMOTE_SC_PATH = str(os.environ["REMOTE_SC_PATH"])
 except Exception:
-	HTML_REPORT_PATH = "/var/log"
+	REMOTE_SC_PATH = "/var/log"
 
 try:
-	HTML_OUTPUT_PATH = os.environ["HTML_OUTPUT_PATH"]
+	OUTPUT_PATH = str(os.environ["OUTPUT_PATH"])
 except Exception:
-	HTML_OUTPUT_PATH = ""
+	OUTPUT_PATH = ""
 
 try:
 	LOGLEVEL_NORMAL = int(os.environ["LOGLEVEL_NORMAL"])
@@ -116,9 +116,8 @@ except Exception:
 global results
 global knownClasses
 global HTML
-global htmlOutputPath
-global outputFileGiven
-global HtmlOutputFile 
+global outputPath
+global htmlOutputFile 
 global KeepArchive
 global serverName
 global verboseMode
@@ -136,14 +135,10 @@ if( LOGLEVEL == LOGLEVEL_VERBOSE ):
 else:
 	verboseMode = False
 
-#HTML_OUTPUT_PATH overrides HTML_REPORT_PATH
-if( len(HTML_OUTPUT_PATH) > 0 ):
-	outputFileGiven = True
-	htmlOutputPath = HTML_OUTPUT_PATH
-	HTML_REPORT_PATH = HtmlOutputFile
+if( len(OUTPUT_PATH) > 0 ):
+	outputPath = OUTPUT_PATH
 else:
-	outputFileGiven = False
-	htmlOutputPath = ""
+	outputPath = ""
 
 serverName = "Unknown"
 analysisDateTime = datetime.datetime.now()
@@ -359,23 +354,23 @@ def getHeader(*arg):
 #once analyze is run you can use "view" to look at the data
 #use: "view" or "view <path to html>"
 def view(*arg):
-	global HtmlOutputFile
+	global htmlOutputFile
 	#if no path given. try to view the global html output file.
 	if len(arg) == 0:
 		try:
 			
 			#check path and see if output file is set
-			if HtmlOutputFile == "":
+			if htmlOutputFile == "":
 				print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
 				return
-			if os.path.isfile(HtmlOutputFile):
+			if os.path.isfile(htmlOutputFile):
 				#check that this is html
-				if HtmlOutputFile.endswith(".htm") or HtmlOutputFile.endswith(".html"):
-					os.system("w3m " + HtmlOutputFile)
+				if htmlOutputFile.endswith(".htm") or htmlOutputFile.endswith(".html"):
+					os.system("w3m " + htmlOutputFile)
 				else:
-					print >> sys.stderr, HtmlOutputFile + " is not a html file"
+					print >> sys.stderr, htmlOutputFile + " is not a html file"
 			else:
-				print >> sys.stderr, HtmlOutputFile + " is not a file."
+				print >> sys.stderr, htmlOutputFile + " is not a file."
 		except Exception:
 			print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
 			
@@ -784,14 +779,13 @@ def parseOutput(out, error):
 		
 #analyze server or supportconfig
 def analyze(*arg):
-	global HtmlOutputFile
-	global outputFileGiven
+	global outputPath
+	global htmlOutputFile
 	global KeepArchive
 	global verboseMode
 	global analysisDateTime
 	#reset stuff
 	dateStamp = analysisDateTime.strftime("%d%m%y")
-#	dateStamp = str(analysisDateTime.year) + str(analysisDateTime.month).zfill(2) + str(analysisDateTime.day).zfill(2)
 	timeStamp = str(analysisDateTime.hour).zfill(2) + str(analysisDateTime.minute).zfill(2)
 	remoteSupportconfigName = ""
 	remoteSupportconfigPath = ""
@@ -802,8 +796,6 @@ def analyze(*arg):
 	isIP = False
 	host = "None"
 	isRemoteServer = False
-#	if not outputFileGiven:
-#		HtmlOutputFile = ""
 	cleanUp = True
 	
 	#if we want to run and analyze a supportconfig
@@ -887,15 +879,15 @@ def analyze(*arg):
 				print "Running supportconfig on:     " + givenSupportconfigPath
 				print "Enter your credentials for:   " + givenSupportconfigPath
 				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
-				remoteSupportconfigPath = HTML_REPORT_PATH
+				remoteSupportconfigPath = REMOTE_SC_PATH
 				
 				#print "lets take a look at that IP "
 				try:
-					#run ssh root@host "supportconfig -R HTML_REPORT_PATH -B <timeStamp>; echo -n \~; cat <path to new supportconfig
+					#run ssh root@host "supportconfig -R REMOTE_SC_PATH -B <timeStamp>; echo -n \~; cat <path to new supportconfig
 					#aka: run supportconfig then send the output back.
 					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -R ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					#create a local verson of the supportconfig output
-					localSupportconfig = open(remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz", 'w')
+					localSupportconfig = open(outputPath + "/nts_" + str(remoteSupportconfigName) + ".tbz", 'w')
 					#remove local archive
 					deleteArchive = True
 					condition = True
@@ -922,7 +914,7 @@ def analyze(*arg):
 						condition = not bool(out == "" and p.poll() != None)
 					#close the local copy of the remote supportconfig.
 					localSupportconfig.close()
-					supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz"
+					supportconfigPath = outputPath + "/nts_" + str(remoteSupportconfigName) + ".tbz"
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
 						print
@@ -956,11 +948,10 @@ def analyze(*arg):
 			if( fileInfo.st_size > 0 ):
 				TarFile = tarfile.open(supportconfigPath, "r:*")
 				extractedSupportconfig = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + "/"
-				if outputFileGiven:
-					if os.path.isdir(HtmlOutputFile):
-						HtmlOutputFile = HtmlOutputFile + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
+				if( len(outputPath) > 0 ):
+					htmlOutputFile = outputPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
 				else:
-					HtmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
+					htmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
 				print "Extracting Supportconfig:     " + supportconfigPath
 				TarFile.extractall(path=extractedPath, members=None)
 				print "Extracted Directory:          " + extractedSupportconfig 
@@ -976,16 +967,15 @@ def analyze(*arg):
 	#if given an extracted supportconfig
 	elif os.path.isdir(supportconfigPath):
 		extractedSupportconfig = supportconfigPath
-		if outputFileGiven:
-			if os.path.isdir(HtmlOutputFile):
-				HtmlOutputFile = HtmlOutputFile + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
+		if( len(outputPath) > 0 ):
+			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
 		else:
-			HtmlOutputFile = extractedSupportconfig
-			if HtmlOutputFile.endswith("/"):
-				HtmlOutputFile = HtmlOutputFile[:-1]
-			tmp = HtmlOutputFile.split("/")
+			htmlOutputFile = extractedSupportconfig
+			if htmlOutputFile.endswith("/"):
+				htmlOutputFile = htmlOutputFile[:-1]
+			tmp = htmlOutputFile.split("/")
 			del tmp[-1]
-			HtmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
+			htmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
 		#we don't want to delete something we did not create.
 		cleanUp = False
 
@@ -1009,13 +999,13 @@ def analyze(*arg):
 	#At this point we should have a extracted supportconfig 
 	#run patterns on supportconfig
 	runPats(extractedSupportconfig)
-	getHtml(HtmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
-	print ("SCA Report file:              %s" % HtmlOutputFile)
+	getHtml(htmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
+	print ("SCA Report file:              %s" % htmlOutputFile)
 	print
 
 	#if command was run via console run view
 	if command != "exit":
-		print "run \"view\" or open " + HtmlOutputFile + " to see results"
+		print "run \"view\" or open " + htmlOutputFile + " to see results"
 		view()
 
 	#clean up
@@ -1092,8 +1082,7 @@ if( len(sys.argv[1:]) > 0 ):
 			analyzeServer = True
 			analyzeFile = startUpOptionValue
 		elif startUpOption in ("-o"):
-			outputFileGiven = True
-			HtmlOutputFile = startUpOptionValue
+			outputPath = startUpOptionValue
 		else:
 			assert False, "Invalid option"
 elif( CONSOLE_MODE > 0 ):
@@ -1102,13 +1091,24 @@ else:
 	usage()
 	sys.exit()
 
+#validate outputPath
+if( len(outputPath) > 0 ):
+	if os.path.isdir(outputPath):
+		#clean trailing "/"
+		if outputPath.endswith("/"):
+			outputPath = outputPath[:-1]
+	else:
+		print "Error: Directory not found -- " + outputPath
+		print
+		print "Use -o path to specify a valid directory"
+		print
+		usage()
+		sys.exit(2)
+
 #auto exit.. or not:
 #if autoExit and analyzeServer:
 if autoExit:
 	command = "exit"
-#clean off any "/" from the end of a path name:
-if HtmlOutputFile.endswith("/"):
-	HtmlOutputFile = HtmlOutputFile[:-1]
 if analyzeServer == True and analyzeFile != "":
 	analyze(analyzeFile)
 elif analyzeServer == True and analyzeFile == "":
