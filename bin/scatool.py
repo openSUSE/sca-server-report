@@ -790,7 +790,7 @@ def parseOutput(out, error, pat):
 			results.append(output)
 		return True
 	else:
-		patternErrorList.append(pat + " -- Output error: " + str(error))
+		patternErrorList.append(pat + " -- Output error: " + str(error.split("\n")[0]))
 		return False
 
 #############################################################################

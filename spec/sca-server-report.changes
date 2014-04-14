@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Mon Apr 14 21:46:01 UTC 2014 - jrecord@suse.com
+Mon Apr 14 23:00:20 UTC 2014 - jrecord@suse.com
 
+- Fixed error processing
 - Fixed remote server supportconfig filenames
 - Added /etc/sca/scatool.conf
 - Added scatool.conf(5)
