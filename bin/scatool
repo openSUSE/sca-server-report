@@ -26,14 +26,17 @@
 #
 ##############################################################################
 
+CONF_FILE='/etc/sca/scatool.conf'
+if [[ -s $CONF_FILE ]]
+then
+	. $CONF_FILE
+else
+	echo "Error: File not found -- $CONF_FILE"
+	exit 1
+fi
 BIN_PATH='/usr/lib/sca/python'
-SCA_LIBRARY_PATH="/usr/lib/sca"
-SCA_PATTERN_PATH="${SCA_LIBRARY_PATH}/patterns"
-BASHLIB="${SCA_LIBRARY_PATH}/bash"
-PERL5LIB="${PERL5LIB}:${SCA_LIBRARY_PATH}/perl/"
-PYTHONPATH="${PYTHONPATH}:${SCA_LIBRARY_PATH}/python/"
 SCA_READY="True"
-export SCA_LIBRARY_PATH SCA_PATTERN_PATH BASHLIB PERL5LIB PYTHONPATH SCA_READY
+export SCA_READY
 
 python ${BIN_PATH}/scatool.py "$@"
 

@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Apr 14 17:24:00 UTC 2014 - jrecord@suse.com
+
+- Fixed remote server supportconfig filenames
+- Added /etc/sca/scatool.conf
+- Added scatool.conf(5)
+
+-------------------------------------------------------------------
 Sun Apr 13 03:00:16 UTC 2014 - jrecord@suse.com
 
 - Fixed treating relative path as remote connection (bnc#873075)

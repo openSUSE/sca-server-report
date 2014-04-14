@@ -1,0 +1,92 @@
+.TH SCATOOL.CONF 5 "14 Apr 2014" "sca-server-report" "Supportconfig Analysis Manual"
+.SH NAME
+scatool.conf - Supportconfig Analysis Tool Configuration File
+.SH DESCRIPTION
+The \fBscatool.conf\fR file has default values for \fBscatool\fR.
+.SH GLOBAL VARIABLES
+.TP
+ARCHIVE_MODE
+Once the \fBscatool\fR processes the supportconfig archive, it usually deletes it.
+.RS
+Valid options: 0 = Disable archive mode, 1 = Enable archive mode
+.RE
+.RS
+Default: 0
+.RE
+.TP
+CONSOLE_MODE
+Start \fBscatool\fR in console mode.
+.RS
+Valid options: 0 = Disable console mode, 1 = Enable console mode
+.RE
+.RS
+Default: 0
+.RE
+.TP
+HTML_OUTPUT_PATH
+The path where HTML report files are saved when processing local supportconfig archives or directories. If defined, all HTML report files will be saved in this location, regardless of the supportconfig archive or directory location. HTML_OUTPUT_PATH overrides HTML_REPORT_PATH. If left undefined or empty, HTML report files are saved in the same directory as the supportconfig archive or directory.
+.RS
+Default: (Empty)
+.RE
+.TP
+HTML_REPORT_PATH
+The path where HTML report files are saved when processing remote server supportconfigs.
+.RS
+Default: /var/log
+.RE
+.TP
+SCA_LIBRARY_PATH
+The base SCA Tool library path. Pattern libraries are located here. 
+.RS
+Default: /usr/lib/sca/
+.RE
+.TP
+SCA_PATTERN_PATH
+The base pattern directory for all patterns.
+.RS
+Default: /usr/lib/sca/patterns/
+.RE
+.TP
+BASHLIB
+The Bash library location for the supportconfig pattern repository. The bash patterns \fBscatool\fR uses requires bash libraries located in this directory.
+.RS
+Default: /usr/lib/sca/patterns/lib/bash
+.RE
+.TP
+PERL5LIB
+The Perl library location for the supportconfig pattern repository. The perl patterns \fBscatool\fR uses requires perl libraries located in this directory.
+.RS
+Default: /usr/lib/sca/patterns/lib/perl
+.RE
+.TP
+PYTHONPATH
+The Python library location for the supportconfig pattern repository. The python patterns \fBscatool\fR uses requires python libraries located in this directory.
+.RS
+Default: /usr/lib/sca/patterns/lib/python
+.RE
+.TP
+LOGLEVEL
+The SCA Tool log level.
+.RS
+Valid options: LOGLEVEL_NORMAL and LOGLEVEL_VERBOSE
+.RE
+.RS
+Default: LOGLEVEL_NORMAL
+.RE
+.SH AUTHOR
+Jason Record <jrecord@suse.com>
+.SH COPYRIGHT
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+.PP
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License
+along with this program; if not, see <http://www.gnu.org/licenses/>.
+.SH SEE ALSO
+.BR \fBscatool\fR (8)
+

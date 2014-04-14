@@ -1,5 +1,5 @@
 OBSPACKAGE=sca-server-report
-SVNDIRS=spec bin man
+SVNDIRS=spec bin man config
 VERSION=$(shell awk '/Version:/ { print $$2 }' spec/${OBSPACKAGE}.spec)
 RELEASE=$(shell awk '/Release:/ { print $$2 }' spec/${OBSPACKAGE}.spec)
 SRCDIR=$(OBSPACKAGE)-$(VERSION)

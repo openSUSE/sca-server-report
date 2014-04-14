@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Apr 12
+# Modified:     2014 Apr 14
 
 ##############################################################################
 #
@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5"
+	print "#   SCA Tool v1.0.5-3"
 	print "################################################################################"
 	print
 
@@ -50,10 +50,10 @@ def usage():
 	print " -s      Analyze the local server"
 	print " -a path Analyze the supportconfig directory or archive"
 	print "         The path may also be an IP address of a server to analyze"
-	print " -o path HTML report output directory"
-	print " -k      Keep archive files"
-	print " -v      Verbose output"
-	print " -c      Enter SCA Tool console"
+	print " -o path HTML report output directory (HTML_OUTPUT_PATH)"
+	print " -k      Keep archive files (ARCHIVE_MODE)"
+	print " -v      Verbose output (LOGLEVEL)"
+	print " -c      Enter SCA Tool console (CONSOLE_MODE)"
 	print
 
 
@@ -76,6 +76,77 @@ try:
 	SCA_PATTERN_PATH = os.environ["SCA_PATTERN_PATH"]
 except Exception:
 	SCA_PATTERN_PATH = "/usr/lib/sca/patterns"
+
+try:
+	ARCHIVE_MODE = int(os.environ["ARCHIVE_MODE"])
+except Exception:
+	ARCHIVE_MODE = 0
+
+try:
+	CONSOLE_MODE = int(os.environ["CONSOLE_MODE"])
+except Exception:
+	CONSOLE_MODE = 0
+
+try:
+	HTML_REPORT_PATH = os.environ["HTML_REPORT_PATH"]
+except Exception:
+	HTML_REPORT_PATH = "/var/log"
+
+try:
+	HTML_OUTPUT_PATH = os.environ["HTML_OUTPUT_PATH"]
+except Exception:
+	HTML_OUTPUT_PATH = ""
+
+try:
+	LOGLEVEL_NORMAL = int(os.environ["LOGLEVEL_NORMAL"])
+except Exception:
+	LOGLEVEL_NORMAL = 1
+
+try:
+	LOGLEVEL_VERBOSE = int(os.environ["LOGLEVEL_VERBOSE"])
+except Exception:
+	LOGLEVEL_VERBOSE = 2
+
+try:
+	LOGLEVEL = os.environ["LOGLEVEL"]
+except Exception:
+	LOGLEVEL = LOGLEVEL_NORMAL
+
+#setup globals
+global results
+global knownClasses
+global HTML
+global htmlOutputPath
+global outputFileGiven
+global HtmlOutputFile 
+global KeepArchive
+global serverName
+global verboseMode
+global analysisDateTime
+knownClasses = []
+results = []
+
+if( ARCHIVE_MODE > 0 ):
+	KeepArchive = True
+else:
+	KeepArchive = False
+
+if( LOGLEVEL == LOGLEVEL_VERBOSE ):
+	verboseMode = True
+else:
+	verboseMode = False
+
+#HTML_OUTPUT_PATH overrides HTML_REPORT_PATH
+if( len(HTML_OUTPUT_PATH) > 0 ):
+	outputFileGiven = True
+	htmlOutputPath = HTML_OUTPUT_PATH
+	HTML_REPORT_PATH = HtmlOutputFile
+else:
+	outputFileGiven = False
+	htmlOutputPath = ""
+
+serverName = "Unknown"
+analysisDateTime = datetime.datetime.now()
 
 #commands MUST have a function with the same name.
 COMMANDS = ["analyze", "exit", "view", "help"]
@@ -103,22 +174,8 @@ def tabSystem(text, size):
 	else:
 			return None
 
-#setup globals
-global results
-global knownClasses
-global HTML
-global outputFileGiven
-global HtmlOutputFile 
-global KeepArchive
-global serverName
-global verboseMode
-outputFileGiven = False
-knownClasses = []
-results = []
-HtmlOutputFile = ""
-KeepArchive = False
-verboseMode = False
-serverName = "Unknown"
+
+#getHeader
 
 #returns html code. This is the about server part.
 ####example####
@@ -134,6 +191,7 @@ serverName = "Unknown"
 
 def getHeader(*arg):
 	global serverName
+	global analysisDateTime
 	#reset variables
 	supportconfigVersion = ""
 	oesVersion = ""
@@ -145,7 +203,8 @@ def getHeader(*arg):
 	hardWare = ""
 	virtualization = ""
 	vmIdentity = ""
-	timeAnalysis = ""
+	#set timeAnalysis (example: 2014-04-10 17:45:15)
+	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 	timeArchiveRun = "0000-00-00 00:00:00"
 	returnHTML = ""
 
@@ -154,10 +213,6 @@ def getHeader(*arg):
 		arcName = arg[2]
 	else:
 		arcName = ""
-	TIME = datetime.datetime.now()
-
-	#set timeAnalysis (example: 2014-04-10 17:45:15)
-	timeAnalysis = str(TIME.year) + "-" + str(TIME.month).zfill(2) + "-" + str(TIME.day).zfill(2) + " " + str(TIME.hour).zfill(2) + ":" + str(TIME.minute).zfill(2) + ":" + str(TIME.second).zfill(2)
 
 	#open basic-environment
 	File = open(arg[0] + "/basic-environment.txt")
@@ -733,8 +788,11 @@ def analyze(*arg):
 	global outputFileGiven
 	global KeepArchive
 	global verboseMode
+	global analysisDateTime
 	#reset stuff
-	timeStamp = time.time()
+	dateStamp = analysisDateTime.strftime("%d%m%y")
+#	dateStamp = str(analysisDateTime.year) + str(analysisDateTime.month).zfill(2) + str(analysisDateTime.day).zfill(2)
+	timeStamp = str(analysisDateTime.hour).zfill(2) + str(analysisDateTime.minute).zfill(2)
 	remoteSupportconfigName = ""
 	remoteSupportconfigPath = ""
 	extractedSupportconfig = ""
@@ -744,13 +802,13 @@ def analyze(*arg):
 	isIP = False
 	host = "None"
 	isRemoteServer = False
-	if not outputFileGiven:
-		HtmlOutputFile = ""
+#	if not outputFileGiven:
+#		HtmlOutputFile = ""
 	cleanUp = True
 	
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
-		print "Running supportconfig on:     local host"
+		print "Running supportconfig on:     localhost"
 		#run supportconfig
 		try:
 			p = subprocess.Popen(['/sbin/supportconfig', '-b'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -828,16 +886,16 @@ def analyze(*arg):
 				#we have an IP
 				print "Running supportconfig on:     " + givenSupportconfigPath
 				print "Enter your credentials for:   " + givenSupportconfigPath
-				remoteSupportconfigName = timeStamp
-				remoteSupportconfigPath = "/var/log"
+				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
+				remoteSupportconfigPath = HTML_REPORT_PATH
 				
 				#print "lets take a look at that IP "
 				try:
-					#run ssh root@host "supportconfig -R /var/log -B <timeStamp>; echo -n \~; cat <path to new supportconfig
+					#run ssh root@host "supportconfig -R HTML_REPORT_PATH -B <timeStamp>; echo -n \~; cat <path to new supportconfig
 					#aka: run supportconfig then send the output back.
 					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -R ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					#create a local verson of the supportconfig output
-					localSupportconfig = open(remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz", 'w')
+					localSupportconfig = open(remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz", 'w')
 					#remove local archive
 					deleteArchive = True
 					condition = True
@@ -864,7 +922,7 @@ def analyze(*arg):
 						condition = not bool(out == "" and p.poll() != None)
 					#close the local copy of the remote supportconfig.
 					localSupportconfig.close()
-					supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + "_local.tbz"
+					supportconfigPath = remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz"
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
 						print
@@ -1014,6 +1072,7 @@ if( len(sys.argv[1:]) > 0 ):
 		usage()
 		sys.exit(2)
 
+
 	autoExit = True
 	analyzeServer = False
 	analyzeFile = ""
@@ -1037,6 +1096,8 @@ if( len(sys.argv[1:]) > 0 ):
 			HtmlOutputFile = startUpOptionValue
 		else:
 			assert False, "Invalid option"
+elif( CONSOLE_MODE > 0 ):
+	autoExit = False
 else:
 	usage()
 	sys.exit()
