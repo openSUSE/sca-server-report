@@ -4,7 +4,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Wrapper for /usr/lib/sca/python/scatool.py
-# Modified:     2014 Apr 12
+# Modified:     2014 Apr 15
 
 ##############################################################################
 #
@@ -21,7 +21,7 @@
 #  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 #  Authors/Contributors:
-#     David Hamner (dhamner@suse.com)
+#     David Hamner (ke7oxh@gmail.com)
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################

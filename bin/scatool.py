@@ -20,7 +20,7 @@
 #  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 #  Authors/Contributors:
-#     David Hamner (dhamner@suse.com)
+#     David Hamner (ke7oxh@gmail.com)
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################

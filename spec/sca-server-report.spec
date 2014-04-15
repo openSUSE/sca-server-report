@@ -20,7 +20,7 @@ License:      GPL-2.0
 Group:        System/Monitoring
 Autoreqprov:  on
 Version:      0.9
-Release:      32
+Release:      33
 Source:       %{name}-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 BuildArch:    noarch
@@ -35,7 +35,7 @@ Supportconfig Analysis patterns to perform the analysis.
 
 Authors:
 --------
-    David Hamner <dhamner@suse.com>
+    David Hamner <ke7oxh@gmail.com>
     Jason Record <jrecord@suse.com>
 
 %prep

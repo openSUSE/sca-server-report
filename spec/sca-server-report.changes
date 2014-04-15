@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Tue Apr 15 14:37:50 UTC 2014 - jrecord@suse.com
+Tue Apr 15 17:26:49 UTC 2014 - jrecord@suse.com
 
+- Updated email David Hamner (ke7oxh@gmail.com)
 - Updated output strings for consistency
 
 -------------------------------------------------------------------
@@ -75,7 +76,7 @@ Tue Feb 11 20:51:15 UTC 2014 - jrecord@suse.com
 - Removed console as a default
 
 -------------------------------------------------------------------
-Thu Jan 31 23:51:43 UTC 2014 - dhamner@novell.com
+Thu Jan 31 23:51:43 UTC 2014 - ke7oxh@gmail.com
 
 - Added .changes
 
@@ -85,7 +86,7 @@ Thu Jan 16 23:51:43 UTC 2014 jrecord@suse.com
 - updated paths to match FHS change
 
 -------------------------------------------------------------------
-Fri Nov 15 23:51:43 UTC 2013 dhamner@novell.com
+Fri Nov 15 23:51:43 UTC 2013 ke7oxh@gmail.com
 
 - Fixed HTML ouput
 - Analyze run from console will auto start w3m
