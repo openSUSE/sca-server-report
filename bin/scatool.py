@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Apr 14
+# Modified:     2014 Apr 15
 
 ##############################################################################
 #
@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-10"
+	print "#   SCA Tool v1.0.5-11"
 	print "################################################################################"
 	print
 
@@ -819,7 +819,7 @@ def analyze(*arg):
 	
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
-		print "Running supportconfig on:     localhost"
+		print "Running Supportconfig On:     localhost"
 		#run supportconfig
 		try:
 			p = subprocess.Popen(['/sbin/supportconfig', '-b'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -854,7 +854,8 @@ def analyze(*arg):
 		for line in alloutput.split("\n"):
 			if "Log file tar ball:" in line:
 				supportconfigPath = line.split(":")[1].strip()
-				
+		#just used for consistency compared to a remote server supportconfig, where ~ is needed to indentify the the supportconfig termination
+		print "~"
 	#if a path was given. analyze given file/folder
 	elif len(arg) == 1:
 		#validate the file/folder/ip given by the end user
@@ -895,8 +896,8 @@ def analyze(*arg):
 				supportconfigPath = givenSupportconfigPath
 			else:
 				#we have an IP
-				print "Running supportconfig on:     " + givenSupportconfigPath
-				print "Enter your credentials for:   " + givenSupportconfigPath
+				print "Running Supportconfig On:     " + givenSupportconfigPath
+				print "Enter Your Credentials For:   " + givenSupportconfigPath
 				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
 				remoteSupportconfigPath = REMOTE_SC_PATH
 				
@@ -939,7 +940,7 @@ def analyze(*arg):
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
 						print
-						print "Copied supportconfig:         " + givenSupportconfigPath + " -> localhost"
+						print "Copied Supportconfig:         " + givenSupportconfigPath + " -> localhost"
 					else:
 						print >> sys.stderr, "Error: Failed to copy supportconfig from remote server"
 						print >> sys.stderr
@@ -975,7 +976,7 @@ def analyze(*arg):
 					htmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
 				print "Extracting Supportconfig:     " + supportconfigPath
 				TarFile.extractall(path=extractedPath, members=None)
-				print "Extracted Directory:          " + extractedSupportconfig 
+				print "Supportconfig Directory:      " + extractedSupportconfig 
 			else:
 				print >> sys.stderr, "Error: Zero byte file: " + supportconfigPath
 				print >> sys.stderr
@@ -1021,7 +1022,7 @@ def analyze(*arg):
 	#run patterns on supportconfig
 	runPats(extractedSupportconfig)
 	getHtml(htmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
-	print ("SCA Report file:              %s" % htmlOutputFile)
+	print ("SCA Report File:              %s" % htmlOutputFile)
 	print
 
 	#if command was run via console run view

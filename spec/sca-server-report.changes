@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Tue Apr 15 14:37:50 UTC 2014 - jrecord@suse.com
+
+- Updated output strings for consistency
+
+-------------------------------------------------------------------
 Mon Apr 14 23:00:20 UTC 2014 - jrecord@suse.com
 
 - Fixed error processing
