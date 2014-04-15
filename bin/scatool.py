@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-11"
+	print "#   SCA Tool v1.0.5-12"
 	print "################################################################################"
 	print
 
@@ -968,13 +968,13 @@ def analyze(*arg):
 		try:
 			fileInfo = os.stat(supportconfigPath)
 			if( fileInfo.st_size > 0 ):
+				print "Extracting Supportconfig:     " + supportconfigPath
 				TarFile = tarfile.open(supportconfigPath, "r:*")
 				extractedSupportconfig = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + "/"
 				if( len(outputPath) > 0 ):
 					htmlOutputFile = outputPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
 				else:
 					htmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
-				print "Extracting Supportconfig:     " + supportconfigPath
 				TarFile.extractall(path=extractedPath, members=None)
 				print "Supportconfig Directory:      " + extractedSupportconfig 
 			else:
