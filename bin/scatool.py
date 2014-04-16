@@ -26,7 +26,6 @@
 ##############################################################################
 
 import readline
-import re
 import subprocess
 import os 
 import sys
@@ -40,7 +39,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-13"
+	print "#   SCA Tool v1.0.5-14"
 	print "################################################################################"
 	print
 
@@ -449,18 +448,15 @@ def patternPreProcessor(extractedSupportconfig):
 	rpmFile = open(extractedSupportconfig + "/rpm.txt")
 	RPMs = rpmFile.readlines()
 	rpmFile.close()
-	hae = re.compile("^heartbeat[[:space:]]|^openais[[:space:]]|^pacemaker[[:space:]]")
 	for line in RPMs:
-		if hae.search(line) and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
 		if "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/eDirectory/"))
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/edirectory/"))
 		if "groupwise" in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/GroupWise/"))
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
 		if "datasync-common " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/GroupWise/"))
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
 		if "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/Filr/"))
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/filr/"))
 
 	patternDirectories = list(set(patternDirectories))
 	systemDefinition = []
