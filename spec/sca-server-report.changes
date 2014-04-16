@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Wed Apr 16 19:03:43 UTC 2014 - jrecord@suse.com
+Wed Apr 16 20:30:59 UTC 2014 - jrecord@suse.com
 
+- Fixed arg with unknown option (bnc#874036)
 - Added HTML report footer (bnc#874029)
 - Change to lowercase pattern directories
 - Fixed GroupWise preprocessor detection (bnc#873991)

@@ -40,7 +40,7 @@ import socket
 import time
 import getopt
 
-SVER = '1.0.6'
+SVER = '1.0.6-1'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -1177,6 +1177,15 @@ if( len(sys.argv[1:]) > 0 ):
 elif( CONSOLE_MODE > 0 ):
 	autoExit = False
 else:
+	usage()
+	sys.exit()
+
+if( len(opts) == 0 and len(args) > 0 ):
+	analyzeServer = True
+	analyzeFile = args[0]
+elif not analyzeServer:
+	print "Error: Invalid startup option(s)"
+	print
 	usage()
 	sys.exit()
 
