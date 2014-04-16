@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Wed Apr 16 16:08:54 UTC 2014 - jrecord@suse.com
+
+- Fixed GroupWise preprocessor detection (bnc#873991)
+
+-------------------------------------------------------------------
 Tue Apr 15 18:45:04 UTC 2014 - jrecord@suse.com
 
 - Fixed location of extracting archive

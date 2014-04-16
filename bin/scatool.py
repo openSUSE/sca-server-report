@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Apr 15
+# Modified:     2014 Apr 16
 
 ##############################################################################
 #
@@ -40,7 +40,7 @@ import getopt
 
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-12"
+	print "#   SCA Tool v1.0.5-13"
 	print "################################################################################"
 	print
 
@@ -453,18 +453,20 @@ def patternPreProcessor(extractedSupportconfig):
 	for line in RPMs:
 		if hae.search(line) and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
-		if "NDSserv " in line and not line.startswith("sca-patterns"):
+		if "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/eDirectory/"))
-		if "groupwise " in line and not line.startswith("sca-patterns"):
+		if "groupwise" in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/GroupWise/"))
-		if "datasync-common " in line and not line.startswith("sca-patterns"):
+		if "datasync-common " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/GroupWise/"))
-		if "filr-famtd " in line and not line.startswith("sca-patterns"):
+		if "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/Filr/"))
 
+	patternDirectories = list(set(patternDirectories))
 	systemDefinition = []
 	for systemElement in patternDirectories:
 		systemDefinition.append(systemElement.split("/")[-2])
+	systemDefinition = sorted(systemDefinition)
 	print "Pattern Definitions:          " + " ".join(systemDefinition)
 
 	#second build the list of valid patterns from the patternDirectories
