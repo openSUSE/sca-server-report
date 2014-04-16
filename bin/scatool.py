@@ -25,6 +25,9 @@
 #
 ##############################################################################
 
+##########################################################################################
+# Python Imports
+##########################################################################################
 import readline
 import subprocess
 import os 
@@ -37,9 +40,14 @@ import socket
 import time
 import getopt
 
+SVER = '1.0.6'
+
+##########################################################################################
+# HELP FUNCTIONS
+##########################################################################################
 def title():
 	print "################################################################################"
-	print "#   SCA Tool v1.0.5-14"
+	print "#   SCA Tool v" + SVER
 	print "################################################################################"
 	print
 
@@ -55,8 +63,10 @@ def usage():
 	print " -c      Enter SCA Tool console (CONSOLE_MODE)"
 	print
 
-
 title()
+##########################################################################################
+# Environment and Global Variables
+##########################################################################################
 #setup environment and PWD
 try:
 	os.chdir(os.environ["PWD"])
@@ -154,27 +164,12 @@ COMMANDS_HELP = ["analyze: analyze a supportconfig\nexample: analyze /path/to/su
 		 "view: view report files\nexample: view /path/to/report.html\nIf no path given it will try to open newly created report."]
 command = ""
 
-def tabSystem(text, size):
-	commandBuffer = readline.get_line_buffer()
-	compleateCommands = []
-	for i in COMMANDS:
-		#auto complete to command name
-		if i == commandBuffer.split(" ")[0]:
-			#if the command has an argument auto complete to path names (unless the command is help)
-			if len(commandBuffer.split(" ")) > 0 and commandBuffer.split(" ")[0] != "help":
-				if os.path.isdir((glob.glob(commandBuffer.split(" ")[1]+'*'))[size]):
-					return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size] + "/"
-				return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size]
-		if i.startswith(text):
-			compleateCommands.append(i)
-	if size < len(compleateCommands):
-			return compleateCommands[size]
-	else:
-			return None
-
-
-#getHeader
-
+##########################################################################################
+# HTML REPORT FUNCTIONS
+##########################################################################################
+##########################################################################################
+# getHeader
+##########################################################################################
 #returns html code. This is the about server part.
 ####example####
 #Server Information
@@ -353,197 +348,27 @@ def getHeader(*arg):
 	returnHTML = returnHTML + '<HR />\n'
 	return returnHTML
 
-#take a look at the html
-#once analyze is run you can use "view" to look at the data
-#use: "view" or "view <path to html>"
-def view(*arg):
-	global htmlOutputFile
-	#if no path given. try to view the global html output file.
-	if len(arg) == 0:
-		try:
-			
-			#check path and see if output file is set
-			if htmlOutputFile == "":
-				print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
-				return
-			if os.path.isfile(htmlOutputFile):
-				#check that this is html
-				if htmlOutputFile.endswith(".htm") or htmlOutputFile.endswith(".html"):
-					os.system("w3m " + htmlOutputFile)
-				else:
-					print >> sys.stderr, htmlOutputFile + " is not a html file"
-			else:
-				print >> sys.stderr, htmlOutputFile + " is not a file."
-		except Exception:
-			print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
-			
-	#A path was given
-	elif len(arg) == 1:
-		try:
-			#check the path
-			if os.path.isfile(arg[0]):
-				#check that this is html
-				if arg[0].endswith(".htm") or arg[0].endswith(".html"):
-					os.system("w3m " + arg[0])
-				else:
-					print >> sys.stderr, arg[0] + " is not a html file"
-			else:
-				print >> sys.stderr, arg[0] + " is not a file."
-		except Exception:
-			pass
-		
-	#....More then two arguments given. Nice :)
-	else:
-		print >> sys.stderr, "Please run \"help view\""
 
-#determines which patterns apply to the supportconfig
-#returns a list of applicable patterns
-def patternPreProcessor(extractedSupportconfig):
-	global verboseMode
-	patternFileList = []
-	patternDirectories = [SCA_PATTERN_PATH + "/local/"] #always include the local patterns
+##########################################################################################
+# getFooter
+##########################################################################################
+#creates an HTML footer string for the HTML report
+#called by getHtml
+#returns HTML code
+def getFooter():
+	returnHTML = ""
+	returnHTML = returnHTML + '\n\n<HR />\n'
+	returnHTML = returnHTML + '\n<TABLE WIDTH=\"100%\">\n<TR>'
+	returnHTML = returnHTML + "<TD ALIGN=\"left\">Client: scatool v" + SVER + " (Report Generated by: SCA Tool)</TD>"
+	returnHTML = returnHTML + "<TD ALIGN=\"right\"><a href=\"https://www.suse.com/support/\" alt=\"SUSE Technical Support\" target=\"_blank\">SUSE Technical Support</a></td>"
+	returnHTML = returnHTML + "</TR>\n</TABLE>\n"
 
-	#first get the pattern directory paths for all possible valid patterns
-	#build directory with SLE and OES versions from basic-environment.txt
-	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
-	basicEnvLines = basicEnv.readlines()
-	SLE_VERSION = 0
-	SLE_SP = 0
-	OES_VERSION = 0
-	OES_SP = 0
-	inOES = False
-	notOES = True
-	inSLES = False
-	for lineNumber in range(0, len(basicEnvLines)):
-		if inSLES:
-			if "#==[" in basicEnvLines[lineNumber] :
-				inSLES = False
-			elif basicEnvLines[lineNumber].startswith("VERSION"):
-				SLE_VERSION = basicEnvLines[lineNumber].split("=")[1].strip()
-			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
-				SLE_SP = basicEnvLines[lineNumber].split("=")[1].strip()
-		elif inOES:
-			if "#==[" in basicEnvLines[lineNumber] :
-				inOES = False
-			elif "Open Enterprise" in basicEnvLines[lineNumber]:
-				notOES = False
-			elif basicEnvLines[lineNumber].startswith("VERSION"):
-				OES_VERSION = basicEnvLines[lineNumber].split("=")[1].strip().split(".")[0]
-			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
-				OES_SP = basicEnvLines[lineNumber].split("=")[1].strip()
-		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
-			inSLES = True
-		elif "# /etc/novell-release" in basicEnvLines[lineNumber] :
-			inOES = True
-	if notOES:
-		OES_VERSION = 0
-	if( SLE_VERSION > 0 ):
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "all/")
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "sp" + str(SLE_SP) + "/")
-	if( OES_VERSION > 0 ):
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "all/")
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "sp" + str(OES_SP) + "/")
-
-	#build directory of additional required patterns by add-on products
-	rpmFile = open(extractedSupportconfig + "/rpm.txt")
-	RPMs = rpmFile.readlines()
-	rpmFile.close()
-	for line in RPMs:
-		if "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/edirectory/"))
-		if "groupwise" in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
-		if "datasync-common " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
-		if "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/filr/"))
-
-	patternDirectories = list(set(patternDirectories))
-	systemDefinition = []
-	for systemElement in patternDirectories:
-		systemDefinition.append(systemElement.split("/")[-2])
-	systemDefinition = sorted(systemDefinition)
-	print "Pattern Definitions:          " + " ".join(systemDefinition)
-
-	#second build the list of valid patterns from the patternDirectories
-	#walk through each valid pattern directory
-	for patternDirectory in patternDirectories:
-		#only include patterns that exist
-		if os.path.isdir(patternDirectory):
-			#get the patterns from the valid directory
-			for root, dirs, patternFiles in os.walk(patternDirectory):
-				#joint the filenames with the root path
-				for patternFile in patternFiles:
-					patternFileList.append(os.path.join(root, patternFile))
-
-	return patternFileList
+	return returnHTML
 
 
-#run all patterns
-#this is called by analyze.
-#does not return anything; however, it does set results[]
-def runPats(extractedSupportconfig):
-	global results
-	global patternErrorList
-	global verboseMode
-	results = []
-
-	validPatterns = patternPreProcessor(extractedSupportconfig)
-
-	progressBarWidth = 48
-	progressCount = 0
-	patternCount = 0
-	patternTotal = len(validPatterns)
-	patternInterval = int(patternTotal / progressBarWidth)
-
-	print "Total Patterns to Apply:      " + str(patternTotal)
-	if verboseMode:
-		print "Analyzing Supportconfig:      In Progress"
-	else:
-		sys.stdout.write("Analyzing Supportconfig:      [%s]" % (" " * progressBarWidth))
-		sys.stdout.flush()
-		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
-
-	for patternFile in validPatterns:
-		patternCount += 1
-		try:
-			p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			out, error = p.communicate()
-			patternValidated = parseOutput(out, error, patternFile)
-
-			#call parseOutput to see if output was expected
-			if verboseMode:
-				if patternValidated:
-					print " Done:  " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile
-				else:
-					print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternErrorList[-1]
-			else:
-				#advance the progress bar if it's not full yet
-				if( progressCount < progressBarWidth ):
-					#advance the progress bar in equal intervals
-					if( patternCount % patternInterval == 0 ):
-						progressCount += 1
-						sys.stdout.write("=")
-						sys.stdout.flush()
-		except Exception:
-			patternErrorList.append(patternFile + " -- Pattern runtime error")
-			if verboseMode:
-				print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternErrorList[-1]
-
-	#make output look nice
-	if not verboseMode:
-		while( progressCount < progressBarWidth ):
-			progressCount += 1
-			sys.stdout.write("=")
-			sys.stdout.flush()
-	sys.stdout.write("\n")
-
-	print "Applicable Patterns:          " + str(len(results))
-	print "Pattern Execution Errors:     " + str(len(patternErrorList))
-	if not verboseMode:
-		for patternErrorStr in patternErrorList:
-			print "  " + patternErrorStr
-
+##########################################################################################
+# getClasses
+##########################################################################################
 #find all class Names in results
 #does not return anything
 #side effect: set "knownClasses"
@@ -556,8 +381,10 @@ def getClasses():
 		if not (results[i][0].split("=")[1] in knownClasses):
 			knownClasses.append(results[i][0].split("=")[1])
 
-	
-	
+
+##########################################################################################
+# getHtml
+##########################################################################################
 #create the html code. :)
 #called by analyze
 #must be run after runPats
@@ -647,6 +474,8 @@ def getHtml(OutPutFile, archivePath, archiveFile):
 	HTML = HTML + getTableHtml(0)
 	HTML = HTML + "</TABLE>" + "\n"
 	
+	HTML = HTML + getFooter()
+
 	#HTML end stuff
 	HTML = HTML + "</BODY>" + "\n"
 	HTML = HTML + "</HTML>" + "\n"
@@ -655,7 +484,11 @@ def getHtml(OutPutFile, archivePath, archiveFile):
 	fh = open(OutPutFile, "w")
 	fh.write(HTML)
 	fh.close()
- 
+
+
+##########################################################################################
+# getTableHtml
+##########################################################################################
 #takes a status(critical (4), warning (3), etc) and returns the corresponding table... in html
 def getTableHtml(val):
 	#reset number of hits. ( a hit in this case is a result that matches "val")
@@ -765,8 +598,168 @@ def getTableHtml(val):
 			returnString = returnString + tmpReturn
 	#well that was fun... return
 	return(returnString)
-	
 
+
+
+##########################################################################################
+# PATTERN ANALYSIS FUNCTIONS
+##########################################################################################
+# patternPreProcessor
+##########################################################################################
+#determines which patterns apply to the supportconfig
+#returns a list of applicable patterns
+def patternPreProcessor(extractedSupportconfig):
+	global verboseMode
+	patternFileList = []
+	patternDirectories = [SCA_PATTERN_PATH + "/local/"] #always include the local patterns
+
+	#first get the pattern directory paths for all possible valid patterns
+	#build directory with SLE and OES versions from basic-environment.txt
+	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
+	basicEnvLines = basicEnv.readlines()
+	SLE_VERSION = 0
+	SLE_SP = 0
+	OES_VERSION = 0
+	OES_SP = 0
+	inOES = False
+	notOES = True
+	inSLES = False
+	for lineNumber in range(0, len(basicEnvLines)):
+		if inSLES:
+			if "#==[" in basicEnvLines[lineNumber] :
+				inSLES = False
+			elif basicEnvLines[lineNumber].startswith("VERSION"):
+				SLE_VERSION = basicEnvLines[lineNumber].split("=")[1].strip()
+			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
+				SLE_SP = basicEnvLines[lineNumber].split("=")[1].strip()
+		elif inOES:
+			if "#==[" in basicEnvLines[lineNumber] :
+				inOES = False
+			elif "Open Enterprise" in basicEnvLines[lineNumber]:
+				notOES = False
+			elif basicEnvLines[lineNumber].startswith("VERSION"):
+				OES_VERSION = basicEnvLines[lineNumber].split("=")[1].strip().split(".")[0]
+			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
+				OES_SP = basicEnvLines[lineNumber].split("=")[1].strip()
+		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
+			inSLES = True
+		elif "# /etc/novell-release" in basicEnvLines[lineNumber] :
+			inOES = True
+	if notOES:
+		OES_VERSION = 0
+	if( SLE_VERSION > 0 ):
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "all/")
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "sp" + str(SLE_SP) + "/")
+	if( OES_VERSION > 0 ):
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "all/")
+		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "sp" + str(OES_SP) + "/")
+
+	#build directory of additional required patterns by add-on products
+	rpmFile = open(extractedSupportconfig + "/rpm.txt")
+	RPMs = rpmFile.readlines()
+	rpmFile.close()
+	for line in RPMs:
+		if "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/edirectory/"))
+		if "groupwise" in line.lower() and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
+		if "datasync-common " in line.lower() and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
+		if "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/filr/"))
+
+	patternDirectories = list(set(patternDirectories))
+	systemDefinition = []
+	for systemElement in patternDirectories:
+		systemDefinition.append(systemElement.split("/")[-2])
+	systemDefinition = sorted(systemDefinition)
+	print "Pattern Definitions:          " + " ".join(systemDefinition)
+
+	#second build the list of valid patterns from the patternDirectories
+	#walk through each valid pattern directory
+	for patternDirectory in patternDirectories:
+		#only include patterns that exist
+		if os.path.isdir(patternDirectory):
+			#get the patterns from the valid directory
+			for root, dirs, patternFiles in os.walk(patternDirectory):
+				#joint the filenames with the root path
+				for patternFile in patternFiles:
+					patternFileList.append(os.path.join(root, patternFile))
+
+	return patternFileList
+
+
+##########################################################################################
+# runPats
+##########################################################################################
+#run all patterns
+#this is called by analyze.
+#does not return anything; however, it does set results[]
+def runPats(extractedSupportconfig):
+	global results
+	global patternErrorList
+	global verboseMode
+	results = []
+
+	validPatterns = patternPreProcessor(extractedSupportconfig)
+
+	progressBarWidth = 48
+	progressCount = 0
+	patternCount = 0
+	patternTotal = len(validPatterns)
+	patternInterval = int(patternTotal / progressBarWidth)
+
+	print "Total Patterns to Apply:      " + str(patternTotal)
+	if verboseMode:
+		print "Analyzing Supportconfig:      In Progress"
+	else:
+		sys.stdout.write("Analyzing Supportconfig:      [%s]" % (" " * progressBarWidth))
+		sys.stdout.flush()
+		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
+
+	for patternFile in validPatterns:
+		patternCount += 1
+		try:
+			p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			out, error = p.communicate()
+			patternValidated = parseOutput(out, error, patternFile)
+
+			#call parseOutput to see if output was expected
+			if verboseMode:
+				if patternValidated:
+					print " Done:  " + str(patternCount) + " of " + str(patternTotal) + ": " + patternFile
+				else:
+					print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternErrorList[-1]
+			else:
+				#advance the progress bar if it's not full yet
+				if( progressCount < progressBarWidth ):
+					#advance the progress bar in equal intervals
+					if( patternCount % patternInterval == 0 ):
+						progressCount += 1
+						sys.stdout.write("=")
+						sys.stdout.flush()
+		except Exception:
+			patternErrorList.append(patternFile + " -- Pattern runtime error")
+			if verboseMode:
+				print " ERROR: " + str(patternCount) + " of " + str(patternTotal) + ": " + patternErrorList[-1]
+
+	#make output look nice
+	if not verboseMode:
+		while( progressCount < progressBarWidth ):
+			progressCount += 1
+			sys.stdout.write("=")
+			sys.stdout.flush()
+	sys.stdout.write("\n")
+
+	print "Applicable Patterns:          " + str(len(results))
+	print "Pattern Execution Errors:     " + str(len(patternErrorList))
+	if not verboseMode:
+		for patternErrorStr in patternErrorList:
+			print "  " + patternErrorStr
+
+##########################################################################################
+# parseOutPut
+##########################################################################################
 #check output. If output is good add it to results, updates patternErrorList with invalid pattern output
 def parseOutput(out, error, pat):
 	global results
@@ -791,9 +784,12 @@ def parseOutput(out, error, pat):
 		patternErrorList.append(pat + " -- Output error: " + str(error.split("\n")[0]))
 		return False
 
-#############################################################################
+##########################################################################################
+# Console and Core fuctions
+##########################################################################################
+##########################################################################################
 # analyze
-#############################################################################
+##########################################################################################
 #analyze server or supportconfig
 def analyze(*arg):
 	global outputPath
@@ -1036,6 +1032,9 @@ def analyze(*arg):
 		if os.path.isfile(supportconfigPath + ".md5"):
 			os.remove(supportconfigPath + ".md5")
 			
+##########################################################################################
+# help
+##########################################################################################
 def help(*arg):
 	#help run without any command name given. print available commands (if a help page is available for a command print first line of help page)
 	if len(arg) == 0:
@@ -1066,6 +1065,76 @@ def help(*arg):
 		else:
 			print >> sys.stderr, "Error: " + arg[0] + " is not a command"
 
+##########################################################################################
+# view
+##########################################################################################
+#take a look at the html
+#once analyze is run you can use "view" to look at the data
+#use: "view" or "view <path to html>"
+def view(*arg):
+	global htmlOutputFile
+	#if no path given. try to view the global html output file.
+	if len(arg) == 0:
+		try:
+			
+			#check path and see if output file is set
+			if htmlOutputFile == "":
+				print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
+				return
+			if os.path.isfile(htmlOutputFile):
+				#check that this is html
+				if htmlOutputFile.endswith(".htm") or htmlOutputFile.endswith(".html"):
+					os.system("w3m " + htmlOutputFile)
+				else:
+					print >> sys.stderr, htmlOutputFile + " is not a html file"
+			else:
+				print >> sys.stderr, htmlOutputFile + " is not a file."
+		except Exception:
+			print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
+			
+	#A path was given
+	elif len(arg) == 1:
+		try:
+			#check the path
+			if os.path.isfile(arg[0]):
+				#check that this is html
+				if arg[0].endswith(".htm") or arg[0].endswith(".html"):
+					os.system("w3m " + arg[0])
+				else:
+					print >> sys.stderr, arg[0] + " is not a html file"
+			else:
+				print >> sys.stderr, arg[0] + " is not a file."
+		except Exception:
+			pass
+		
+	#....More then two arguments given. Nice :)
+	else:
+		print >> sys.stderr, "Please run \"help view\""
+
+##########################################################################################
+# tabSystem
+##########################################################################################
+def tabSystem(text, size):
+	commandBuffer = readline.get_line_buffer()
+	compleateCommands = []
+	for i in COMMANDS:
+		#auto complete to command name
+		if i == commandBuffer.split(" ")[0]:
+			#if the command has an argument auto complete to path names (unless the command is help)
+			if len(commandBuffer.split(" ")) > 0 and commandBuffer.split(" ")[0] != "help":
+				if os.path.isdir((glob.glob(commandBuffer.split(" ")[1]+'*'))[size]):
+					return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size] + "/"
+				return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size]
+		if i.startswith(text):
+			compleateCommands.append(i)
+	if size < len(compleateCommands):
+			return compleateCommands[size]
+	else:
+			return None
+
+##########################################################################################
+# main
+##########################################################################################
 #read in arguments
 analyzeServer = False
 analyzeFile = ""

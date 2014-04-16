@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Wed Apr 16 16:30:31 UTC 2014 - jrecord@suse.com
+Wed Apr 16 19:03:43 UTC 2014 - jrecord@suse.com
 
+- Added HTML report footer (bnc#874029)
 - Change to lowercase pattern directories
 - Fixed GroupWise preprocessor detection (bnc#873991)
 
