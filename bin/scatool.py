@@ -40,7 +40,7 @@ import socket
 import time
 import getopt
 
-SVER = '1.0.6-1'
+SVER = '1.0.6-2'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -420,6 +420,10 @@ def getHtml(OutPutFile, archivePath, archiveFile):
 				elements[i].style.display = 'none';\n\
 			}\n\
 	}\n\
+	}\n\n\
+	function showPattern(patternOutput,patternLocation)\n\
+	{\n\
+	alert(patternOutput + \"\\n\\n\" + \"Pattern: \" + patternLocation);\n\
 	}\n\
 	</SCRIPT>"
 
@@ -511,6 +515,11 @@ def getTableHtml(val):
 		color = "222222"
 	 
 
+	IDX_META_CLASS = 0
+	IDX_META_CATEGORY = 1
+	IDX_META_COMPONENT = 2
+	IDX_PATTERN_ID = 3
+	IDX_META_OVERALL_INFO = 6
 	returnString = ""
 	tmpReturn = ""
 	
@@ -560,25 +569,26 @@ def getTableHtml(val):
 						'"><TD BGCOLOR="#'\
 					+ color +\
 						'" WIDTH="2%">&nbsp;</TD><TD BGCOLOR="#EEEEEE" WIDTH="6%">'\
-					+ results[i][0].split("=")[1] + \
+					+ results[i][IDX_META_CLASS].split("=")[1] + \
 					'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
-					+ results[i][1].split("=")[1] + \
+					+ results[i][IDX_META_CATEGORY].split("=")[1] + \
 					'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
-					+ results[i][2].split("=")[1] +\
+					+ results[i][IDX_META_COMPONENT].split("=")[1] +\
 					'</TD><TD><A HREF="'\
 					+ Main_Link + \
 					'" TARGET="_blank">'\
-					+ results[i][6].split("=")[1] +\
-					 '</A>&nbsp;&nbsp;<A HREF="https://code.google.com/p/server-diagnostic-patterns/source/browse/trunk/patterns/'
-					+results[i][0].split("=")[1] +\
-					 '/all/' \
-					+ results[i][3].split("=")[1] +\
-							 '" TARGET="_blank">&nbsp;</A></TD><TD WIDTH="8%">'\
+					+ results[i][IDX_META_OVERALL_INFO].split("=")[1] +\
+					'</A>&nbsp;&nbsp;<A ID="PatternLocation" HREF="#" onClick="showPattern(\''\
+					+ results[i][IDX_META_OVERALL_INFO].split("=")[1] +\
+					'\',\''\
+					+ results[i][IDX_PATTERN_ID].split("=")[1] +\
+					'\');return false;">&nbsp;</A>'\
+					+ '</TD><TD WIDTH="8%">'\
 					+ links +\
 							 '&nbsp;&nbsp;</TD><TD BGCOLOR="#'\
 					+ color + \
 							 '" WIDTH="2%">&nbsp;</TD></TR>' + "\n")
-						 
+
 		#collapse tags
 		if numHits > 0:
 			tmpReturn = ('<TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal"><TD BGCOLOR="#'\
