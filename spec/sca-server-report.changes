@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Wed Apr 16 21:23:57 UTC 2014 - jrecord@suse.com
+Thu Apr 17 00:23:45 UTC 2014 - jrecord@suse.com
 
+- Fixed incomplete overall info strings (bnc#873989)
 - Fixed invalid pattern info link (bnc#874022)
 - Fixed arg with unknown option (bnc#874036)
 - Added HTML report footer (bnc#874029)

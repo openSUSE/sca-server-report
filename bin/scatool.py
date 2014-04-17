@@ -40,7 +40,7 @@ import socket
 import time
 import getopt
 
-SVER = '1.0.6-2'
+SVER = '1.0.6-3'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -561,6 +561,9 @@ def getTableHtml(val):
 						linkUrl = linkUrl + "=" + LinkPart
 					#clean up the "=" leftover
 					linkUrl = linkUrl.strip("=")
+					tmp3 = results[i][IDX_META_OVERALL_INFO].split("=")
+					del tmp3[0]
+					overallInfo = "=".join(tmp3)
 					
 					#put it in html form
 					links = links + '<A HREF="' + linkUrl + '" TARGET="_blank">' + linkName + " " + '</A>'
@@ -577,9 +580,9 @@ def getTableHtml(val):
 					'</TD><TD><A HREF="'\
 					+ Main_Link + \
 					'" TARGET="_blank">'\
-					+ results[i][IDX_META_OVERALL_INFO].split("=")[1] +\
+					+ overallInfo +\
 					'</A>&nbsp;&nbsp;<A ID="PatternLocation" HREF="#" onClick="showPattern(\''\
-					+ results[i][IDX_META_OVERALL_INFO].split("=")[1] +\
+					+ overallInfo +\
 					'\',\''\
 					+ results[i][IDX_PATTERN_ID].split("=")[1] +\
 					'\');return false;">&nbsp;</A>'\
@@ -678,7 +681,7 @@ def patternPreProcessor(extractedSupportconfig):
 		if "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/filr/"))
 
-	patternDirectories = list(set(patternDirectories))
+	patternDirectories = list(set(patternDirectories)) #create a unique sorted list
 	systemDefinition = []
 	for systemElement in patternDirectories:
 		systemDefinition.append(systemElement.split("/")[-2])
