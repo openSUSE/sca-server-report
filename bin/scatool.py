@@ -40,7 +40,7 @@ import socket
 import time
 import getopt
 
-SVER = '1.0.6-4'
+SVER = '1.0.6-5'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -290,7 +290,7 @@ def getHeader(*arg):
 	returnHTML = returnHTML + '<H1>Supportconfig Analysis Report</H1>\n'
 	returnHTML = returnHTML + '<H2><HR />Server Information</H2>\n'
 
-	returnHTML = returnHTML + '<TABLE WIDTH=100%>\n'
+	returnHTML = returnHTML + '<TABLE CELLPADDING="5">\n'
 	returnHTML = returnHTML + '<TR><TD><B>Analysis Date:</B></TD><TD>'
 	returnHTML = returnHTML + timeAnalysis
 	returnHTML = returnHTML + '</TD></TR>\n'
