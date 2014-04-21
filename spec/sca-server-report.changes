@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Mon Apr 21 17:20:13 UTC 2014 - jrecord@suse.com
+Mon Apr 21 18:03:49 UTC 2014 - jrecord@suse.com
 
+- Added severity section total in report
 - Cell padding in header table
 - Added severityTag to expandable report title
 
