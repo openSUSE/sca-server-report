@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Mon Apr 21 17:15:14 UTC 2014 - jrecord@suse.com
+
+- Added severityTag to expandable report title
+
+-------------------------------------------------------------------
 Thu Apr 17 00:23:45 UTC 2014 - jrecord@suse.com
 
 - Fixed incomplete overall info strings (bnc#873989)

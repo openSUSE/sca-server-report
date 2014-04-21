@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Apr 16
+# Modified:     2014 Apr 21
 
 ##############################################################################
 #
@@ -40,7 +40,7 @@ import socket
 import time
 import getopt
 
-SVER = '1.0.6-3'
+SVER = '1.0.6-4'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -500,18 +500,23 @@ def getTableHtml(val):
 	#set the color.
 	if val == 4:
 		#red (critical)
+		severityTag = "Critical "
 		color = "FF0000"
 	elif val == 3:
 		#yellow (warning)
+		severityTag = "Warning "
 		color = "FFFF00"
 	elif val == 1:
 		#blue.. ish (recommended)
+		severityTag = "Recommended "
 		color = "1975FF"
 	elif val == 0:
 		#green (success)
+		severityTag = "Success "
 		color ="00FF00"
 	else:
 		#fallback (gray)
+		severityTag = ""
 		color = "222222"
 	 
 
@@ -603,7 +608,7 @@ def getTableHtml(val):
 			'</A></TD><TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD><TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD><TD><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\''\
 			+ Class +\
 			'\');return false;">'\
-			+ str(numHits) + " " + Class + " Message(s)" +\
+			+ str(numHits) + " " + severityTag + Class + " Message(s)" +\
 			'</A></TD><TD WIDTH="8%">&nbsp;</TD><TD BGCOLOR="#'\
 			+ color +\
 			'" WIDTH="2%">&nbsp;</TD></TR>'\
