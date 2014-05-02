@@ -41,7 +41,7 @@ import time
 import getopt
 import re
 
-SVER = '1.0.6-11'
+SVER = '1.0.6-12'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -865,9 +865,13 @@ def analyze(*arg):
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
 		print "Running Supportconfig On:     localhost"
+		if( os.path.isfile("/etc/supportconfig.conf")):
+			scOptions = "-b"
+		else:
+			scOptions = "-bo SAM"
 		#run supportconfig
 		try:
-			p = subprocess.Popen(['/sbin/supportconfig', '-b'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			p = subprocess.Popen(['/sbin/supportconfig', scOptions], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			#remove archive
 			deleteArchive = True
 		#if we cannot run supportconfig
@@ -879,19 +883,44 @@ def analyze(*arg):
 		alloutput = ""
 		lineNum = 0
 		supportconfigPath = ""
-		
+		progressBarWidth = 48
+		progressCount = 0
+		scHeaderLines = 14
+		scTotal = 100 # the number of lines in a standard supportconfig output
+		scInterval = int(scTotal / progressBarWidth)
+
+		if verboseMode:
+			print "Gathering Supportconfig:      In Progress"
+		else:
+			sys.stdout.write("Gathering Supportconfig:      [%s]" % (" " * progressBarWidth))
+			sys.stdout.flush()
+			sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
+			sys.stdout.flush()
+
 		#this acts like a do-while. I love do-while :)
 		#print output of the subprocess (supportconfig)
 		#--DO--
 		while condition:
 			out = p.stdout.read(1)
 			if out != '':
+				alloutput = alloutput + out
+#				print "lineNum = " + str(lineNum)
+				if verboseMode:
 					sys.stdout.write(out)
-					alloutput = alloutput + out
 					sys.stdout.flush()
+				else:
 					if out == "\n":
-						lineNum = lineNum + 1
-						
+						lineNum += 1
+						if ( scHeaderLines > 0 ):
+							scHeaderLines -= 1
+						else:
+							#advance the progress bar if it's not full yet
+							if( progressCount < progressBarWidth ):
+								#advance the progress bar in equal intervals
+								if( lineNum % scInterval == 0 ):
+									progressCount += 1
+									sys.stdout.write("=")
+									sys.stdout.flush()
 		#--WHILE--
 			condition = not bool(out == "" and p.poll() != None)
 			
@@ -899,8 +928,17 @@ def analyze(*arg):
 		for line in alloutput.split("\n"):
 			if "Log file tar ball:" in line:
 				supportconfigPath = line.split(":")[1].strip()
-		#just used for consistency compared to a remote server supportconfig, where ~ is needed to indentify the the supportconfig termination
-		print "~"
+
+		if verboseMode:
+			#just used for consistency compared to a remote server supportconfig, where ~ is needed to indentify the the supportconfig termination
+			print "~"
+		else:
+			while( progressCount < progressBarWidth ):
+				progressCount += 1
+				sys.stdout.write("=")
+				sys.stdout.flush()
+			sys.stdout.write("\n")
+
 	#if a path was given. analyze given file/folder
 	elif len(arg) == 1:
 		#validate the file/folder/ip given by the end user
@@ -971,7 +1009,7 @@ def analyze(*arg):
 							localSupportconfig.write(out)
 						elif out != '':
 								#print non binary data to stdout
-								sys.stdout.write(out)
+								sys.stdout.write(out.strip("~"))
 								sys.stdout.flush()
 						#if we are ate the end of the file output
 						if out == "~":
