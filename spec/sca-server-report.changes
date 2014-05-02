@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri May  2 01:47:25 UTC 2014 - jrecord@suse.com
+Fri May  2 16:51:52 UTC 2014 - jrecord@suse.com
 
+- Fixed -c for console mode (bnc#876045)
 - Fixed invalid supportconfig run date (bnc#876040)
 
 -------------------------------------------------------------------

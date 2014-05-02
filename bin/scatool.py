@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 May 1
+# Modified:     2014 May 02
 
 ##############################################################################
 #
@@ -41,7 +41,7 @@ import time
 import getopt
 import re
 
-SVER = '1.0.6-10'
+SVER = '1.0.6-11'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -1202,7 +1202,6 @@ if( len(sys.argv[1:]) > 0 ):
 		usage()
 		sys.exit(2)
 
-
 	autoExit = True
 	analyzeServer = False
 	analyzeFile = ""
@@ -1234,8 +1233,8 @@ else:
 if( len(opts) == 0 and len(args) > 0 ):
 	analyzeServer = True
 	analyzeFile = args[0]
-elif not analyzeServer:
-	print "Error: Invalid startup option(s)"
+elif not analyzeServer and autoExit:
+	print "Error: No server to analyze, use -s or -a."
 	print
 	usage()
 	sys.exit()
