@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri May  2 20:50:45 UTC 2014 - jrecord@suse.com
+Fri May  2 21:54:45 UTC 2014 - jrecord@suse.com
 
+- Added remote supportconfig progress bar
 - Added -s supportconfig progress bar
 - Fixed -c for console mode (bnc#876045)
 - Fixed invalid supportconfig run date (bnc#876040)

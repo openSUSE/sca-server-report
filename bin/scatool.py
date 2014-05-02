@@ -41,7 +41,7 @@ import time
 import getopt
 import re
 
-SVER = '1.0.6-12'
+SVER = '1.0.6-15'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -861,7 +861,16 @@ def analyze(*arg):
 	host = "None"
 	isRemoteServer = False
 	cleanUp = True
-	
+	alloutput = ""
+	lineNum = 0
+	supportconfigPath = ""
+	progressBarWidth = 48
+	remoteProgressBarSetup = False
+	progressCount = 0
+	scHeaderLines = 14
+	scTotal = 100 # the number of lines in a standard supportconfig output
+	scInterval = int(scTotal / progressBarWidth)
+
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
 		print "Running Supportconfig On:     localhost"
@@ -880,14 +889,6 @@ def analyze(*arg):
 			print >> sys.stderr
 			return
 		condition = True
-		alloutput = ""
-		lineNum = 0
-		supportconfigPath = ""
-		progressBarWidth = 48
-		progressCount = 0
-		scHeaderLines = 14
-		scTotal = 100 # the number of lines in a standard supportconfig output
-		scInterval = int(scTotal / progressBarWidth)
 
 		if verboseMode:
 			print "Gathering Supportconfig:      In Progress"
@@ -904,7 +905,6 @@ def analyze(*arg):
 			out = p.stdout.read(1)
 			if out != '':
 				alloutput = alloutput + out
-#				print "lineNum = " + str(lineNum)
 				if verboseMode:
 					sys.stdout.write(out)
 					sys.stdout.flush()
@@ -929,10 +929,7 @@ def analyze(*arg):
 			if "Log file tar ball:" in line:
 				supportconfigPath = line.split(":")[1].strip()
 
-		if verboseMode:
-			#just used for consistency compared to a remote server supportconfig, where ~ is needed to indentify the the supportconfig termination
-			print "~"
-		else:
+		if not verboseMode:
 			while( progressCount < progressBarWidth ):
 				progressCount += 1
 				sys.stdout.write("=")
@@ -990,14 +987,14 @@ def analyze(*arg):
 						outputPath = remoteSupportconfigPath
 					#run ssh root@host "supportconfig -R REMOTE_SC_PATH -B <timeStamp>; echo -n \~; cat <path to new supportconfig
 					#aka: run supportconfig then send the output back.
-					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -R ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -bR ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					#create a local verson of the supportconfig output
 					localSupportconfig = open(outputPath + "/nts_" + str(remoteSupportconfigName) + ".tbz", 'w')
 					#remove local archive
 					deleteArchive = True
 					condition = True
 					endOfSupportconfig = False
-	
+
 					#this acts like a do-while. I love do-while :)
 					#print output of the subprocess (the long ssh command)
 					#--DO--
@@ -1008,17 +1005,47 @@ def analyze(*arg):
 							#save to local supportconfig
 							localSupportconfig.write(out)
 						elif out != '':
-								#print non binary data to stdout
+							if ( out == "=" and not remoteProgressBarSetup ):
+								remoteProgressBarSetup = True
+								if verboseMode:
+									print "Gathering Supportconfig:      In Progress"
+								else:
+									sys.stdout.write("Gathering Supportconfig:      [%s]" % (" " * progressBarWidth))
+									sys.stdout.flush()
+									sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
+									sys.stdout.flush()
+
+							if verboseMode:
 								sys.stdout.write(out.strip("~"))
 								sys.stdout.flush()
+							else:
+								if out == "\n":
+									lineNum += 1
+									if ( scHeaderLines > 0 ):
+										scHeaderLines -= 1
+									else:
+										#advance the progress bar if it's not full yet
+										if( progressCount < progressBarWidth ):
+											#advance the progress bar in equal intervals
+											if( lineNum % scInterval == 0 ):
+												progressCount += 1
+												sys.stdout.write("=")
+												sys.stdout.flush()
 						#if we are ate the end of the file output
 						if out == "~":
 							endOfSupportconfig = True
-									
+
 					#--WHILE--
 						condition = not bool(out == "" and p.poll() != None)
 					#close the local copy of the remote supportconfig.
 					localSupportconfig.close()
+
+					if not verboseMode and remoteProgressBarSetup:
+						while( progressCount < progressBarWidth ):
+							progressCount += 1
+							sys.stdout.write("=")
+							sys.stdout.flush()
+
 					supportconfigPath = outputPath + "/nts_" + str(remoteSupportconfigName) + ".tbz"
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
@@ -1026,6 +1053,8 @@ def analyze(*arg):
 						print "Copied Supportconfig:         " + givenSupportconfigPath + " -> localhost"
 					else:
 						print >> sys.stderr, "Error: Failed to copy supportconfig from remote server"
+						print >> sys.stderr, "       Verify you can ssh as root into the remote server"
+						print >> sys.stderr, "       and manually run supportconfig."
 						print >> sys.stderr
 						os.remove(supportconfigPath)
 						return
