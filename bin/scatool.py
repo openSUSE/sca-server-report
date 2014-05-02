@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Apr 21
+# Modified:     2014 May 1
 
 ##############################################################################
 #
@@ -39,8 +39,9 @@ import datetime
 import socket
 import time
 import getopt
+import re
 
-SVER = '1.0.6-9'
+SVER = '1.0.6-10'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -237,7 +238,9 @@ def getHeader(*arg):
 
 		#get supportconfig run date and time
 		if "/bin/date" in line:
-			tmp = File.readline().split(" ")
+			dateLine = File.readline() # get the next line in the file
+			dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
+			tmp = dateLine.split(" ") # split into list based on a space
 			tmpMonth = tmp[1].strip()
 			if "Jan" in tmpMonth:
 				tmpMonth = "01"
