@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 May 02
+# Modified:     2014 May 03
 
 ##############################################################################
 #
@@ -41,7 +41,7 @@ import time
 import getopt
 import re
 
-SVER = '1.0.6-15'
+SVER = '1.0.6-18'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -867,8 +867,8 @@ def analyze(*arg):
 	progressBarWidth = 48
 	remoteProgressBarSetup = False
 	progressCount = 0
-	scHeaderLines = 14
-	scTotal = 100 # the number of lines in a standard supportconfig output
+	scHeaderLines = 8
+	scTotal = 95 # the number of lines in a standard supportconfig output
 	scInterval = int(scTotal / progressBarWidth)
 
 	#if we want to run and analyze a supportconfig
@@ -950,7 +950,7 @@ def analyze(*arg):
 			ping_server = subprocess.Popen(["/bin/ping", "-c1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			streamdata = ping_server.communicate()[0]
 			if ping_server.returncode != 0:
-				print >> sys.stderr, "Error: Invalid Supportconfig: " + givenSupportconfigPath
+				print >> sys.stderr, "  Error: Cannot communicate with server"
 				print >> sys.stderr
 				usage()
 				return
@@ -969,7 +969,7 @@ def analyze(*arg):
 					isIP = True
 				except:
 					if isIP:
-						print >> sys.stderr, "Error: Unable to reach " + givenSupportconfigPath
+						print >> sys.stderr, "  Error: Unable to reach " + givenSupportconfigPath
 						return
 			if host == "None":
 				#Not an IP. Lets hope it is a PATH
@@ -977,7 +977,8 @@ def analyze(*arg):
 			else:
 				#we have an IP
 				print "Running Supportconfig On:     " + givenSupportconfigPath
-				print "Enter Your Credentials For:   " + givenSupportconfigPath
+				sys.stdout.write("  Enter ")
+				sys.stdout.flush()
 				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
 				remoteSupportconfigPath = REMOTE_SC_PATH
 				
@@ -1059,7 +1060,8 @@ def analyze(*arg):
 						os.remove(supportconfigPath)
 						return
 				except Exception:
-					print >> sys.stderr, "Error: Cannot run supportconfig on " + arg[0] + "."
+					print >> sys.stderr
+					print >> sys.stderr, "  Error: Supportconfig execution failed on " + givenSupportconfigPath + "."
 					return
 		else:
 			supportconfigPath = givenSupportconfigPath

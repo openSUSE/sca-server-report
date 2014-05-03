@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Sat May  3 23:38:41 UTC 2014 - jrecord@suse.com
+
+- Improved error handling
+
+-------------------------------------------------------------------
 Fri May  2 21:54:45 UTC 2014 - jrecord@suse.com
 
 - Added remote supportconfig progress bar
