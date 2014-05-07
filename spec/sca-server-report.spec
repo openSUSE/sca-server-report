@@ -5,7 +5,9 @@
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #
-
+# Source developed at:
+#  https://github.com/g23guy/sca-server-report
+#
 # norootforbuild
 # neededforbuild  
 
@@ -15,12 +17,12 @@
 
 Name:         sca-server-report
 Summary:      Supportconfig Analysis Server Report
-URL:          https://bitbucket.org/g23guy/sca-server-report
+URL:          https://github.com/g23guy/sca-server-report
 License:      GPL-2.0
 Group:        System/Monitoring
 Autoreqprov:  on
 Version:      0.9
-Release:      44
+Release:      44.1
 Source:       %{name}-%{version}.tar.gz
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 BuildArch:    noarch
