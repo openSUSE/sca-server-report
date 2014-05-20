@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 May 03
+# Modified:     2014 May 20
 
 ##############################################################################
 #
@@ -41,7 +41,7 @@ import time
 import getopt
 import re
 
-SVER = '1.0.6-18'
+SVER = '1.0.6-19'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -867,8 +867,8 @@ def analyze(*arg):
 	progressBarWidth = 48
 	remoteProgressBarSetup = False
 	progressCount = 0
-	scHeaderLines = 8
-	scTotal = 95 # the number of lines in a standard supportconfig output
+	scHeaderLines = 2
+	scTotal = 96 # the number of lines in a standard supportconfig output
 	scInterval = int(scTotal / progressBarWidth)
 
 	#if we want to run and analyze a supportconfig
@@ -1053,6 +1053,7 @@ def analyze(*arg):
 						print
 						print "Copied Supportconfig:         " + givenSupportconfigPath + " -> localhost"
 					else:
+						print >> sys.stderr
 						print >> sys.stderr, "Error: Failed to copy supportconfig from remote server"
 						print >> sys.stderr, "       Verify you can ssh as root into the remote server"
 						print >> sys.stderr, "       and manually run supportconfig."

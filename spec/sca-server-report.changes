@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue May 20 19:55:58 UTC 2014 - jrecord@suse.com
+
+- Cleaned up error message on failed supportconfig copy
+- Adjusted supportconfig progress bar
+
+-------------------------------------------------------------------
 Sat May  3 23:38:41 UTC 2014 - jrecord@suse.com
 
 - Improved error handling
