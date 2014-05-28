@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 May 20
+# Modified:     2014 May 28
 
 ##############################################################################
 #
@@ -977,7 +977,7 @@ def analyze(*arg):
 			else:
 				#we have an IP
 				print "Running Supportconfig On:     " + givenSupportconfigPath
-				sys.stdout.write("  Enter ")
+				sys.stdout.write("  Waiting... ")
 				sys.stdout.flush()
 				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
 				remoteSupportconfigPath = REMOTE_SC_PATH

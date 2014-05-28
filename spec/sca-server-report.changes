@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Wed May 28 19:01:28 UTC 2014 - jrecord@suse.com
+
+- Changed waiting prompt on remote connections
+
+-------------------------------------------------------------------
 Tue May 20 19:55:58 UTC 2014 - jrecord@suse.com
 
 - Cleaned up error message on failed supportconfig copy
