@@ -1,4 +1,4 @@
-.TH SCATOOL.CONF 5 "14 Apr 2014" "sca-server-report" "Supportconfig Analysis Manual"
+.TH SCATOOL.CONF 5 "02 Jun 2014" "sca-server-report" "Supportconfig Analysis Manual"
 .SH NAME
 scatool.conf - Supportconfig Analysis Tool Configuration File
 .SH DESCRIPTION
@@ -25,6 +25,12 @@ Default: 0
 .TP
 OUTPUT_PATH
 The directory where HTML report and supportconfig archive files are saved. If ARCHIVE_MODE is enabled, supportconfig archives are saved here as well. If defined, all HTML report and supportconfig files will be saved in this directory, regardless of the supportconfig archive or directory location. If left undefined or empty, HTML report files are saved in the same directory as the supportconfig archive or directory.
+.RS
+Default: (Empty)
+.RE
+.TP
+OUTPUT_EMAIL
+The email address where HTML report should be sent. Only one address is supported.
 .RS
 Default: (Empty)
 .RE

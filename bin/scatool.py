@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 May 28
+# Modified:     2014 Jun 02
 
 ##############################################################################
 #
@@ -30,7 +30,7 @@
 ##########################################################################################
 import readline
 import subprocess
-import os 
+import os
 import sys
 import glob
 import tarfile
@@ -39,9 +39,10 @@ import datetime
 import socket
 import time
 import getopt
+import smtplib
 import re
 
-SVER = '1.0.6-19'
+SVER = '1.0.6-19.dev.12'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -54,14 +55,15 @@ def title():
 
 def usage():
 	print "Usage:"
-	print " -h      Displays this screen"
-	print " -s      Analyze the local server"
-	print " -a path Analyze the supportconfig directory or archive"
-	print "         The path may also be an IP address of a server to analyze"
-	print " -o path HTML report output directory (OUTPUT_PATH)"
-	print " -k      Keep archive files (ARCHIVE_MODE)"
-	print " -v      Verbose output (LOGLEVEL)"
-	print " -c      Enter SCA Tool console (CONSOLE_MODE)"
+	print " -h       Displays this screen"
+	print " -s       Analyze the local server"
+	print " -a path  Analyze the supportconfig directory or archive"
+	print "          The path may also be an IP address of a server to analyze"
+	print " -o path  HTML report output directory (OUTPUT_PATH)"
+	print " -e email Send HTML report to email address provided"
+	print " -k       Keep archive files (ARCHIVE_MODE)"
+	print " -v       Verbose output (LOGLEVEL)"
+	print " -c       Enter SCA Tool console (CONSOLE_MODE)"
 	print
 
 title()
@@ -108,6 +110,11 @@ except Exception:
 	OUTPUT_PATH = ""
 
 try:
+	OUTPUT_EMAIL = str(os.environ["OUTPUT_EMAIL"])
+except Exception:
+	OUTPUT_EMAIL = ""
+
+try:
 	LOGLEVEL_NORMAL = int(os.environ["LOGLEVEL_NORMAL"])
 except Exception:
 	LOGLEVEL_NORMAL = 1
@@ -128,7 +135,8 @@ global patternErrorList
 global knownClasses
 global HTML
 global outputPath
-global htmlOutputFile 
+global htmlOutputFile
+global htmlEmailAddr
 global KeepArchive
 global serverName
 global verboseMode
@@ -153,6 +161,11 @@ if( len(OUTPUT_PATH) > 0 ):
 	outputPath = OUTPUT_PATH
 else:
 	outputPath = ""
+
+if( len(OUTPUT_EMAIL) > 0 ):
+	htmlEmailAddr = OUTPUT_EMAIL
+else:
+	htmlEmailAddr = ""
 
 serverName = "Unknown"
 analysisDateTime = datetime.datetime.now()
@@ -738,6 +751,37 @@ def patternPreProcessor(extractedSupportconfig):
 
 	return patternFileList
 
+##########################################################################################
+# emailSCAReport
+##########################################################################################
+#emails the SCA Report to the specified email address
+#this is called by analyze.
+#does not return anything
+def emailSCAReport():
+	global htmlOutputFile
+	global htmlEmailAddr
+	global serverName
+	SERVER = "localhost"
+	FROM = "root"
+	TO = [htmlEmailAddr] # must be a list
+	SUBJECT = "SCA Report for " + str(serverName)
+	TEXT = "SCA Report for " + str(serverName) + "\nReport File: " + str(htmlOutputFile)
+
+	# Prepare actual message
+
+	message = """\
+	From: %s
+	To: %s
+	Subject: %s
+
+	%s
+	""" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+
+	# Send the mail
+
+	server = smtplib.SMTP(SERVER)
+	server.sendmail(FROM, TO, message)
+	server.quit()	
 
 ##########################################################################################
 # runPats
@@ -845,6 +889,7 @@ def parseOutput(out, error, pat):
 def analyze(*arg):
 	global outputPath
 	global htmlOutputFile
+	global htmlEmailAddr
 	global KeepArchive
 	global verboseMode
 	global analysisDateTime
@@ -1138,12 +1183,14 @@ def analyze(*arg):
 	runPats(extractedSupportconfig)
 	getHtml(htmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
 	print ("SCA Report File:              %s" % htmlOutputFile)
-	print
 
 	#if command was run via console run view
 	if command != "exit":
-		print "run \"view\" or open " + htmlOutputFile + " to see results"
+		print
+		print "Run \"view\" or open " + htmlOutputFile + " to see results"
 		view()
+
+	emailSCAReport()
 
 	#clean up
 	if cleanUp:
@@ -1152,6 +1199,7 @@ def analyze(*arg):
 		os.remove(supportconfigPath)
 		if os.path.isfile(supportconfigPath + ".md5"):
 			os.remove(supportconfigPath + ".md5")
+	print
 			
 ##########################################################################################
 # help
@@ -1264,7 +1312,7 @@ analyzeFile = ""
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "ha:so:kcv")
+		opts, args = getopt.getopt(sys.argv[1:], "ha:so:kcve:")
 	except getopt.GetoptError as err:
 		# print help information and exit:
 		print "Error: " + str(err) # will print something like "option -b not recognized"
@@ -1283,6 +1331,8 @@ if( len(sys.argv[1:]) > 0 ):
 			KeepArchive = True
 		elif startUpOption in ("-c"):
 			autoExit = False
+		elif startUpOption in ("-e"):
+			htmlEmailAddr = startUpOptionValue
 		elif startUpOption in ("-s"):
 			analyzeServer = True
 		elif startUpOption in ("-v"):
