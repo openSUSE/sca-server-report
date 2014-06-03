@@ -39,14 +39,14 @@ import datetime
 import socket
 import time
 import getopt
-#import smtplib
 import re
+#import smtplib
 #from email.mime.base import MIMEBase
 #from email.mime.multipart import MIMEMultipart
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-19.Dev.14'
+SVER = '1.0.6-19.Dev.15'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -765,22 +765,28 @@ def emailSCAReport():
 	global htmlOutputFile
 	global htmlEmailAddr
 	global serverName
+	global analysisDateTime
+	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
+
 	if( len(htmlEmailAddr) > 0 ):
 		print "SCA Report Emailed To:        " + str(htmlEmailAddr)
 	else:
 		return 0
 	SERVER = 'localhost'
-	TO = ['jrecord@suse.com']
+	TO = re.split(r',\s*|\s*', htmlEmailAddr)
 	FROM = 'SCA Tool <root>'
 	SUBJECT = "SCA Report for " + str(serverName)
 	SCA_REPORT = htmlOutputFile.split('/')[-1]
 
+#printf "Analysis Date = $REPORT_DATE\nArchive = $INSRC/$ARCHIVE\nFull Report = ${OURSRC}/$(basename ${REPORT})\nProcess ID = [${AGENT_ID}:${WORKER_ID}:${ARCHIVE_ID}]\n\nServer = $SERVER_NAME\nNotice Level >= $NOTICE_LEVEL\n\nConditions Checked = $S_CHECKED\nCritical=$S_CRIT, Warning=$S_WARN, Recommended=$S_RECC, Success=$S_SUCC\n" | mailx -n -a $REPORT -s "SCA Report for ${SERVER_NAME}: SR# $SRNUM, ${S_CHECKED}/${PATCOUNT}, ${S_CRIT}:${S_WARN}:${S_RECC}:${S_SUCC}" $SENDTO
+
 	# create html email
 	html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
 	html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">'
-	html += '<body style="font-size:12px;font-family:Verdana"><p>'
-	html += "Report File: " + SCA_REPORT
-	html += "</p></body></html>"
+	html += '<body><p>\n'
+	html += "Analysis Date: " + str(timeAnalysis) + '<br>\n'
+	html += "Report File: " + SCA_REPORT + '<br>\n'
+	html += "</p>\n</body></html>\n\n"
 	emailMsg = email.MIMEMultipart.MIMEMultipart('alternative')
 	emailMsg['Subject'] = SUBJECT
 	emailMsg['From'] = FROM
