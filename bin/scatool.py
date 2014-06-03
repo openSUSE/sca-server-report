@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-19.Dev.15'
+SVER = '1.0.6-19.Dev.16'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -797,7 +797,16 @@ def emailSCAReport(supportconfigFile):
 	SUBJECT = "SCA Report for " + str(serverName) + ": " + str(patternStats['Applied']) + "/" + str(patternStats['Total']) + ", " + str(patternStats['Crit']) + ":" + str(patternStats['Warn']) + ":" + str(patternStats['Recc']) + ":" + str(patternStats['Succ'])
 	SCA_REPORT = htmlOutputFile.split('/')[-1]
 
-#printf "Analysis Date = $REPORT_DATE\nArchive = $INSRC/$ARCHIVE\nFull Report = ${OURSRC}/$(basename ${REPORT})\nProcess ID = [${AGENT_ID}:${WORKER_ID}:${ARCHIVE_ID}]\n\nServer = $SERVER_NAME\nNotice Level >= $NOTICE_LEVEL\n\nConditions Checked = $S_CHECKED\nCritical=$S_CRIT, Warning=$S_WARN, Recommended=$S_RECC, Success=$S_SUCC\n" | mailx -n -a $REPORT -s "SCA Report for ${SERVER_NAME}: SR# $SRNUM, ${S_CHECKED}/${PATCOUNT}, ${S_CRIT}:${S_WARN}:${S_RECC}:${S_SUCC}" $SENDTO
+	# create text email
+	text = "Analysis Date:             " + str(timeAnalysis) + "\n"
+	text += "Supportconfig Analyzed:   " + str(supportconfigFile) + "\n"
+	text += "Server Name:              " + str(serverName) + "\n"
+	text += "Total Patterns Evaluated: " + str(patternStats['Total']) + "\n"
+	text += "Applicable to Server:     " + str(patternStats['Applied']) + "\n"
+	text += "  Critical:               " + str(patternStats['Crit']) + "\n"
+	text += "  Warning:                " + str(patternStats['Warn']) + "\n"
+	text += "  Recommended:            " + str(patternStats['Recc']) + "\n"
+	text += "  Success:                " + str(patternStats['Succ']) + "\n"
 
 	# create html email
 	html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
@@ -817,6 +826,7 @@ def emailSCAReport(supportconfigFile):
 	emailMsg['Subject'] = SUBJECT
 	emailMsg['From'] = FROM
 	emailMsg['To'] = ', '.join(TO)
+	emailMsg.attach(email.mime.text.MIMEText(text,'plain'))
 	emailMsg.attach(email.mime.text.MIMEText(html,'html'))
 
 	# now attach the file
