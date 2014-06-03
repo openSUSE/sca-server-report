@@ -773,12 +773,14 @@ def emailSCAReport():
 	TO = ['jrecord@suse.com']
 	FROM = 'SCA Tool <root>'
 	SUBJECT = "SCA Report for " + str(serverName)
+	SCA_REPORT = htmlOutputFile.split('/')[-1]
 
 	# create html email
 	html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
-	html +='"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">'
-	html +='<body style="font-size:12px;font-family:Verdana"><p>...</p>'
-	html += "</body></html>"
+	html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">'
+	html += '<body style="font-size:12px;font-family:Verdana"><p>'
+	html += "Report File: " + SCA_REPORT
+	html += "</p></body></html>"
 	emailMsg = email.MIMEMultipart.MIMEMultipart('alternative')
 	emailMsg['Subject'] = SUBJECT
 	emailMsg['From'] = FROM
@@ -789,7 +791,7 @@ def emailSCAReport():
 	fileMsg = email.mime.base.MIMEBase('text','html')
 	fileMsg.set_payload(file(htmlOutputFile).read())
 	email.encoders.encode_base64(fileMsg)
-	fileMsg.add_header('Content-Disposition','attachment;filename=' + htmlOutputFile.split('/')[-1])
+	fileMsg.add_header('Content-Disposition','attachment;filename=' + SCA_REPORT)
 	emailMsg.attach(fileMsg)
 
 	# send email
