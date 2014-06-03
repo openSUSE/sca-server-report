@@ -45,7 +45,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-SVER = '1.0.6-19.Dev.13'
+SVER = '1.0.6-19.Dev.14'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -779,18 +779,23 @@ def emailSCAReport():
 	MSG['From'] = FROM
 	MSG['To'] = TO
 
-	# Prepare actual message
+	# Prepare message body
+	BODY = MIMEMultipart('alternative')
 	MSG_BODY = """\
 %s
 Report File: %s
 """ % (SUBJECT, htmlOutputFile)
-	PART = MIMEText(MSG_BODY, 'plain')
-#	MSG.attach(PART)
+	PART1 = MIMEText(MSG_BODY, 'plain')
 
-	FP = open(htmlOutputFile, 'rb')
-	PART = MIMEText(FP.read(), 'html')
-	FP.close()
-	MSG.attach(PART)
+	BODY.attach(PART1)
+	MSG.attach(BODY)
+
+	attachFile = MIMEBase('text', 'html')
+	fp = open(htmlOutputFile, 'rb')
+	attachFile.set_payload(fp.read())
+	fp.close()
+	attachFile.add_header('Content-Disposition', 'attachement')
+	MSG.attach(attachFile)
 
 	# Send the mail
 	server = smtplib.SMTP(SERVER)
