@@ -769,10 +769,10 @@ def emailSCAReport():
 		print "SCA Report Emailed To:        " + str(htmlEmailAddr)
 	else:
 		return 0
-	smtpserver = 'localhost'
-	to = ['jrecord@suse.com']
-	fromAddr = 'SCA Tool <root>'
-	subject = "my subject"
+	SERVER = 'localhost'
+	TO = ['jrecord@suse.com']
+	FROM = 'SCA Tool <root>'
+	SUBJECT = "SCA Report for " + str(serverName)
 
 	# create html email
 	html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
@@ -780,21 +780,21 @@ def emailSCAReport():
 	html +='<body style="font-size:12px;font-family:Verdana"><p>...</p>'
 	html += "</body></html>"
 	emailMsg = email.MIMEMultipart.MIMEMultipart('alternative')
-	emailMsg['Subject'] = subject
-	emailMsg['From'] = fromAddr
-	emailMsg['To'] = ', '.join(to)
+	emailMsg['Subject'] = SUBJECT
+	emailMsg['From'] = FROM
+	emailMsg['To'] = ', '.join(TO)
 	emailMsg.attach(email.mime.text.MIMEText(html,'html'))
 
 	# now attach the file
-	fileMsg = email.mime.base.MIMEBase('application','vnd.ms-excel')
+	fileMsg = email.mime.base.MIMEBase('text','html')
 	fileMsg.set_payload(file(htmlOutputFile).read())
 	email.encoders.encode_base64(fileMsg)
-	fileMsg.add_header('Content-Disposition','attachment;filename=anExcelFile.xls')
+	fileMsg.add_header('Content-Disposition','attachment;filename=' + htmlOutputFile.split('/')[-1])
 	emailMsg.attach(fileMsg)
 
 	# send email
-	server = smtplib.SMTP(smtpserver)
-	server.sendmail(fromAddr,to,emailMsg.as_string())
+	server = smtplib.SMTP(SERVER)
+	server.sendmail(FROM,TO,emailMsg.as_string())
 	server.quit()
 
 ##########################################################################################
