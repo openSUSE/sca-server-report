@@ -39,11 +39,12 @@ import datetime
 import socket
 import time
 import getopt
-import smtplib
+#import smtplib
 import re
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+#from email.mime.base import MIMEBase
+#from email.mime.multipart import MIMEMultipart
+#from email.mime.text import MIMEText
+import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
 SVER = '1.0.6-19.Dev.14'
 
@@ -768,39 +769,33 @@ def emailSCAReport():
 		print "SCA Report Emailed To:        " + str(htmlEmailAddr)
 	else:
 		return 0
+	smtpserver = 'localhost'
+	to = ['jrecord@suse.com']
+	fromAddr = 'SCA Tool <root>'
+	subject = "my subject"
 
-	SERVER = "localhost"
-	FROM = "SCA Tool <root>"
-	TO = htmlEmailAddr
-	SUBJECT = "SCA Report for " + str(serverName)
+	# create html email
+	html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
+	html +='"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">'
+	html +='<body style="font-size:12px;font-family:Verdana"><p>...</p>'
+	html += "</body></html>"
+	emailMsg = email.MIMEMultipart.MIMEMultipart('alternative')
+	emailMsg['Subject'] = subject
+	emailMsg['From'] = fromAddr
+	emailMsg['To'] = ', '.join(to)
+	emailMsg.attach(email.mime.text.MIMEText(html,'html'))
 
-	MSG = MIMEMultipart()
-	MSG['Subject'] = SUBJECT
-	MSG['From'] = FROM
-	MSG['To'] = TO
+	# now attach the file
+	fileMsg = email.mime.base.MIMEBase('application','vnd.ms-excel')
+	fileMsg.set_payload(file(htmlOutputFile).read())
+	email.encoders.encode_base64(fileMsg)
+	fileMsg.add_header('Content-Disposition','attachment;filename=anExcelFile.xls')
+	emailMsg.attach(fileMsg)
 
-	# Prepare message body
-	BODY = MIMEMultipart('alternative')
-	MSG_BODY = """\
-%s
-Report File: %s
-""" % (SUBJECT, htmlOutputFile)
-	PART1 = MIMEText(MSG_BODY, 'plain')
-
-	BODY.attach(PART1)
-	MSG.attach(BODY)
-
-	attachFile = MIMEBase('text', 'html')
-	fp = open(htmlOutputFile, 'rb')
-	attachFile.set_payload(fp.read())
-	fp.close()
-	attachFile.add_header('Content-Disposition', 'attachement')
-	MSG.attach(attachFile)
-
-	# Send the mail
-	server = smtplib.SMTP(SERVER)
-	server.sendmail(FROM, TO, MSG.as_string())
-	server.quit()	
+	# send email
+	server = smtplib.SMTP(smtpserver)
+	server.sendmail(fromAddr,to,emailMsg.as_string())
+	server.quit()
 
 ##########################################################################################
 # runPats
