@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Jun 02
+# Modified:     2014 Jun 03
 
 ##############################################################################
 #
@@ -41,8 +41,11 @@ import time
 import getopt
 import smtplib
 import re
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-SVER = '1.0.6-19.dev.12'
+SVER = '1.0.6-19.Dev.13'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -761,26 +764,37 @@ def emailSCAReport():
 	global htmlOutputFile
 	global htmlEmailAddr
 	global serverName
+	if( len(htmlEmailAddr) > 0 ):
+		print "SCA Report Emailed To:        " + str(htmlEmailAddr)
+	else:
+		return 0
+
 	SERVER = "localhost"
-	FROM = "root"
-	TO = [htmlEmailAddr] # must be a list
+	FROM = "SCA Tool <root>"
+	TO = htmlEmailAddr
 	SUBJECT = "SCA Report for " + str(serverName)
-	TEXT = "SCA Report for " + str(serverName) + "\nReport File: " + str(htmlOutputFile)
+
+	MSG = MIMEMultipart()
+	MSG['Subject'] = SUBJECT
+	MSG['From'] = FROM
+	MSG['To'] = TO
 
 	# Prepare actual message
+	MSG_BODY = """\
+%s
+Report File: %s
+""" % (SUBJECT, htmlOutputFile)
+	PART = MIMEText(MSG_BODY, 'plain')
+#	MSG.attach(PART)
 
-	message = """\
-	From: %s
-	To: %s
-	Subject: %s
-
-	%s
-	""" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+	FP = open(htmlOutputFile, 'rb')
+	PART = MIMEText(FP.read(), 'html')
+	FP.close()
+	MSG.attach(PART)
 
 	# Send the mail
-
 	server = smtplib.SMTP(SERVER)
-	server.sendmail(FROM, TO, message)
+	server.sendmail(FROM, TO, MSG.as_string())
 	server.quit()	
 
 ##########################################################################################
