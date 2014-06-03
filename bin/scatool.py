@@ -140,7 +140,7 @@ global knownClasses
 global HTML
 global outputPath
 global htmlOutputFile
-global htmlEmailAddr
+global emailAddrList
 global KeepArchive
 global serverName
 global verboseMode
@@ -167,9 +167,9 @@ else:
 	outputPath = ""
 
 if( len(OUTPUT_EMAIL) > 0 ):
-	htmlEmailAddr = OUTPUT_EMAIL
+	emailAddrList = OUTPUT_EMAIL
 else:
-	htmlEmailAddr = ""
+	emailAddrList = ""
 
 serverName = "Unknown"
 analysisDateTime = datetime.datetime.now()
@@ -763,17 +763,17 @@ def patternPreProcessor(extractedSupportconfig):
 #does not return anything
 def emailSCAReport():
 	global htmlOutputFile
-	global htmlEmailAddr
+	global emailAddrList
 	global serverName
 	global analysisDateTime
 	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 
-	if( len(htmlEmailAddr) > 0 ):
-		print "SCA Report Emailed To:        " + str(htmlEmailAddr)
+	if( len(emailAddrList) > 0 ):
+		print "SCA Report Emailed To:        " + str(emailAddrList)
 	else:
 		return 0
 	SERVER = 'localhost'
-	TO = re.split(r',\s*|\s*', htmlEmailAddr)
+	TO = re.split(r',\s*|\s*', emailAddrList)
 	FROM = 'SCA Tool <root>'
 	SUBJECT = "SCA Report for " + str(serverName)
 	SCA_REPORT = htmlOutputFile.split('/')[-1]
@@ -911,7 +911,7 @@ def parseOutput(out, error, pat):
 def analyze(*arg):
 	global outputPath
 	global htmlOutputFile
-	global htmlEmailAddr
+	global emailAddrList
 	global KeepArchive
 	global verboseMode
 	global analysisDateTime
@@ -1354,7 +1354,7 @@ if( len(sys.argv[1:]) > 0 ):
 		elif startUpOption in ("-c"):
 			autoExit = False
 		elif startUpOption in ("-e"):
-			htmlEmailAddr = startUpOptionValue
+			emailAddrList = startUpOptionValue
 		elif startUpOption in ("-s"):
 			analyzeServer = True
 		elif startUpOption in ("-v"):
