@@ -837,9 +837,25 @@ def emailSCAReport(supportconfigFile):
 	emailMsg.attach(fileMsg)
 
 	# send email
-	server = smtplib.SMTP(SERVER)
-	server.sendmail(FROM,TO,emailMsg.as_string())
-	server.quit()
+#	SERVER = "skipper"
+	server = None
+	try:
+		server = smtplib.SMTP(SERVER)
+		server.sendmail(FROM,'',emailMsg.as_string())
+		return True
+	except smtplib.socket.gaierror:
+		print "  Error: Connecting to host %s" % SERVER
+		pass
+	except smtplib.SMTPRecipientsRefused:
+		print "  Error: Invalid recipients"
+		pass
+	except smtplib.SMTPException:
+		print "  Error: Mail system exception"
+		pass
+	finally:
+		if server:
+			server.quit()
+	return False
 
 ##########################################################################################
 # runPats
