@@ -114,9 +114,9 @@ except Exception:
 	OUTPUT_PATH = ""
 
 try:
-	OUTPUT_EMAIL = str(os.environ["OUTPUT_EMAIL"])
+	OUTPUT_EMAIL_LIST = str(os.environ["OUTPUT_EMAIL_LIST"])
 except Exception:
-	OUTPUT_EMAIL = ""
+	OUTPUT_EMAIL_LIST = ""
 
 try:
 	LOGLEVEL_NORMAL = int(os.environ["LOGLEVEL_NORMAL"])
@@ -175,8 +175,8 @@ if( len(OUTPUT_PATH) > 0 ):
 else:
 	outputPath = ""
 
-if( len(OUTPUT_EMAIL) > 0 ):
-	emailAddrList = OUTPUT_EMAIL
+if( len(OUTPUT_EMAIL_LIST) > 0 ):
+	emailAddrList = OUTPUT_EMAIL_LIST
 else:
 	emailAddrList = ""
 
