@@ -625,16 +625,14 @@ def getTableHtml(val):
 					patternRelativePath = results[i][IDX_RESULTS_PATTERN_PATH].replace('/usr/lib/sca/', '')
 					patternPackage = ''
 					if 'SLE' in patternRelativePath:
-						if 'sle09' in patternRelativePath:
-							patternPackage = 'sca-patterns-sle09'
-						elif 'sle10' in patternRelativePath:
-							patternPackage = 'sca-patterns-sle10'
+						if 'sle12' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle12'
 						elif 'sle11' in patternRelativePath:
 							patternPackage = 'sca-patterns-sle11'
-						elif 'sle12' in patternRelativePath:
-							patternPackage = 'sca-patterns-sle12'
-						else:
-							patternPackage = 'sca-patterns-hae'
+						elif 'sle10' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle10'
+						elif 'sle9' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle09'
 					elif 'OES' in patternRelativePath:
 						patternPackage = 'sca-patterns-oes'
 					elif 'HAE' in patternRelativePath:
@@ -771,7 +769,7 @@ def patternPreProcessor(extractedSupportconfig):
 	rpmFile = open(extractedSupportconfig + "/rpm.txt")
 	RPMs = rpmFile.readlines()
 	rpmFile.close()
-	inHAE = re.compile('ais|resource-agents|cluster-glue|corosync|csync2|pacemaker|heartbeat', re.IGNORECASE)
+	inHAE = re.compile('openais|resource-agents|cluster-glue|corosync|csync2|pacemaker|heartbeat', re.IGNORECASE)
 	for line in RPMs:
 		if inHAE.search(line) and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
