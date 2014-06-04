@@ -798,7 +798,8 @@ def emailSCAReport(supportconfigFile):
 	SCA_REPORT = htmlOutputFile.split('/')[-1]
 
 	# create text email
-	text = "Analysis Date:             " + str(timeAnalysis) + "\n"
+	text = "* Supportconfig Analysis Report *\n"
+	text += "Analysis Date:             " + str(timeAnalysis) + "\n"
 	text += "Supportconfig Archive:    " + str(supportconfigFile) + "\n"
 	text += "Server Analyzed:          " + str(serverName) + "\n"
 	text += "Total Patterns Evaluated: " + str(patternStats['Total']) + "\n"
@@ -811,7 +812,9 @@ def emailSCAReport(supportconfigFile):
 	# create html email
 	html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
 	html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">\n'
-	html += '<body>\n<table>\n'
+	html += '<body>\n'
+	html += '<h1>Supportconfig Analysis Report</h1>\n'
+	html += '<table>\n'
 	html += "<tr><td>Analysis Date:</td><td>" + str(timeAnalysis) + '</td></tr>\n'
 	html += "<tr><td>Supportconfig Archive:</td><td>" + str(supportconfigFile) + '</td></tr>\n'
 	html += "<tr><td>Server Analyzed:</td><td>" + str(serverName) + '</td></tr>\n'
