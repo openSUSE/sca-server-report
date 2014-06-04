@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-20'
+SVER = '1.0.6-20.Dev1'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -414,9 +414,11 @@ def getClasses():
 	global results
 	#reset knownClasses
 	knownClasses = []
+	IDX_RESULTS_CLASS = 0
+	IDX_VALUE = 1
 	for i in range(len(results)):
-		if not (results[i][0].split("=")[1] in knownClasses):
-			knownClasses.append(results[i][0].split("=")[1])
+		if not (results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE] in knownClasses):
+			knownClasses.append(results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE])
 
 
 ##########################################################################################
@@ -563,11 +565,15 @@ def getTableHtml(val):
 		color = "222222"
 	 
 
-	IDX_META_CLASS = 0
-	IDX_META_CATEGORY = 1
-	IDX_META_COMPONENT = 2
-	IDX_PATTERN_ID = 3
-	IDX_META_OVERALL_INFO = 6
+	IDX_KEY = 0
+	IDX_VALUE = 1
+	IDX_RESULTS_CLASS = 0
+	IDX_RESULTS_CATEGORY = 1
+	IDX_RESULTS_COMPONENT = 2
+	IDX_RESULTS_PATTERN_ID = 3
+	IDX_RESULTS_PRIMARY_LINK = 4
+	IDX_RESULTS_OVERALL = 5
+	IDX_RESULTS_OVERALL_INFO = 6
 	returnString = ""
 	tmpReturn = ""
 	
@@ -578,14 +584,14 @@ def getTableHtml(val):
 		#for all results
 		for i in range(len(results)):
 			#for results of a pattern
-			if results[i][0].split("=")[1] == Class and int(results[i][5].split("=")[1]) == val:
+			if results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE] == Class and int(results[i][IDX_RESULTS_OVERALL].split("=")[IDX_VALUE]) == val:
 				numHits += 1
 				severityCount += 1
 				#find main link
 				Main_Link = ""
 				for j in range(len(results[i])):
 					#if main link
-					if results[i][j].split('=')[0] == results[i][4].split("=")[1]:
+					if results[i][j].split('=')[IDX_KEY] == results[i][IDX_RESULTS_PRIMARY_LINK].split("=")[IDX_VALUE]:
 						
 						#remove the stuff before the first "="
 						tmp = results[i][j].split('=')
@@ -610,7 +616,7 @@ def getTableHtml(val):
 						linkUrl = linkUrl + "=" + LinkPart
 					#clean up the "=" leftover
 					linkUrl = linkUrl.strip("=")
-					tmp3 = results[i][IDX_META_OVERALL_INFO].split("=")
+					tmp3 = results[i][IDX_RESULTS_OVERALL_INFO].split("=")
 					del tmp3[0]
 					overallInfo = "=".join(tmp3)
 					
@@ -621,11 +627,11 @@ def getTableHtml(val):
 						'"><TD BGCOLOR="#'\
 					+ color +\
 						'" WIDTH="2%">&nbsp;</TD><TD BGCOLOR="#EEEEEE" WIDTH="6%">'\
-					+ results[i][IDX_META_CLASS].split("=")[1] + \
+					+ results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE] + \
 					'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
-					+ results[i][IDX_META_CATEGORY].split("=")[1] + \
+					+ results[i][IDX_RESULTS_CATEGORY].split("=")[IDX_VALUE] + \
 					'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
-					+ results[i][IDX_META_COMPONENT].split("=")[1] +\
+					+ results[i][IDX_RESULTS_COMPONENT].split("=")[IDX_VALUE] +\
 					'</TD><TD><A HREF="'\
 					+ Main_Link + \
 					'" TARGET="_blank">'\
@@ -633,7 +639,7 @@ def getTableHtml(val):
 					'</A>&nbsp;&nbsp;<A ID="PatternLocation" HREF="#" onClick="showPattern(\''\
 					+ overallInfo +\
 					'\',\''\
-					+ results[i][IDX_PATTERN_ID].split("=")[1] +\
+					+ results[i][IDX_RESULTS_PATTERN_ID].split("=")[IDX_VALUE] +\
 					'\');return false;">&nbsp;</A>'\
 					+ '</TD><TD WIDTH="8%">'\
 					+ links +\
