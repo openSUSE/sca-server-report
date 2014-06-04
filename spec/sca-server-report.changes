@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Wed Jun  4 17:02:37 UTC 2014 - jrecord@suse.com
+
+- Added email functionality in OPTION_EMAIL_LIST and -e (bnc#880815)
+
+-------------------------------------------------------------------
 Wed May 28 19:01:28 UTC 2014 - jrecord@suse.com
 
 - Changed waiting prompt on remote connections
