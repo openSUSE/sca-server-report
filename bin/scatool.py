@@ -64,7 +64,7 @@ def usage():
 	print " -a path  Analyze the supportconfig directory or archive"
 	print "          The path may also be an IP address of a server to analyze"
 	print " -o path  HTML report output directory (OUTPUT_PATH)"
-	print " -e email Send HTML report to email address provided"
+	print " -e list  Send HTML report to email address(es) provided. Comma separated list."
 	print " -k       Keep archive files (ARCHIVE_MODE)"
 	print " -v       Verbose output (LOGLEVEL)"
 	print " -c       Enter SCA Tool console (CONSOLE_MODE)"
