@@ -567,6 +567,7 @@ def getTableHtml(val):
 
 	IDX_KEY = 0
 	IDX_VALUE = 1
+	IDX_RESULTS_PATTERN_PATH = 0
 	IDX_RESULTS_CLASS = 1
 	IDX_RESULTS_CATEGORY = 2
 	IDX_RESULTS_COMPONENT = 3
@@ -619,6 +620,32 @@ def getTableHtml(val):
 					tmp3 = results[i][IDX_RESULTS_OVERALL_INFO].split("=")
 					del tmp3[0]
 					overallInfo = "=".join(tmp3)
+
+					#determine pattern repository location
+					patternRelativePath = results[i][IDX_RESULTS_PATTERN_PATH].replace('/usr/lib/sca/', '')
+					patternPackage = ''
+					if 'SLE' in patternRelativePath:
+						if 'sle09' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle09'
+						elif 'sle10' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle10'
+						elif 'sle11' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle11'
+						elif 'sle12' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle12'
+						else:
+							patternPackage = 'sca-patterns-hae'
+					elif 'OES' in patternRelativePath:
+						patternPackage = 'sca-patterns-oes'
+					elif 'HAE' in patternRelativePath:
+						patternPackage = 'sca-patterns-hae'
+					elif 'edirectory' in patternRelativePath:
+						patternPackage = 'sca-patterns-edir'
+					elif 'filr' in patternRelativePath:
+						patternPackage = 'sca-patterns-filr'
+					elif 'groupwise' in patternRelativePath:
+						patternPackage = 'sca-patterns-groupwise'
+					patternSourceURL = 'https://github.com/g23guy/' + patternPackage + '/blob/master/' + patternRelativePath
 					
 					#put it in html form
 					links = links + '<A HREF="' + linkUrl + '" TARGET="_blank">' + linkName + " " + '</A>'
@@ -636,11 +663,7 @@ def getTableHtml(val):
 					+ Main_Link + \
 					'" TARGET="_blank">'\
 					+ overallInfo +\
-					'</A>&nbsp;&nbsp;<A ID="PatternLocation" HREF="#" onClick="showPattern(\''\
-					+ overallInfo +\
-					'\',\''\
-					+ results[i][IDX_RESULTS_PATTERN_ID].split("=")[IDX_VALUE] +\
-					'\');return false;">&nbsp;</A>'\
+					'</A>&nbsp;&nbsp;<A ID="PatternLocation" HREF="' + patternSourceURL + '" TARGET="_blank">&nbsp;</A>'\
 					+ '</TD><TD WIDTH="8%">'\
 					+ links +\
 							 '&nbsp;&nbsp;</TD><TD BGCOLOR="#'\
@@ -748,7 +771,10 @@ def patternPreProcessor(extractedSupportconfig):
 	rpmFile = open(extractedSupportconfig + "/rpm.txt")
 	RPMs = rpmFile.readlines()
 	rpmFile.close()
+	inHAE = re.compile('ais|resource-agents|cluster-glue|corosync|csync2|pacemaker|heartbeat', re.IGNORECASE)
 	for line in RPMs:
+		if inHAE.search(line) and not line.startswith("sca-patterns"):
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
 		if "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/edirectory/"))
 		if "groupwise" in line.lower() and not line.startswith("sca-patterns"):
@@ -846,7 +872,6 @@ def emailSCAReport(supportconfigFile):
 	emailMsg.attach(fileMsg)
 
 	# send email
-#	SERVER = "jrecord2"
 	server = None
 	try:
 		server = smtplib.SMTP(SERVER, timeout=15)
