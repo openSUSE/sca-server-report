@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-19.Dev.17'
+SVER = '1.0.6-19.Dev.18'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -799,8 +799,8 @@ def emailSCAReport(supportconfigFile):
 
 	# create text email
 	text = "Analysis Date:             " + str(timeAnalysis) + "\n"
-	text += "Supportconfig Analyzed:   " + str(supportconfigFile) + "\n"
-	text += "Server Name:              " + str(serverName) + "\n"
+	text += "Supportconfig Archive:    " + str(supportconfigFile) + "\n"
+	text += "Server Analyzed:          " + str(serverName) + "\n"
 	text += "Total Patterns Evaluated: " + str(patternStats['Total']) + "\n"
 	text += "Applicable to Server:     " + str(patternStats['Applied']) + "\n"
 	text += "  Critical:               " + str(patternStats['Crit']) + "\n"
@@ -813,8 +813,8 @@ def emailSCAReport(supportconfigFile):
 	html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">\n'
 	html += '<body>\n<table>\n'
 	html += "<tr><td>Analysis Date:</td><td>" + str(timeAnalysis) + '</td></tr>\n'
-	html += "<tr><td>Supportconfig Analyzed:</td><td>" + str(supportconfigFile) + '</td></tr>\n'
-	html += "<tr><td>Server Name:</td><td>" + str(serverName) + '</td></tr>\n'
+	html += "<tr><td>Supportconfig Archive:</td><td>" + str(supportconfigFile) + '</td></tr>\n'
+	html += "<tr><td>Server Analyzed:</td><td>" + str(serverName) + '</td></tr>\n'
 	html += "<tr><td>Total Patterns Evaluated:</td><td>" + str(patternStats['Total']) + '</td></tr>\n'
 	html += "<tr><td>Applicable to Server:</td><td>" + str(patternStats['Applied']) + '</td></tr>\n'
 	html += "<tr><td>&nbsp;&nbsp;Critical:</td><td>" + str(patternStats['Crit']) + '</td></tr>\n'
@@ -837,26 +837,14 @@ def emailSCAReport(supportconfigFile):
 	emailMsg.attach(fileMsg)
 
 	# send email
-	SERVER = "jrecord2"
+#	SERVER = "jrecord2"
 	server = None
 	try:
-		server = smtplib.SMTP(SERVER, timeout=5)
+		server = smtplib.SMTP(SERVER, timeout=15)
 		server.sendmail(FROM,TO,emailMsg.as_string())
 		return True
-	except smtplib.socket.gaierror:
-		print "  Error: Connecting to email host %s" % SERVER
-		pass
-	except smtplib.SMTPConnectError:
-		print "  Error: Connecting to email host %s" % SERVER
-		pass
-	except OSError as err:
-		print("OS error: {0}".format(err))
-		pass
-	except smtplib.SMTPRecipientsRefused:
-		print "  Error: Invalid recipients"
-		pass
-	except smtplib.SMTPException:
-		print "  Error: Mail system exception"
+	except Exception, error:
+		print "  Error: Unable to send email: '%s'." % str(error)
 		pass
 	finally:
 		if server:
