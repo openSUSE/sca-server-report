@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Jun 03
+# Modified:     2014 Jun 04
 
 ##############################################################################
 #
@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-19.Dev.16'
+SVER = '1.0.6-19.Dev.17'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -787,7 +787,7 @@ def emailSCAReport(supportconfigFile):
 	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 
 	if( len(emailAddrList) > 0 ):
-		print "SCA Report Emailed To:        " + str(emailAddrList)
+		print "Emailing SCA Report To:       " + str(emailAddrList)
 #		print "Pattern Stats: " + str(patternStats)
 	else:
 		return 0
@@ -837,14 +837,20 @@ def emailSCAReport(supportconfigFile):
 	emailMsg.attach(fileMsg)
 
 	# send email
-#	SERVER = "skipper"
+	SERVER = "jrecord2"
 	server = None
 	try:
-		server = smtplib.SMTP(SERVER)
-		server.sendmail(FROM,'',emailMsg.as_string())
+		server = smtplib.SMTP(SERVER, timeout=5)
+		server.sendmail(FROM,TO,emailMsg.as_string())
 		return True
 	except smtplib.socket.gaierror:
-		print "  Error: Connecting to host %s" % SERVER
+		print "  Error: Connecting to email host %s" % SERVER
+		pass
+	except smtplib.SMTPConnectError:
+		print "  Error: Connecting to email host %s" % SERVER
+		pass
+	except OSError as err:
+		print("OS error: {0}".format(err))
 		pass
 	except smtplib.SMTPRecipientsRefused:
 		print "  Error: Invalid recipients"
