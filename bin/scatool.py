@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-19.Dev.18'
+SVER = '1.0.6-20'
 
 ##########################################################################################
 # HELP FUNCTIONS
