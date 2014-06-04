@@ -414,7 +414,7 @@ def getClasses():
 	global results
 	#reset knownClasses
 	knownClasses = []
-	IDX_RESULTS_CLASS = 0
+	IDX_RESULTS_CLASS = 1
 	IDX_VALUE = 1
 	for i in range(len(results)):
 		if not (results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE] in knownClasses):
@@ -567,13 +567,13 @@ def getTableHtml(val):
 
 	IDX_KEY = 0
 	IDX_VALUE = 1
-	IDX_RESULTS_CLASS = 0
-	IDX_RESULTS_CATEGORY = 1
-	IDX_RESULTS_COMPONENT = 2
-	IDX_RESULTS_PATTERN_ID = 3
-	IDX_RESULTS_PRIMARY_LINK = 4
-	IDX_RESULTS_OVERALL = 5
-	IDX_RESULTS_OVERALL_INFO = 6
+	IDX_RESULTS_CLASS = 1
+	IDX_RESULTS_CATEGORY = 2
+	IDX_RESULTS_COMPONENT = 3
+	IDX_RESULTS_PATTERN_ID = 4
+	IDX_RESULTS_PRIMARY_LINK = 5
+	IDX_RESULTS_OVERALL = 6
+	IDX_RESULTS_OVERALL_INFO = 7
 	returnString = ""
 	tmpReturn = ""
 	
@@ -606,7 +606,7 @@ def getTableHtml(val):
 				links = ""
 				linkUrl = ""
 				#for all links
-				for link in range(7, len(results[i])):
+				for link in range(IDX_RESULTS_OVERALL_INFO+1, len(results[i])):
 					linkUrl = ""
 					#remove the stuff before the first "="
 					tmp2 = results[i][link].split("=")
@@ -952,7 +952,8 @@ def parseOutput(out, error, pat):
 
 		#if overall outcome of pattern was valid
 		if int(output[5].split("=")[1]) >= 0 and int(output[5].split("=")[1]) < 5:
-			results.append(output)
+			full = [pat] + output # insert the pattern path at the begining of results
+			results.append(full)
 		return True
 	else:
 		patternErrorList.append(pat + " -- Output error: " + str(error.split("\n")[0]))
