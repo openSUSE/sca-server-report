@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-22'
+SVER = '1.0.6-24'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -1219,9 +1219,17 @@ def analyze(*arg):
 	else:
 		#too many arguments
 		print >> sys.stderr, "Please run: \"help analyze\""
-		
-	if not supportconfigPath.startswith("/") and not supportconfigPath.startswith("./"):
-		supportconfigPath = "./" + supportconfigPath
+
+	OS_PATH = os.environ["PWD"]
+	if( len(OS_PATH) > 0 ):
+		OS_PATH += "/"
+	else:
+		OS_PATH = "./"
+	if supportconfigPath.startswith("./"):
+		supportconfigPath = re.sub("^./", OS_PATH, supportconfigPath)
+	elif not supportconfigPath.startswith("/"):
+		supportconfigPath = OS_PATH + supportconfigPath
+
 	#if supportconfig not extract. Extract supportconfig
 	if os.path.isfile(supportconfigPath):
 		#extract file

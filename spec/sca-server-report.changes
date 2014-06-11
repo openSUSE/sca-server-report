@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Wed Jun 11 14:54:35 UTC 2014 - jrecord@suse.com
+Wed Jun 11 17:13:52 UTC 2014 - jrecord@suse.com
 
+- Changed relative paths to full path
 - Added email functionality in OPTION_EMAIL_LIST and -e (bnc#880815)
 - Fixed invalid pattern source links (bnc#881187)
 - Fixed the HAE preprocessor (bnc#881403)
