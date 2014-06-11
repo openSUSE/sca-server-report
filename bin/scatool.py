@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Jun 04
+# Modified:     2014 Jun 11
 
 ##############################################################################
 #
@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-21'
+SVER = '1.0.6-22'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -838,6 +838,7 @@ def emailSCAReport(supportconfigFile):
 	text += "  Warning:                " + str(patternStats['Warn']) + "\n"
 	text += "  Recommended:            " + str(patternStats['Recc']) + "\n"
 	text += "  Success:                " + str(patternStats['Succ']) + "\n"
+	text += "Source:                   scatool v" + str(SVER) + "\n"
 
 	# create html email
 	html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
@@ -854,6 +855,7 @@ def emailSCAReport(supportconfigFile):
 	html += "<tr><td>&nbsp;&nbsp;Warning:</td><td>" + str(patternStats['Warn']) + '</td></tr>\n'
 	html += "<tr><td>&nbsp;&nbsp;Recommended:</td><td>" + str(patternStats['Recc']) + '</td></tr>\n'
 	html += "<tr><td>&nbsp;&nbsp;Success:</td><td>" + str(patternStats['Succ']) + '</td></tr>\n'
+	html += "<tr><td>Source:</td><td>scatool v" + str(SVER) + '</td></tr>\n'
 	html += "</table>\n</body></html>\n\n"
 	emailMsg = email.MIMEMultipart.MIMEMultipart('alternative')
 	emailMsg['Subject'] = SUBJECT
