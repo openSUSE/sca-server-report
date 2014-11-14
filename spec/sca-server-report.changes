@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Nov 14 23:07:09 UTC 2014 - jrecord@suse.com
+
+- Fixed scatool man page for email list
+- Added SUMA pattern definition
+
+-------------------------------------------------------------------
 Wed Jun 11 17:13:52 UTC 2014 - jrecord@suse.com
 
 - Changed relative paths to full path

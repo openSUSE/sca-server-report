@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Jun 11
+# Modified:     2014 Nov 14
 
 ##############################################################################
 #
@@ -46,7 +46,7 @@ import re
 #from email.mime.text import MIMEText
 import smtplib,email,email.encoders,email.mime.text,email.mime.base
 
-SVER = '1.0.6-24'
+SVER = '1.0.6-30'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -199,7 +199,7 @@ command = ""
 ##########################################################################################
 # getHeader
 ##########################################################################################
-#returns html code. This is the about server part.
+#returns html code. This is the part about the server.
 ####example####
 #Server Information
 #Analysis Date:	2014-04-10 17:45:15
@@ -770,17 +770,22 @@ def patternPreProcessor(extractedSupportconfig):
 	RPMs = rpmFile.readlines()
 	rpmFile.close()
 	inHAE = re.compile('openais|resource-agents|cluster-glue|corosync|csync2|pacemaker|heartbeat', re.IGNORECASE)
+	SUMA = re.compile("^susemanager\s|^susemanager-proxy\s", re.IGNORECASE)
 	for line in RPMs:
 		if inHAE.search(line) and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
-		if "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
+		elif "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/edirectory/"))
-		if "groupwise" in line.lower() and not line.startswith("sca-patterns"):
+		elif "groupwise" in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
-		if "datasync-common " in line.lower() and not line.startswith("sca-patterns"):
+		elif "datasync-common " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
-		if "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
+		elif "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/filr/"))
+		elif SUMA.search(line) and not line.startswith("sca-patterns"):
+			VER_MAJOR = str(line.split()[-1].split('.')[0])
+			VER_MINOR = str(line.split()[-1].split('.')[1])
+			patternDirectories.append(str(SCA_PATTERN_PATH + "/suma/suma" + VER_MAJOR + VER_MINOR + "all/"))
 
 	patternDirectories = list(set(patternDirectories)) #create a unique sorted list
 	systemDefinition = []
