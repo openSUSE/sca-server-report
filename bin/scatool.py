@@ -225,7 +225,6 @@ def getHeader(*arg):
 	hardWare = ""
 	virtualization = ""
 	vmIdentity = ""
-	INFO = {}
 	PRODUCTS = []
 	#set timeAnalysis (example: 2014-04-10 17:45:15)
 	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
@@ -238,19 +237,19 @@ def getHeader(*arg):
 	else:
 		arcName = ""
 
-	#open basic-environment
-	File = open(arg[0] + "/basic-environment.txt")
-	File.readline()
-	File.readline()
-
-	#get supportconfig version
-	supportconfigVersion = File.readline().split(':')[-1].strip()
+	#load basic-environment.txt
+	try:
+		with open(arg[0] + "/basic-environment.txt") as f:
+			BASIC_ENV = f.read().splitlines()
+		f.close()
+	except:
+		BASIC_ENV = []
 
 	#read basic-environment line by line to pull out data. (pull: serverName, oesVersion, oesPatchLevel, etc)
-	while True:
-		line = File.readline()
-		if not line:
-			break
+	for line in BASIC_ENV:
+		#get supportconig version
+		if "Script Version:" in line:
+			supportconfigVersion = line.split(':')[-1].strip()
 
 		#get hardWare
 		if line.startswith("Hardware:"):
@@ -320,8 +319,8 @@ def getHeader(*arg):
 				PRODUCTS.insert(1, ['OES Distrubtion:', oesVersion, 'OES Service Pack:', oesPatchLevel])
 			else:
 				oesVersion = ''
-	File.close()
 
+	del BASIC_ENV
 
 	#load summary.xml
 	try:
@@ -336,17 +335,31 @@ def getHeader(*arg):
 	IN_PRODUCT = False
 
 	#get SUSE Manager information
-	SUMA = re.compile(r'', re.IGNORECASE)
-	INFO = {}
+	SUMA = re.compile(r'<name>SUSE-Manager.*</name>', re.IGNORECASE)
+	SUMA_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
+	INFO_PROD = None
+	INFO_VER = None
 	for LINE in SUMMARY:
 		if( IN_PRODUCT ):
 			if PROD_END.search(LINE):
 				IN_PRODUCT = False
-			elif
+			elif SUMA.search(LINE):
+				try:
+					INFO_PROD = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+				except:
+					True
+			elif SUMA_VER.search(LINE):
+				try:
+					INFO_VER = re.search(r'>(.+?)<', LINE).group(1)
+				except:
+					True
+			if( INFO_PROD and INFO_VER ):
+				IN_PRODUCT = False
+				PRODUCTS.append(['Product:', INFO_PROD, 'Version:', INFO_VER])
+				INFO_PROD = None
+				INFO_VER = None
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
-
-	sys.exit()	
 
 	print "["
 	for INFO in PRODUCTS:
