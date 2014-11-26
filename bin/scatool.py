@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Nov 14
+# Modified:     2014 Nov 25
 
 ##############################################################################
 #
@@ -40,13 +40,13 @@ import socket
 import time
 import getopt
 import re
-#import smtplib
-#from email.mime.base import MIMEBase
-#from email.mime.multipart import MIMEMultipart
-#from email.mime.text import MIMEText
-import smtplib,email,email.encoders,email.mime.text,email.mime.base
+import smtplib
+import email
+import email.encoders
+import email.mime.text
+import email.mime.base
 
-SVER = '1.0.6-30'
+SVER = '1.0.8-1'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -225,6 +225,8 @@ def getHeader(*arg):
 	hardWare = ""
 	virtualization = ""
 	vmIdentity = ""
+	INFO = {}
+	PRODUCTS = []
 	#set timeAnalysis (example: 2014-04-10 17:45:15)
 	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 	timeArchiveRun = "0000-00-00 00:00:00"
@@ -305,17 +307,54 @@ def getHeader(*arg):
 			OS = File.readline().strip()
 			OSVersion = File.readline().split('=')[-1].strip()
 			patchLevel = File.readline().split('=')[-1].strip()
+			INFO = {'Distribution:': OS, 'Service Pack:': patchLevel}
+			PRODUCTS.insert(0, ['Distribution:', OS, 'Service Pack:', patchLevel])
 
-		#get OES version and pathch level
+		#get OES version and patch level
 		if "/etc/novell-release" in line:
 			oesVersion = File.readline().strip()
 			if "Open Enterprise" in oesVersion:
 				#we don't need the oes version just SP so skip the next line
 				File.readline()
 				oesPatchLevel = File.readline().split('=')[-1].strip()
+				PRODUCTS.insert(1, ['OES Distrubtion:', oesVersion, 'OES Service Pack:', oesPatchLevel])
 			else:
 				oesVersion = ''
 	File.close()
+
+
+	#load summary.xml
+	try:
+		with open(arg[0] + "/summary.xml") as f:
+			SUMMARY = f.read().splitlines()
+		f.close()
+	except:
+		SUMMARY = []
+
+	PROD_START = re.compile(r'<product\s|<product>', re.IGNORECASE)
+	PROD_END = re.compile(r'</product>', re.IGNORECASE)
+	IN_PRODUCT = False
+
+	#get SUSE Manager information
+	SUMA = re.compile(r'', re.IGNORECASE)
+	INFO = {}
+	for LINE in SUMMARY:
+		if( IN_PRODUCT ):
+			if PROD_END.search(LINE):
+				IN_PRODUCT = False
+			elif
+		elif PROD_START.search(LINE):
+			IN_PRODUCT = True
+
+	sys.exit()	
+
+	print "["
+	for INFO in PRODUCTS:
+		print " " + str(INFO)
+	print "]"
+	sys.exit()
+
+	del SUMMARY
 
 	#create HTML from the data we just got
 	returnHTML = returnHTML + '<H1>Supportconfig Analysis Report</H1>\n'
