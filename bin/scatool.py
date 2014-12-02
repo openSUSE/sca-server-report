@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Nov 25
+# Modified:     2014 Nov 26
 
 ##############################################################################
 #
@@ -46,7 +46,7 @@ import email.encoders
 import email.mime.text
 import email.mime.base
 
-SVER = '1.0.8-1'
+SVER = '1.0.8-2'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -246,79 +246,97 @@ def getHeader(*arg):
 		BASIC_ENV = []
 
 	#read basic-environment line by line to pull out data. (pull: serverName, oesVersion, oesPatchLevel, etc)
+	IN_DATE = False
+	IN_UNAME = False
+	IN_RELEASE = False
+	IN_OES_RELEASE = False
 	for line in BASIC_ENV:
-		#get supportconig version
 		if "Script Version:" in line:
 			supportconfigVersion = line.split(':')[-1].strip()
-
-		#get hardWare
-		if line.startswith("Hardware:"):
+		elif line.startswith("Hardware:"):
 			hardWare = line.split(":")[1].strip()
-
-		#get virtualization
-		if line.startswith("Hypervisor:"):
+		elif line.startswith("Hypervisor:"):
 			virtualization = line.split(":")[1].strip()
-
-		#get virtualization identity
-		if line.startswith("Identity:"):
+		elif line.startswith("Identity:"):
 			vmIdentity = line.split(":")[1].strip()
-
-		#get supportconfig run date and time
-		if "/bin/date" in line:
-			dateLine = File.readline() # get the next line in the file
-			dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
-			tmp = dateLine.split(" ") # split into list based on a space
-			tmpMonth = tmp[1].strip()
-			if "Jan" in tmpMonth:
-				tmpMonth = "01"
-			elif "Feb" in tmpMonth:
-				tmpMonth = "02"
-			elif "Mar" in tmpMonth:
-				tmpMonth = "03"
-			elif "Apr" in tmpMonth:
-				tmpMonth = "04"
-			elif "May" in tmpMonth:
-				tmpMonth = "05"
-			elif "Jun" in tmpMonth:
-				tmpMonth = "06"
-			elif "Jul" in tmpMonth:
-				tmpMonth = "07"
-			elif "Aug" in tmpMonth:
-				tmpMonth = "08"
-			elif "Sep" in tmpMonth:
-				tmpMonth = "09"
-			elif "Oct" in tmpMonth:
-				tmpMonth = "10"
-			elif "Nov" in tmpMonth:
-				tmpMonth = "11"
-			elif "Dec" in tmpMonth:
-				tmpMonth = "12"
-			timeArchiveRun = tmp[-1].strip() + "-" + tmpMonth + "-" + tmp[2].strip().zfill(2) + " " + tmp[3].strip()
-
-		#get kernel version and server name
-		if "/bin/uname -a" in line:
-			tmp = File.readline().split(" ")
-			kernelVersion = tmp[2].strip()
-			serverName = tmp[1].strip()
-
-		#get OS Version and patch level
-		if "/etc/SuSE-release" in line:
-			OS = File.readline().strip()
-			OSVersion = File.readline().split('=')[-1].strip()
-			patchLevel = File.readline().split('=')[-1].strip()
-			INFO = {'Distribution:': OS, 'Service Pack:': patchLevel}
-			PRODUCTS.insert(0, ['Distribution:', OS, 'Service Pack:', patchLevel])
-
-		#get OES version and patch level
-		if "/etc/novell-release" in line:
-			oesVersion = File.readline().strip()
-			if "Open Enterprise" in oesVersion:
-				#we don't need the oes version just SP so skip the next line
-				File.readline()
-				oesPatchLevel = File.readline().split('=')[-1].strip()
-				PRODUCTS.insert(1, ['OES Distrubtion:', oesVersion, 'OES Service Pack:', oesPatchLevel])
+		elif "/bin/date" in line:
+			IN_DATE = True
+		elif "/bin/uname -a" in line:
+			IN_UNAME = True
+		elif "/etc/SuSE-release" in line:
+			IN_RELEASE = True
+		elif "/etc/novell-release" in line:
+			IN_OES_RELEASE = True
+		elif( IN_DATE ):
+			if "#==[" in line:
+				IN_DATE = False
 			else:
-				oesVersion = ''
+				dateLine = line
+				dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
+				tmp = dateLine.split() # split into list based on a space
+				if( len(tmp) >= 4 ):
+					tmpMonth = tmp[1].strip()
+					if "Jan" in tmpMonth:
+						tmpMonth = "01"
+					elif "Feb" in tmpMonth:
+						tmpMonth = "02"
+					elif "Mar" in tmpMonth:
+						tmpMonth = "03"
+					elif "Apr" in tmpMonth:
+						tmpMonth = "04"
+					elif "May" in tmpMonth:
+						tmpMonth = "05"
+					elif "Jun" in tmpMonth:
+						tmpMonth = "06"
+					elif "Jul" in tmpMonth:
+						tmpMonth = "07"
+					elif "Aug" in tmpMonth:
+						tmpMonth = "08"
+					elif "Sep" in tmpMonth:
+						tmpMonth = "09"
+					elif "Oct" in tmpMonth:
+						tmpMonth = "10"
+					elif "Nov" in tmpMonth:
+						tmpMonth = "11"
+					elif "Dec" in tmpMonth:
+						tmpMonth = "12"
+					timeArchiveRun = tmp[-1].strip() + "-" + tmpMonth + "-" + tmp[2].strip().zfill(2) + " " + tmp[3].strip()
+					IN_DATE = False
+		elif( IN_UNAME ):
+			if "#==[" in line:
+				IN_UNAME = False
+			else:
+				tmp = line.split()
+				if( len(tmp) >= 3 ):
+					kernelVersion = tmp[2].strip()
+					serverName = tmp[1].strip()
+					IN_UNAME = False
+		elif( IN_RELEASE ):
+			if "#==[" in line:
+				IN_UNAME = False
+				PRODUCTS.insert(0, ['Distribution:', OS, 'Service Pack:', patchLevel])
+			else:
+				if( len(OS) > 0 ):
+					if line.lower().startswith("version"):
+						OSVersion = line.split('=')[-1].strip()
+					elif line.lower().startswith("patchlevel"):
+						patchLevel = line.split('=')[-1].strip()
+				else:
+					OS = line.strip()
+		elif( IN_OES_RELEASE):
+			if "#==[" in line:
+				IN_UNAME = False
+			else:
+				if( len(OES) > 0 ):
+					if "Open Enterprise" in oesVersion:
+						#we don't need the oes version just SP so skip the next line
+						File.readline()
+						oesPatchLevel = File.readline().split('=')[-1].strip()
+						PRODUCTS.insert(1, ['OES Distrubtion:', OES, 'OES Service Pack:', oesPatchLevel])
+					else:
+						oesVersion = ''
+				else:
+					OES = line.strip()
 
 	del BASIC_ENV
 
