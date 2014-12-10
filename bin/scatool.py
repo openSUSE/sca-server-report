@@ -200,16 +200,6 @@ command = ""
 # getHeader
 ##########################################################################################
 #returns html code. This is the part about the server.
-####example####
-#Server Information
-#Analysis Date:	2014-04-10 17:45:15
-#Archive File:	/home/david/nts_DOCvGRPSdr_130528_1137.html
- 
-#Server Name:			<Server Name>																		Hardware:							VMware Virtual Platform
-#Distribution:		 SUSE Linux Enterprise Server 10 (x86_64)			Service Pack:					4
-#OES Distribution: Novell Open Enterprise Server 2.0.3 (x86_64)	OES Service Pack:			3
-#Hypervisor:			 VMware (hardware platform)										Identity:							Virtual Machine (hardware platform)
-#Kernel Version:	 2.6.16.60-0.99.1-default											Supportconfig Version: 2.25-359
 
 def getHeader(*arg):
 	global serverName
@@ -247,7 +237,7 @@ def getHeader(*arg):
 	except:
 		BASIC_ENV = []
 
-	#read basic-environment line by line to pull out data. (pull: serverName, oesVersion, oesPatchLevel, etc)
+	#read basic-environment line by line to pull out data.
 	IN_DATE = False
 	IN_UNAME = False
 	IN_RELEASE = False
@@ -393,11 +383,11 @@ def getHeader(*arg):
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
 
-	print "["
-	for INFO in PRODUCTS:
-		print " " + str(INFO)
-	print "]"
-	sys.exit()
+#	print "["
+#	for INFO in PRODUCTS:
+#		print " " + str(INFO)
+#	print "]"
+#	sys.exit()
 
 	del SUMMARY
 
