@@ -46,7 +46,7 @@ import email.encoders
 import email.mime.text
 import email.mime.base
 
-SVER = '1.0.8-8'
+SVER = '1.0.8-9'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -220,6 +220,8 @@ def getHeader(*arg):
 	oesPatchLevel = ""
 	OS = ""
 	OES = ""
+	INFO = ""
+	VER = ""
 	OSVersion = ""
 	patchLevel = ""
 	kernelVersion = ""
@@ -250,6 +252,7 @@ def getHeader(*arg):
 	IN_UNAME = False
 	IN_RELEASE = False
 	IN_OES_RELEASE = False
+	IN_FILR = False
 	for line in BASIC_ENV:
 		if "Script Version:" in line:
 			supportconfigVersion = line.split(':')[-1].strip()
@@ -267,6 +270,8 @@ def getHeader(*arg):
 			IN_RELEASE = True
 		elif "/etc/novell-release" in line:
 			IN_OES_RELEASE = True
+		elif "/etc/Novell-VA-release" in line:
+			IN_FILR = True
 		elif( IN_DATE ):
 			if "#==[" in line:
 				IN_DATE = False
@@ -326,22 +331,27 @@ def getHeader(*arg):
 		elif( IN_OES_RELEASE):
 			if "#==[" in line:
 				IN_OES_RELEASE = False
-				PRODUCTS.insert(1, ['OES Distrubtion:', OES, 'OES Service Pack:', oesPatchLevel])
+				PRODUCTS.insert(1, ['Product:', OES, 'Service Pack:', oesPatchLevel])
 			else:
 				if( len(OES) > 0 ):
 					if line.lower().startswith("version"):
 						OESVersion = line.split('=')[-1].strip().split('.')[0]
 					elif line.lower().startswith("patchlevel"):
-						patchLevel = line.split('=')[-1].strip()
-
-					if "Open Enterprise" in oesVersion:
-						#we don't need the oes version just SP so skip the next line
-						File.readline()
-						oesPatchLevel = File.readline().split('=')[-1].strip()
-					else:
-						oesVersion = ''
+						oesPatchLevel = line.split('=')[-1].strip()
 				else:
 					OES = line.strip()
+		elif( IN_FILR ):
+			if "#==[" in line:
+				IN_FILR = False
+				if( INFO and VER ):
+					PRODUCTS.append(['Product:', INFO, 'Version:', VER])
+				INFO = ""
+				VER = ""
+			else:
+				if line.lower().startswith("product"):
+					INFO = line.split('=')[-1].strip()
+				elif line.lower().startswith("version"):
+					VER = line.split('=')[-1].strip()
 
 	del BASIC_ENV
 
@@ -383,11 +393,11 @@ def getHeader(*arg):
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
 
-#	print "["
-#	for INFO in PRODUCTS:
-#		print " " + str(INFO)
-#	print "]"
-#	sys.exit()
+	print "["
+	for INFO in PRODUCTS:
+		print " " + str(INFO)
+	print "]"
+	sys.exit()
 
 	del SUMMARY
 
@@ -538,61 +548,61 @@ def getHtml(OutPutFile, archivePath, archiveFile):
 	</SCRIPT>"
 
 	#add stuff to html.. :)
-	HTML = HTML + script + "\n"
-	HTML = HTML + "</HEAD>" + "\n"
+	HTML += script + "\n"
+	HTML += "</HEAD>" + "\n"
 	
 	#get header html
-	HTML = HTML + "<BODY BGPROPERTIES=FIXED BGCOLOR=\"#FFFFFF\" TEXT=\"#000000\">" + "\n"
-	HTML = HTML + getHeader(archivePath, OutPutFile, archiveFile)
+	HTML += "<BODY BGPROPERTIES=FIXED BGCOLOR=\"#FFFFFF\" TEXT=\"#000000\">" + "\n"
+	HTML += getHeader(archivePath, OutPutFile, archiveFile)
 
 	# getHeader probes the archive for serverName, so the header has to be retrieved after getHeader is called.
 	# temporarily storing header in HTML_HEADER
 	#html top bit:
-	HTML_HEADER = HTML_HEADER + "<!DOCTYPE html>" + "\n"
-	HTML_HEADER = HTML_HEADER + "<HTML>" + "\n"
-	HTML_HEADER = HTML_HEADER + "<HEAD>" + "\n"
-	HTML_HEADER = HTML_HEADER + "<TITLE>SCA Report for " + serverName + "</TITLE>" + "\n"
-	HTML_HEADER = HTML_HEADER + "<STYLE TYPE=\"text/css\">" + "\n"
-	HTML_HEADER = HTML_HEADER + "  a {text-decoration: none}  /* no underlined links */" + "\n"
-	HTML_HEADER = HTML_HEADER + "  a:link {color:#0000FF;}  /* unvisited link */" + "\n"
-	HTML_HEADER = HTML_HEADER + "  a:visited {color:#0000FF;}  /* visited link */" + "\n"
-	HTML_HEADER = HTML_HEADER + "</STYLE>" + "\n"
-	HTML_HEADER = HTML_HEADER + HTML
+	HTML_HEADER += "<!DOCTYPE html>" + "\n"
+	HTML_HEADER += "<HTML>" + "\n"
+	HTML_HEADER += "<HEAD>" + "\n"
+	HTML_HEADER += "<TITLE>SCA Report for " + serverName + "</TITLE>" + "\n"
+	HTML_HEADER += "<STYLE TYPE=\"text/css\">" + "\n"
+	HTML_HEADER += "  a {text-decoration: none}  /* no underlined links */" + "\n"
+	HTML_HEADER += "  a:link {color:#0000FF;}  /* unvisited link */" + "\n"
+	HTML_HEADER += "  a:visited {color:#0000FF;}  /* visited link */" + "\n"
+	HTML_HEADER += "</STYLE>" + "\n"
+	HTML_HEADER += HTML
 	HTML = HTML_HEADER
 	
 	#Critical table
-	HTML = HTML + '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
-	HTML = HTML + '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-	HTML = HTML + '<TR COLOR="#000000"><TH BGCOLOR="#FF0000"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FF0000"></TH></TR>' + "\n"
-	HTML = HTML + getTableHtml(4)
-	HTML = HTML + "</TABLE>" + "\n"
+	HTML += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
+	HTML += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+	HTML += '<TR COLOR="#000000"><TH BGCOLOR="#FF0000"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FF0000"></TH></TR>' + "\n"
+	HTML += getTableHtml(4)
+	HTML += "</TABLE>" + "\n"
 	
 	#Warning table
-	HTML = HTML + '<H2>Conditions Evaluated as Warning<A NAME="Warning"></A></H2>' + "\n"
-	HTML = HTML + '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-	HTML = HTML + '<TR COLOR="#000000"><TH BGCOLOR="#FFFF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FFFF00"></TH></TR>' + "\n"
-	HTML = HTML + getTableHtml(3)
-	HTML = HTML + "</TABLE>" + "\n"
+	HTML += '<H2>Conditions Evaluated as Warning<A NAME="Warning"></A></H2>' + "\n"
+	HTML += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+	HTML += '<TR COLOR="#000000"><TH BGCOLOR="#FFFF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FFFF00"></TH></TR>' + "\n"
+	HTML += getTableHtml(3)
+	HTML += "</TABLE>" + "\n"
 	
 	#Recommended table
-	HTML = HTML + '<H2>Conditions Evaluated as Recommended<A NAME="Recommended"></A></H2>' + "\n"
-	HTML = HTML + '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-	HTML = HTML + '<TR COLOR="#000000"><TH BGCOLOR="#1975FF"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#1975FF"></TH></TR>' + "\n"
-	HTML = HTML + getTableHtml(1)
-	HTML = HTML + "</TABLE>" + "\n"
+	HTML += '<H2>Conditions Evaluated as Recommended<A NAME="Recommended"></A></H2>' + "\n"
+	HTML += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+	HTML += '<TR COLOR="#000000"><TH BGCOLOR="#1975FF"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#1975FF"></TH></TR>' + "\n"
+	HTML += getTableHtml(1)
+	HTML += "</TABLE>" + "\n"
 	
 	#Success table
-	HTML = HTML + '<H2>Conditions Evaluated as Success<A NAME="Success"></A></H2>' + "\n"
-	HTML = HTML + '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-	HTML = HTML + '<TR COLOR="#000000"><TH BGCOLOR="#00FF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#00FF00"></TH></TR>' + "\n"
-	HTML = HTML + getTableHtml(0)
-	HTML = HTML + "</TABLE>" + "\n"
+	HTML += '<H2>Conditions Evaluated as Success<A NAME="Success"></A></H2>' + "\n"
+	HTML += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+	HTML += '<TR COLOR="#000000"><TH BGCOLOR="#00FF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#00FF00"></TH></TR>' + "\n"
+	HTML += getTableHtml(0)
+	HTML += "</TABLE>" + "\n"
 	
-	HTML = HTML + getFooter()
+	HTML += getFooter()
 
 	#HTML end stuff
-	HTML = HTML + "</BODY>" + "\n"
-	HTML = HTML + "</HTML>" + "\n"
+	HTML += "</BODY>" + "\n"
+	HTML += "</HTML>" + "\n"
 	
 	#write HTML to the output file
 	fh = open(OutPutFile, "w")
