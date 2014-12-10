@@ -329,6 +329,11 @@ def getHeader(*arg):
 				PRODUCTS.insert(1, ['OES Distrubtion:', OES, 'OES Service Pack:', oesPatchLevel])
 			else:
 				if( len(OES) > 0 ):
+					if line.lower().startswith("version"):
+						OESVersion = line.split('=')[-1].strip().split('.')[0]
+					elif line.lower().startswith("patchlevel"):
+						patchLevel = line.split('=')[-1].strip()
+
 					if "Open Enterprise" in oesVersion:
 						#we don't need the oes version just SP so skip the next line
 						File.readline()
