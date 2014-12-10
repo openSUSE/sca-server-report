@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Nov 26
+# Modified:     2014 Dec 10
 
 ##############################################################################
 #
@@ -46,7 +46,7 @@ import email.encoders
 import email.mime.text
 import email.mime.base
 
-SVER = '1.0.8-2'
+SVER = '1.0.8-8'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -219,6 +219,7 @@ def getHeader(*arg):
 	oesVersion = ""
 	oesPatchLevel = ""
 	OS = ""
+	OES = ""
 	OSVersion = ""
 	patchLevel = ""
 	kernelVersion = ""
@@ -241,7 +242,6 @@ def getHeader(*arg):
 	try:
 		with open(arg[0] + "/basic-environment.txt") as f:
 			BASIC_ENV = f.read().splitlines()
-		f.close()
 	except:
 		BASIC_ENV = []
 
@@ -313,7 +313,7 @@ def getHeader(*arg):
 					IN_UNAME = False
 		elif( IN_RELEASE ):
 			if "#==[" in line:
-				IN_UNAME = False
+				IN_RELEASE = False
 				PRODUCTS.insert(0, ['Distribution:', OS, 'Service Pack:', patchLevel])
 			else:
 				if( len(OS) > 0 ):
@@ -325,14 +325,14 @@ def getHeader(*arg):
 					OS = line.strip()
 		elif( IN_OES_RELEASE):
 			if "#==[" in line:
-				IN_UNAME = False
+				IN_OES_RELEASE = False
+				PRODUCTS.insert(1, ['OES Distrubtion:', OES, 'OES Service Pack:', oesPatchLevel])
 			else:
 				if( len(OES) > 0 ):
 					if "Open Enterprise" in oesVersion:
 						#we don't need the oes version just SP so skip the next line
 						File.readline()
 						oesPatchLevel = File.readline().split('=')[-1].strip()
-						PRODUCTS.insert(1, ['OES Distrubtion:', OES, 'OES Service Pack:', oesPatchLevel])
 					else:
 						oesVersion = ''
 				else:
@@ -344,7 +344,6 @@ def getHeader(*arg):
 	try:
 		with open(arg[0] + "/summary.xml") as f:
 			SUMMARY = f.read().splitlines()
-		f.close()
 	except:
 		SUMMARY = []
 
@@ -379,74 +378,71 @@ def getHeader(*arg):
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
 
-	print "["
-	for INFO in PRODUCTS:
-		print " " + str(INFO)
-	print "]"
-	sys.exit()
+#	print "["
+#	for INFO in PRODUCTS:
+#		print " " + str(INFO)
+#	print "]"
+#	sys.exit()
 
 	del SUMMARY
 
 	#create HTML from the data we just got
-	returnHTML = returnHTML + '<H1>Supportconfig Analysis Report</H1>\n'
-	returnHTML = returnHTML + '<H2><HR />Server Information</H2>\n'
+	returnHTML += '<H1>Supportconfig Analysis Report</H1>\n'
+	returnHTML += '<H2><HR />Server Information</H2>\n'
 
-	returnHTML = returnHTML + '<TABLE CELLPADDING="5">\n'
-	returnHTML = returnHTML + '<TR><TD><B>Analysis Date:</B></TD><TD>'
-	returnHTML = returnHTML + timeAnalysis
-	returnHTML = returnHTML + '</TD></TR>\n'
-	returnHTML = returnHTML + '<TR><TD><B>Supportconfig Run Date:</B></TD><TD>'
-	returnHTML = returnHTML + timeArchiveRun
-	returnHTML = returnHTML + '</TD></TR>\n'
-	returnHTML = returnHTML + '<TR><TD><B>Supportconfig File:</B></TD><TD>'
-	returnHTML = returnHTML + arcName
-	returnHTML = returnHTML + '</TD></TR>\n'
-	returnHTML = returnHTML + '</TABLE>\n'
+	returnHTML += '<TABLE CELLPADDING="5">\n'
+	returnHTML += '<TR><TD><B>Analysis Date:</B></TD><TD>'
+	returnHTML += timeAnalysis
+	returnHTML += '</TD></TR>\n'
+	returnHTML += '<TR><TD><B>Supportconfig Run Date:</B></TD><TD>'
+	returnHTML += timeArchiveRun
+	returnHTML += '</TD></TR>\n'
+	returnHTML += '<TR><TD><B>Supportconfig File:</B></TD><TD>'
+	returnHTML += arcName
+	returnHTML += '</TD></TR>\n'
+	returnHTML += '</TABLE>\n'
 
-	returnHTML = returnHTML + '<TABLE CELLPADDING="5">\n'
+	returnHTML += '<TABLE CELLPADDING="5">\n'
 
-	returnHTML = returnHTML + '<TR><TD>&nbsp;</TD></TR>\n'
+	returnHTML += '<TR><TD>&nbsp;</TD></TR>\n'
 
-	returnHTML = returnHTML + '<TR></TR>\n'
+	returnHTML += '<TR></TR>\n'
 
 	#Server name and hardWare
-	returnHTML = returnHTML + '<TR><TD><B>Server Name:</B></TD><TD>'
-	returnHTML = returnHTML + serverName
-	returnHTML = returnHTML + '</TD><TD><B>Hardware:</B></TD><TD>'
-	returnHTML = returnHTML + hardWare
-	returnHTML = returnHTML + '</TD></TR>\n'
+	returnHTML += '<TR><TD><B>Server Name:</B></TD><TD>'
+	returnHTML += serverName
+	returnHTML += '</TD><TD><B>Hardware:</B></TD><TD>'
+	returnHTML += hardWare
+	returnHTML += '</TD></TR>\n'
 
-	#OS and PatchLevel
-	returnHTML = returnHTML + '<TR><TD><B>Distribution:</B></TD><TD>'
-	returnHTML = returnHTML + OS
-	returnHTML = returnHTML + '</TD><TD><B>Service Pack:</B></TD><TD>'
-	returnHTML = returnHTML + patchLevel
-	returnHTML = returnHTML + '</TD></TR>\n'
-
-	if oesVersion != "":
-		#OES version and OES patchLevel
-		returnHTML = returnHTML + '<TR><TD><B>OES Distribution:</B></TD><TD>'
-		returnHTML = returnHTML + oesVersion
-		returnHTML = returnHTML + '</TD><TD><B>OES Service Pack:</B></TD><TD>'
-		returnHTML = returnHTML + oesPatchLevel
-		returnHTML = returnHTML + '</TD></TR>\n'
+	#Products included in supportconfig
+	for INFO in PRODUCTS:
+		returnHTML += '<TR><TD><B>'
+		returnHTML += str(INFO[0])
+		returnHTML += '</B></TD><TD>'
+		returnHTML += str(INFO[1])
+		returnHTML += '</TD><TD><B>'
+		returnHTML += str(INFO[2])
+		returnHTML += '</B></TD><TD>'
+		returnHTML += str(INFO[3])
+		returnHTML += '</TD></TR>\n'
 
 	if virtualization != "None" and virtualization != "":
 		#hypervisor stuff
-		returnHTML = returnHTML + '<TR><TD><B>Hypervisor:</B></TD><TD>'
-		returnHTML = returnHTML + virtualization
-		returnHTML = returnHTML + '</TD><TD><B>Identity:</B></TD><TD>'
-		returnHTML = returnHTML + vmIdentity
-		returnHTML = returnHTML + '</TD></TR>\n'
+		returnHTML += '<TR><TD><B>Hypervisor:</B></TD><TD>'
+		returnHTML += virtualization
+		returnHTML += '</TD><TD><B>Identity:</B></TD><TD>'
+		returnHTML += vmIdentity
+		returnHTML += '</TD></TR>\n'
 
 	#kernel Version and Supportconfig version
-	returnHTML = returnHTML + '<TR><TD><B>Kernel Version:</B></TD><TD>'
-	returnHTML = returnHTML + kernelVersion
-	returnHTML = returnHTML + '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
-	returnHTML = returnHTML + supportconfigVersion
-	returnHTML = returnHTML + '</TD></TR>\n'
-	returnHTML = returnHTML + '</TABLE>\n'
-	returnHTML = returnHTML + '<HR />\n'
+	returnHTML += '<TR><TD><B>Kernel Version:</B></TD><TD>'
+	returnHTML += kernelVersion
+	returnHTML += '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
+	returnHTML += supportconfigVersion
+	returnHTML += '</TD></TR>\n'
+	returnHTML += '</TABLE>\n'
+	returnHTML += '<HR />\n'
 	return returnHTML
 
 
