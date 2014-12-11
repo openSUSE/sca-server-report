@@ -3,7 +3,7 @@
 # Copyright (c) 2014 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Dec 10
+# Modified:     2014 Dec 11
 
 ##############################################################################
 #
@@ -24,6 +24,7 @@
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################
+SVER = '1.0.8-11'
 
 ##########################################################################################
 # Python Imports
@@ -45,8 +46,6 @@ import email
 import email.encoders
 import email.mime.text
 import email.mime.base
-
-SVER = '1.0.8-9'
 
 ##########################################################################################
 # HELP FUNCTIONS
@@ -205,6 +204,7 @@ def getHeader(*arg):
 	global serverName
 	global analysisDateTime
 	#reset variables
+	DISTRO = 0
 	supportconfigVersion = ""
 	oesVersion = ""
 	oesPatchLevel = ""
@@ -218,7 +218,7 @@ def getHeader(*arg):
 	hardWare = ""
 	virtualization = ""
 	vmIdentity = ""
-	PRODUCTS = []
+	PRODUCTS = [['Distribution:', 'Unknown', 'Service Pack:', 'Unknown']]
 	#set timeAnalysis (example: 2014-04-10 17:45:15)
 	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 	timeArchiveRun = "0000-00-00 00:00:00"
@@ -309,7 +309,8 @@ def getHeader(*arg):
 		elif( IN_RELEASE ):
 			if "#==[" in line:
 				IN_RELEASE = False
-				PRODUCTS.insert(0, ['Distribution:', OS, 'Service Pack:', patchLevel])
+				PRODUCTS[DISTRO][1] = str(OS)
+				PRODUCTS[DISTRO][3] = str(patchLevel)
 			else:
 				if( len(OS) > 0 ):
 					if line.lower().startswith("version"):
@@ -356,40 +357,115 @@ def getHeader(*arg):
 	PROD_END = re.compile(r'</product>', re.IGNORECASE)
 	IN_PRODUCT = False
 
-	#get SUSE Manager information
-	SUMA = re.compile(r'<name>SUSE-Manager.*</name>', re.IGNORECASE)
-	SUMA_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
-	INFO_PROD = None
-	INFO_VER = None
+	#detect SLE for VMWARE
+	PROD_NAME = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
+	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
+	INFO = {'Product': None, 'Version': None}
 	for LINE in SUMMARY:
 		if( IN_PRODUCT ):
 			if PROD_END.search(LINE):
 				IN_PRODUCT = False
-			elif SUMA.search(LINE):
+			elif PROD_NAME.search(LINE):
 				try:
-					INFO_PROD = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
 				except:
 					True
-			elif SUMA_VER.search(LINE):
+			elif PROD_VER.search(LINE):
 				try:
-					INFO_VER = re.search(r'>(.+?)<', LINE).group(1)
+					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
 				except:
 					True
-			if( INFO_PROD and INFO_VER ):
+			if( INFO['Product'] and INFO['Version'] ):
 				IN_PRODUCT = False
-				PRODUCTS.append(['Product:', INFO_PROD, 'Version:', INFO_VER])
-				INFO_PROD = None
-				INFO_VER = None
+				PRODUCTS[DISTRO][1] = INFO['Product']
+				PRODUCTS[DISTRO][3] = INFO['Version']
+				INFO = {'Product': None, 'Version': None}
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
+
+	#detect SLE for SAP
+	PROD_NAME = re.compile(r'<description>SUSE LINUX Enterprise Server for SAP Applications</description>', re.IGNORECASE)
+	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
+	INFO = {'Product': None, 'Version': None}
+	for LINE in SUMMARY:
+		if( IN_PRODUCT ):
+			if PROD_END.search(LINE):
+				IN_PRODUCT = False
+			elif PROD_NAME.search(LINE):
+				try:
+					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+				except:
+					True
+			elif PROD_VER.search(LINE):
+				try:
+					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
+				except:
+					True
+			if( INFO['Product'] and INFO['Version'] ):
+				IN_PRODUCT = False
+				PRODUCTS[DISTRO][1] = INFO['Product']
+				PRODUCTS[DISTRO][3] = INFO['Version']
+				INFO = {'Product': None, 'Version': None}
+		elif PROD_START.search(LINE):
+			IN_PRODUCT = True
+
+	#get HAE information
+	PROD_NAME = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
+	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
+	INFO = {'Product': None, 'Version': None}
+	for LINE in SUMMARY:
+		if( IN_PRODUCT ):
+			if PROD_END.search(LINE):
+				IN_PRODUCT = False
+			elif PROD_NAME.search(LINE):
+				try:
+					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+				except:
+					True
+			elif PROD_VER.search(LINE):
+				try:
+					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
+				except:
+					True
+			if( INFO['Product'] and INFO['Version'] ):
+				IN_PRODUCT = False
+				PRODUCTS.append(['Product:', INFO['Product'], 'Version:', INFO['Version']])
+				INFO = {'Product': None, 'Version': None}
+		elif PROD_START.search(LINE):
+			IN_PRODUCT = True
+
+	#get SUSE Manager information
+	PROD_NAME = re.compile(r'<name>SUSE-Manager.*</name>', re.IGNORECASE)
+	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
+	INFO = {'Product': None, 'Version': None}
+	for LINE in SUMMARY:
+		if( IN_PRODUCT ):
+			if PROD_END.search(LINE):
+				IN_PRODUCT = False
+			elif PROD_NAME.search(LINE):
+				try:
+					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+				except:
+					True
+			elif PROD_VER.search(LINE):
+				try:
+					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
+				except:
+					True
+			if( INFO['Product'] and INFO['Version'] ):
+				IN_PRODUCT = False
+				PRODUCTS.append(['Product:', INFO['Product'], 'Version:', INFO['Version']])
+				INFO = {'Product': None, 'Version': None}
+		elif PROD_START.search(LINE):
+			IN_PRODUCT = True
+
+	del SUMMARY
 
 #	print "["
 #	for INFO in PRODUCTS:
 #		print " " + str(INFO)
 #	print "]"
 #	sys.exit()
-
-	del SUMMARY
 
 	#create HTML from the data we just got
 	returnHTML += '<H1>Supportconfig Analysis Report</H1>\n'
@@ -876,6 +952,9 @@ def patternPreProcessor(extractedSupportconfig):
 				for patternFile in patternFiles:
 					patternFileList.append(os.path.join(root, patternFile))
 
+	#debug for faster processing with no patterns
+	patternFileList = []
+	#
 	return patternFileList
 
 ##########################################################################################
