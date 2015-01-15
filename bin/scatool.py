@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014 SUSE LLC
+# Copyright (c) 2014-2015 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2014 Dec 11
+# Modified:     2015 Jan 12
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-11'
+SVER = '1.0.8-12'
 
 ##########################################################################################
 # Python Imports
@@ -952,9 +952,6 @@ def patternPreProcessor(extractedSupportconfig):
 				for patternFile in patternFiles:
 					patternFileList.append(os.path.join(root, patternFile))
 
-	#debug for faster processing with no patterns
-	patternFileList = []
-	#
 	return patternFileList
 
 ##########################################################################################
