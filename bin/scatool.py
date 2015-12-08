@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2015 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2015 Jan 12
+# Modified:     2015 Dec 08
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-12'
+SVER = '1.0.8-14'
 
 ##########################################################################################
 # Python Imports
@@ -871,6 +871,12 @@ def patternPreProcessor(extractedSupportconfig):
 	patternFileList = []
 	patternDirectories = [SCA_PATTERN_PATH + "/local/"] #always include the local patterns
 
+	#get the total pattern count
+	TOTAL_COUNT=0
+	for root, dirs, files in os.walk(SCA_PATTERN_PATH):
+		TOTAL_COUNT += len(files)
+	print "Total Patterns Available:     " + str(TOTAL_COUNT)
+	
 	#first get the pattern directory paths for all possible valid patterns
 	#build directory with SLE and OES versions from basic-environment.txt
 	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
@@ -939,7 +945,7 @@ def patternPreProcessor(extractedSupportconfig):
 	for systemElement in patternDirectories:
 		systemDefinition.append(systemElement.split("/")[-2])
 	systemDefinition = sorted(systemDefinition)
-	print "Pattern Definitions:          " + " ".join(systemDefinition)
+	print "Pattern Definition Filter:    " + " ".join(systemDefinition)
 
 	#second build the list of valid patterns from the patternDirectories
 	#walk through each valid pattern directory
