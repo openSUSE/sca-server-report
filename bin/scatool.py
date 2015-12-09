@@ -24,7 +24,7 @@
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-14'
+SVER = '1.0.8-15'
 
 ##########################################################################################
 # Python Imports
@@ -1401,20 +1401,26 @@ def analyze(*arg):
 			if( fileInfo.st_size > 0 ):
 				print "Extracting Supportconfig:     " + supportconfigPath
 				TarFile = tarfile.open(supportconfigPath, "r:*")
-				extractedSupportconfig = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + "/"
-				if( len(outputPath) > 0 ):
-					htmlOutputFile = outputPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
+				BaseElements = TarFile.getnames()[0].split("/")
+				if( len(BaseElements) > 1 ):
+					extractedSupportconfig = extractedPath + "/" + BaseElements[-2] + "/"
+					if( len(outputPath) > 0 ):
+						htmlOutputFile = outputPath + "/" + BaseElements[-2] + ".html"
+					else:
+						htmlOutputFile = extractedPath + "/" + BaseElements[-2] + ".html"
+					TarFile.extractall(path=extractedPath, members=None)
+					print "Supportconfig Directory:      " + extractedSupportconfig 
 				else:
-					htmlOutputFile = extractedPath + "/" + TarFile.getnames()[0].split("/")[-2] + ".html"
-				TarFile.extractall(path=extractedPath, members=None)
-				print "Supportconfig Directory:      " + extractedSupportconfig 
+					print >> sys.stderr, "Error: Invalid tarball -- bad base element"
+					print >> sys.stderr
+					return
 			else:
 				print >> sys.stderr, "Error: Zero byte file: " + supportconfigPath
 				print >> sys.stderr
 				return
 		except tarfile.ReadError:
 			#cannot open the tar file
-			print >> sys.stderr, "Error: Invalid supportconfig archive: " + supportconfigPath
+			print >> sys.stderr, "Error: Invalid supportconfig archive"
 			print >> sys.stderr
 			return
 	#if given an extracted supportconfig

@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Tue Dec  8 22:00:04 UTC 2015 - jrecord@suse.com
+Wed Dec  9 17:31:12 UTC 2015 - jrecord@suse.com
 
+- Fixed index out of range error (bsc#958422)
 - Added total available patterns
 
 -------------------------------------------------------------------
