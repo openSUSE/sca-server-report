@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2015 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2015 Dec 08
+# Modified:     2016 Jan 08
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-15'
+SVER = '1.0.8-16'
 
 ##########################################################################################
 # Python Imports
@@ -1411,7 +1411,9 @@ def analyze(*arg):
 					TarFile.extractall(path=extractedPath, members=None)
 					print "Supportconfig Directory:      " + extractedSupportconfig 
 				else:
-					print >> sys.stderr, "Error: Invalid tarball -- bad base element"
+					print >> sys.stderr, "Error:     Invalid tarball content file structure paths"
+					print >> sys.stderr, "Expecting: ['nts_supportconfig_name', 'some_filename.txt']"
+					print >> sys.stderr, "Found:     " + str(BaseElements)
 					print >> sys.stderr
 					return
 			else:

@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Thu Mar  3 20:04:55 UTC 2016 - jrecord@suse.com
+
+- Clarified base element error message
+
+-------------------------------------------------------------------
 Wed Dec  9 17:31:12 UTC 2015 - jrecord@suse.com
 
 - Fixed index out of range error (bsc#958422)
