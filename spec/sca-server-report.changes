@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Mar  4 19:29:27 UTC 2016 - jrecord@suse.com
+
+- Added _report.html to SCA Report files (bsc#969672)
+
+-------------------------------------------------------------------
 Thu Mar  3 20:04:55 UTC 2016 - jrecord@suse.com
 
 - Clarified base element error message

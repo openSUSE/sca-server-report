@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2015 SUSE LLC
+# Copyright (c) 2014-2016 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2016 Jan 08
+# Modified:     2016 Mar 04
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-16'
+SVER = '1.0.8-17'
 
 ##########################################################################################
 # Python Imports
@@ -1405,9 +1405,9 @@ def analyze(*arg):
 				if( len(BaseElements) > 1 ):
 					extractedSupportconfig = extractedPath + "/" + BaseElements[-2] + "/"
 					if( len(outputPath) > 0 ):
-						htmlOutputFile = outputPath + "/" + BaseElements[-2] + ".html"
+						htmlOutputFile = outputPath + "/" + BaseElements[-2] + "_report.html"
 					else:
-						htmlOutputFile = extractedPath + "/" + BaseElements[-2] + ".html"
+						htmlOutputFile = extractedPath + "/" + BaseElements[-2] + "_report.html"
 					TarFile.extractall(path=extractedPath, members=None)
 					print "Supportconfig Directory:      " + extractedSupportconfig 
 				else:
@@ -1429,14 +1429,14 @@ def analyze(*arg):
 	elif os.path.isdir(supportconfigPath):
 		extractedSupportconfig = supportconfigPath
 		if( len(outputPath) > 0 ):
-			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
+			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
 		else:
 			htmlOutputFile = extractedSupportconfig
 			if htmlOutputFile.endswith("/"):
 				htmlOutputFile = htmlOutputFile[:-1]
 			tmp = htmlOutputFile.split("/")
 			del tmp[-1]
-			htmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + ".html"
+			htmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
 		#we don't want to delete something we did not create.
 		cleanUp = False
 
