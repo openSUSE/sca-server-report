@@ -1,4 +1,4 @@
-.TH SCATOOL 8 "14 Nov 2014" "sca-server-report" "Supportconfig Analysis Manual"
+.TH SCATOOL 8 "04 Mar 2015" "sca-server-report" "Supportconfig Analysis Manual"
 .SH NAME
 scatool - Supportconfig Analysis (SCA) Tool
 .SH SYNOPSIS
@@ -61,8 +61,11 @@ Runs supportconfig on the local host and analyzes its output. It saves the HTML 
 \fBscatool -a /var/log/nts_localhost_131107_1315.tbz\fR
 Analyzes the supportconfig archive file specified. The path can be a tarred compressed supportconfig archive or a suportconfig extracted directory, either will work. The HTML report file is saved in the save location as the supportconfig archive or directory.
 .TP
+\fBscatool /var/log/nts_localhost_131107_1315\fR
+Analyzes the supportconfig archive extracted directory. If no other startup options are needed, you do not need the -a to analyze, just specify the supportconfig tarball, supportconfig directory, or server to analyze. The -a is required if other startup options are needed.
+.TP
 \fBscatool -sk -o /opt/sca/reports/\fR
-Runs supportconfig on the local host. It saves the HTML report file in the output path specified instead of the default path of the supportconfig tarball. Keeps the supportconfig tar ball for future reference.
+Runs supportconfig on the local host. It saves the HTML report file in the output path specified instead of the default path of the supportconfig tarball. Keeps the supportconfig tar ball for future reference. The -k is the same as ARCHIVE_MODE=1 in /etc/sca/scatool.conf.
 .TP
 \fBscatool -a sles_server.company.com\fR
 Establishes an ssh connection to sles_server.company.com to run a supportconfig on the server. The supportconfig is then copied back to the local host to be analyzed. The HTML report file is saved to the default /var/log directory.

@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Mar  4 19:29:27 UTC 2016 - jrecord@suse.com
+Fri Mar  4 19:35:03 UTC 2016 - jrecord@suse.com
 
+- Updated scatool.8 man page
 - Added _report.html to SCA Report files (bsc#969672)
 
 -------------------------------------------------------------------
