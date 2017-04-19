@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2016 SUSE LLC
+# Copyright (c) 2014-2017 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2016 Mar 04
+# Modified:     2017 Apr 04
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jrecord@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-17'
+SVER = '1.0.8-17.170404-1'
 
 ##########################################################################################
 # Python Imports
@@ -65,6 +65,7 @@ def usage():
 	print " -o path  HTML report output directory (OUTPUT_PATH)"
 	print " -e list  Send HTML report to email address(es) provided. Comma separated list."
 	print " -k       Keep archive files (ARCHIVE_MODE)"
+	print " -p       Print a pattern summary"
 	print " -v       Verbose output (LOGLEVEL)"
 	print " -c       Enter SCA Tool console (CONSOLE_MODE)"
 	print
@@ -857,10 +858,43 @@ def getTableHtml(val):
 	#well that was fun... return
 	return(returnString)
 
-
-
 ##########################################################################################
 # PATTERN ANALYSIS FUNCTIONS
+##########################################################################################
+# patternLibraryList
+##########################################################################################
+#lists the patterns available on the system
+#prints a list of patterns
+def patternLibraryList():
+	TOTAL_COUNT=0
+	DIRECTORY = {}
+	FORMATTING = '{0:>5} : {1}'
+	print "Pattern Library Summary\n"
+	print FORMATTING.format('Count', 'Pattern Directory')
+	print FORMATTING.format('=====','========================================')
+	for root, dirs, files in os.walk(SCA_PATTERN_PATH):
+#		print "root  = " + str(root)
+#		print "dirs  = " + str(dirs)
+#		print "files = " + str(files)
+#		print
+		TOTAL_COUNT += len(files)
+		FILES_FOUND = len(files)
+		if( FILES_FOUND > 1 ):
+			DIRECTORY[root] = FILES_FOUND
+		elif( FILES_FOUND > 0 ):
+			if( files[0] == "README" ):
+				# Readme files don't count
+				TOTAL_COUNT -= 1
+			else:
+				DIRECTORY[root] = FILES_FOUND
+		elif( len(dirs) == 0 ):
+			DIRECTORY[root] = FILES_FOUND
+	for i in sorted(DIRECTORY, key=str.lower):
+		print FORMATTING.format(DIRECTORY[i], i)
+	print FORMATTING.format(TOTAL_COUNT, 'Total Available Patterns')
+	print
+	
+
 ##########################################################################################
 # patternPreProcessor
 ##########################################################################################
@@ -1591,7 +1625,7 @@ analyzeFile = ""
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "ha:so:kcve:")
+		opts, args = getopt.getopt(sys.argv[1:], "ha:so:kcvpe:")
 	except getopt.GetoptError as err:
 		# print help information and exit:
 		print "Error: " + str(err) # will print something like "option -b not recognized"
@@ -1605,6 +1639,9 @@ if( len(sys.argv[1:]) > 0 ):
 	for startUpOption, startUpOptionValue in opts:
 		if startUpOption == "-h":
 			usage()
+			sys.exit()
+		elif startUpOption in ("-p"):
+			patternLibraryList()
 			sys.exit()
 		elif startUpOption in ("-k"):
 			KeepArchive = True
