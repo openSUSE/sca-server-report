@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Apr 19 21:21:53 UTC 2017 - jason.record@suse.com
+
+- Added a -p option to show the pattern summary (bsc#1035047)
+- Updated scatool.8 man page with -p
+
+-------------------------------------------------------------------
 Fri Mar  4 19:35:03 UTC 2016 - jrecord@suse.com
 
 - Updated scatool.8 man page
