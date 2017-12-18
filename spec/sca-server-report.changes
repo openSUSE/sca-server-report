@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Dec 18 18:20:09 UTC 2017 - jason.record@suse.com
+
+- Updated spec file with spec-cleaner suggestions
+- Removed COPYING.GPLv2 and referenced sca-patterns-base
+- Fixed new config file path
+
+-------------------------------------------------------------------
 Wed Apr 19 21:29:51 UTC 2017 - jason.record@suse.com
 
 - Updated scatool.py version

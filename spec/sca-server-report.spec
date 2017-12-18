@@ -1,44 +1,40 @@
 # spec file for package sca-server-report
 #
-# Copyright (C) 2014 SUSE LLC
+# Copyright (c) 2017 SUSE LINUX GmbH, Nuernberg, Germany.
 #
-# This file and all modifications and additions to the pristine
-# package are under the same license as the package itself.
-#
-# Source developed at:
-#  https://github.com/g23guy/sca-server-report
-#
-# norootforbuild
-# neededforbuild  
+# All modifications and additions to the file contributed by third parties
+# remain the property of their copyright owners, unless otherwise agreed
+# upon. The license for this file, and modifications and additions to the
+# file, is the same license as for the pristine package itself (unless the
+# license for the pristine package is not an Open Source License, in which
+# case the license is the MIT License). An "Open Source License" is a
+# license that conforms to the Open Source Definition (Version 1.9)
+# published by the Open Source Initiative.
 
 %define sca_common sca
+%define sca_config scatool
 %define libbase /usr/lib/%{sca_common}
-%define pybase %{libbase}/python
+%define sca_python %{libbase}/python
 
 Name:         sca-server-report
+Version:      1.0
+Release:      0
 Summary:      Supportconfig Analysis Server Report
-URL:          https://github.com/g23guy/sca-server-report
 License:      GPL-2.0
+URL:          https://github.com/g23guy/sca-server-report
 Group:        System/Monitoring
-Autoreqprov:  on
-Version:      0.9
-Release:      67
 Source:       %{name}-%{version}.tar.gz
-BuildRoot:    %{_tmppath}/%{name}-%{version}-build
-BuildArch:    noarch
 Requires:     sca-patterns-base
 Requires:     python
 Requires:     w3m
+BuildArch:    noarch
 
 %description
 A tool that primarily analyzes the local server, but can analyze other 
 supportconfigs that have been copied to the server. It uses the 
 Supportconfig Analysis patterns to perform the analysis.
 
-Authors:
---------
-    David Hamner <ke7oxh@gmail.com>
-    Jason Record <jrecord@suse.com>
+See %{_docdir}/sca-patterns-base/COPYING.GPLv2
 
 %prep
 %setup -q
@@ -49,35 +45,30 @@ gzip -9f man/*8
 
 %install
 pwd;ls -la
-rm -rf $RPM_BUILD_ROOT
-install -d $RPM_BUILD_ROOT/usr/sbin
-install -d $RPM_BUILD_ROOT/etc/%{sca_common}
-install -d $RPM_BUILD_ROOT/usr/share/man/man5
-install -d $RPM_BUILD_ROOT/usr/share/man/man8
-install -d $RPM_BUILD_ROOT/usr/share/doc/packages/%{name}
-install -d $RPM_BUILD_ROOT/%{pybase}
-install -m 444 man/COPYING.GPLv2 $RPM_BUILD_ROOT/usr/share/doc/packages/%{name}
-install -m 544 bin/scatool $RPM_BUILD_ROOT/usr/sbin
-install -m 644 bin/scatool.py $RPM_BUILD_ROOT/%{pybase}
-install -m 644 config/scatool.conf $RPM_BUILD_ROOT/etc/%{sca_common}
-install -m 644 man/*.5.gz $RPM_BUILD_ROOT/usr/share/man/man5
-install -m 644 man/*.8.gz $RPM_BUILD_ROOT/usr/share/man/man8
+install -d %{buildroot}%{_sysconfdir}/%{sca_config}
+install -d %{buildroot}%{_mandir}/man5
+install -d %{buildroot}%{_mandir}/man8
+install -d %{buildroot}%{sca_python}
+mkdir -p %{buildroot}%{_sbindir}
+install -m 544 bin/scatool %{buildroot}%{_sbindir}
+install -m 644 bin/scatool.py %{buildroot}/%{sca_python}
+install -m 644 config/scatool.conf %{buildroot}%{_sysconfdir}/%{sca_config}
+install -m 644 man/*.5.gz %{buildroot}%{_mandir}/man5
+install -m 644 man/*.8.gz %{buildroot}%{_mandir}/man8
 
 %files
 %defattr(-,root,root)
-/usr/sbin/*
+%{_sbindir}/scatool
 %dir %{libbase}
-%dir %{pybase}
-%{pybase}/*
-%dir /usr/share/doc/packages/%{name}
-%doc /usr/share/doc/packages/%{name}/*
-%dir /etc/%{sca_common}
-%config /etc/%{sca_common}/*
-%doc /usr/share/man/man5/*
-%doc /usr/share/man/man8/*
+%dir %{sca_python}
+%{sca_python}/*
+%dir %{_sysconfdir}/%{sca_config}
+%config %{_sysconfdir}/%{sca_config}/*
+%doc %{_mandir}/man5/*
+%doc %{_mandir}/man8/*
 
 %clean
-rm -rf $RPM_BUILD_ROOT
+rm -rf %{buildroot}
 
 %changelog
 
