@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2017 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2017 Apr 04
+# Modified:     2017 Dec 19
 
 ##############################################################################
 #
@@ -21,10 +21,10 @@
 #
 #  Authors/Contributors:
 #     David Hamner (ke7oxh@gmail.com)
-#     Jason Record (jrecord@suse.com)
+#     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-20'
+SVER = '1.0.8-20.dev3'
 
 ##########################################################################################
 # Python Imports
@@ -773,7 +773,9 @@ def getTableHtml(val):
 					patternRelativePath = results[i][IDX_RESULTS_PATTERN_PATH].replace('/usr/lib/sca/', '')
 					patternPackage = ''
 					if 'SLE' in patternRelativePath:
-						if 'sle12' in patternRelativePath:
+						if 'sle15' in patternRelativePath:
+							patternPackage = 'sca-patterns-sle15'
+						elif 'sle12' in patternRelativePath:
 							patternPackage = 'sca-patterns-sle12'
 						elif 'sle11' in patternRelativePath:
 							patternPackage = 'sca-patterns-sle11'
@@ -922,8 +924,19 @@ def patternPreProcessor(extractedSupportconfig):
 	inOES = False
 	notOES = True
 	inSLES = False
+	inSLESOS = False
 	for lineNumber in range(0, len(basicEnvLines)):
-		if inSLES:
+		if inSLESOS:
+			if "#==[" in basicEnvLines[lineNumber] :
+				inSLESOS = False
+			elif basicEnvLines[lineNumber].startswith("VERSION_ID"):
+				VERSION_ID = basicEnvLines[lineNumber].split("=")[1].strip().strip('"')
+				SLE_VERSION = str(VERSION_ID).split(".")[0]
+				if( len(str(VERSION_ID).split(".")) > 1 ):
+					SLE_SP = VERSION_ID.split(".")[1].strip()
+				else:
+					SLE_SP = 0
+		elif inSLES:
 			if "#==[" in basicEnvLines[lineNumber] :
 				inSLES = False
 			elif basicEnvLines[lineNumber].startswith("VERSION"):
@@ -941,6 +954,8 @@ def patternPreProcessor(extractedSupportconfig):
 				OES_SP = basicEnvLines[lineNumber].split("=")[1].strip()
 		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
 			inSLES = True
+		elif "# /etc/os-release" in basicEnvLines[lineNumber] :
+			inSLESOS = True
 		elif "# /etc/novell-release" in basicEnvLines[lineNumber] :
 			inOES = True
 	if notOES:
