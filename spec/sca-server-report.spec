@@ -67,8 +67,5 @@ install -m 644 man/*.8.gz %{buildroot}%{_mandir}/man8
 %doc %{_mandir}/man5/*
 %doc %{_mandir}/man8/*
 
-%clean
-rm -rf %{buildroot}
-
 %changelog
 
