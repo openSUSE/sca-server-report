@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Mon Jan 22 21:58:14 UTC 2018 - jason.record@suse.com
+
+- Fixed pattern runtime error divide by zero (bsc#1077110)
+
+-------------------------------------------------------------------
 Fri Jan  5 19:03:08 UTC 2018 - jason.record@suse.com
 
 - Added SLE15 detection (bsc#1073573)

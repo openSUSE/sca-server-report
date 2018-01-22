@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2017 SUSE LLC
+# Copyright (c) 2014-2018 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2017 Dec 19
+# Modified:     2018 Jan 22
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-20.dev3'
+SVER = '1.0.8-21'
 
 ##########################################################################################
 # Python Imports
@@ -1112,6 +1112,8 @@ def runPats(extractedSupportconfig):
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
 	patternInterval = int(patternStats['Total'] / progressBarWidth)
+	if( patternInterval < progressBarWidth ):
+		patternInterval = 1
 
 	print "Total Patterns to Apply:      " + str(patternStats['Total'])
 	if verboseMode:
@@ -1142,8 +1144,8 @@ def runPats(extractedSupportconfig):
 						progressCount += 1
 						sys.stdout.write("=")
 						sys.stdout.flush()
-		except Exception:
-			patternErrorList.append(patternFile + " -- Pattern runtime error")
+		except Exception as e:
+			patternErrorList.append(patternFile + " -- Pattern runtime error: " + str(e))
 			if verboseMode:
 				print " ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1]
 
