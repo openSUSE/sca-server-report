@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2018 SUSE LLC
+# Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2018 Jan 22
+# Modified:     2020 Oct 22
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.8-21'
+SVER = '1.0.9-1.dev1'
 
 ##########################################################################################
 # Python Imports
@@ -1194,8 +1194,55 @@ def parseOutput(out, error, pat):
 		return False
 
 ##########################################################################################
-# Console and Core fuctions
+# doKeepArchive(archive)
 ##########################################################################################
+def doKeepArchive(archive):
+	if not archive.endswith('.saved'):
+		archiveKeep = archive + ".saved"
+		print "Keeping File:                 " + archiveKeep
+		shutil.copy2(archive,archiveKeep)
+
+##########################################################################################
+# decompressFile(archive, command, options)
+##########################################################################################
+# decompressFile decompresses the given archive
+# Input: archive - path to the supportconfig decompressed tarball
+#        command - path to decompression tool
+#        options - decompression args
+def decompressFile(archive, command, options):
+	print "Decompressing File:           " + archive
+	process = subprocess.Popen([command, options, archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	stdout, stderr = process.communicate()
+	rc = process.returncode
+	if( rc > 0 ):
+		basecmd = os.path.basename(command)
+		print >> sys.stderr, "  Error: Cannot decompress " + basecmd + " file"
+		print >> sys.stderr
+		return False
+	else:
+		return True
+
+##########################################################################################
+# unTarFile(archive)
+##########################################################################################
+# Untar a decompress archive
+# Input: archive - path to the supportconfig decompressed tarball
+def unTarFile(archive):
+	print "Extracting Tar File:          " + archive
+	process = subprocess.Popen(["/usr/bin/tar", "xf", archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	stdout, stderr = process.communicate()
+	rc = process.returncode
+	if( rc > 0 ):
+		print >> sys.stderr, "  Error: Cannot extract tar file"
+		print >> sys.stderr
+		return False
+	else:
+		return True
+
+##########################################################################################
+# Core fuctions
+##########################################################################################
+
 ##########################################################################################
 # analyze
 ##########################################################################################
@@ -1214,6 +1261,7 @@ def analyze(*arg):
 	remoteSupportconfigPath = ""
 	extractedSupportconfig = ""
 	supportconfigPath = ""
+	supportconfigPathTarball = ""
 	extractedPath = ""
 	deleteArchive = False
 	isIP = False
@@ -1222,7 +1270,6 @@ def analyze(*arg):
 	cleanUp = True
 	alloutput = ""
 	lineNum = 0
-	supportconfigPath = ""
 	progressBarWidth = 48
 	remoteProgressBarSetup = False
 	progressCount = 0
@@ -1438,44 +1485,92 @@ def analyze(*arg):
 		supportconfigPath = re.sub("^./", OS_PATH, supportconfigPath)
 	elif not supportconfigPath.startswith("/"):
 		supportconfigPath = OS_PATH + supportconfigPath
+	base = os.path.splitext(supportconfigPath)[0]
+	if base.endswith('.tar'):
+		supportconfigPathTarball = base
+		extractedSupportconfig = os.path.splitext(base)[0]
+	else:
+		supportconfigPathTarball = base + '.tar'
+		extractedSupportconfig = base
+#	print
+#	print " + Base =                   " + base
+#	print " + extractedSupportconfig = " + extractedSupportconfig
+#	print
+	htmlOutputFile = extractedSupportconfig + "_report.html"
 
-	#if supportconfig not extract. Extract supportconfig
+	#if given a supportconfig archive
 	if os.path.isfile(supportconfigPath):
+		print "Evaluating File:              " + supportconfigPath
 		#extract file
-		#find the extracting path
-		tmp = supportconfigPath.split('/')
-		del tmp[-1]
-		extractedPath = '/'.join(tmp) 
 		#set TarFile and find the path of the soon to be extracted supportconfig
-		try:
-			fileInfo = os.stat(supportconfigPath)
-			if( fileInfo.st_size > 0 ):
-				print "Extracting Supportconfig:     " + supportconfigPath
-				TarFile = tarfile.open(supportconfigPath, "r:*")
-				BaseElements = TarFile.getnames()[0].split("/")
-				if( len(BaseElements) > 1 ):
-					extractedSupportconfig = extractedPath + "/" + BaseElements[-2] + "/"
-					if( len(outputPath) > 0 ):
-						htmlOutputFile = outputPath + "/" + BaseElements[-2] + "_report.html"
-					else:
-						htmlOutputFile = extractedPath + "/" + BaseElements[-2] + "_report.html"
-					TarFile.extractall(path=extractedPath, members=None)
-					print "Supportconfig Directory:      " + extractedSupportconfig 
+		fileInfo = os.stat(supportconfigPath)
+		if( fileInfo.st_size > 0 ):
+			process = subprocess.Popen(["/usr/bin/file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			stdout, stderr = process.communicate()
+#			print "Detected File Type:           " + stdout
+			if re.search("/x-xz", stdout):
+				if supportconfigPath.endswith('.txz'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/xz', '-d')
+					unTarFile(supportconfigPathTarball)
+				elif supportconfigPath.endswith('.tar.xz'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/xz', '-d')
+					unTarFile(supportconfigPathTarball)
 				else:
-					print >> sys.stderr, "Error:     Invalid tarball content file structure paths"
-					print >> sys.stderr, "Expecting: ['nts_supportconfig_name', 'some_filename.txt']"
-					print >> sys.stderr, "Found:     " + str(BaseElements)
+					print >> sys.stderr, "Error: Unknown xz extension"
 					print >> sys.stderr
 					return
+			elif re.search("/x-bzip2", stdout):
+				if supportconfigPath.endswith('.tbz'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
+					unTarFile(supportconfigPathTarball)
+				elif supportconfigPath.endswith('.tar.bz'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
+					unTarFile(supportconfigPathTarball)
+				elif supportconfigPath.endswith('.tbz2'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
+					unTarFile(supportconfigPathTarball)
+				elif supportconfigPath.endswith('.tar.bz2'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
+					unTarFile(supportconfigPathTarball)
+				else:
+					print >> sys.stderr, "Error: Unknown bzip2 extension"
+					print >> sys.stderr
+					return
+			elif re.search("/x-gzip", stdout):
+				if supportconfigPath.endswith('.tgz'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/gzip', '-df')
+					unTarFile(supportconfigPathTarball)
+				elif supportconfigPath.endswith('.tar.gz'):
+					KeepArchive and doKeepArchive(supportconfigPath)
+					decompressFile(supportconfigPath, '/usr/bin/gzip', '-df')
+					unTarFile(supportconfigPathTarball)
+				else:
+					print >> sys.stderr, "Error: Unknown gzip extension"
+					print >> sys.stderr
+					return
+			elif re.search("/x-tar", stdout):
+				KeepArchive and doKeepArchive(supportconfigPath)
+				print "Extracting Tar File:          " + supportconfigPath
+				process = subprocess.Popen(["/usr/bin/tar", "xf", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				stdout, stderr = process.communicate()
+				rc = process.returncode
 			else:
-				print >> sys.stderr, "Error: Zero byte file: " + supportconfigPath
+				print >> sys.stderr, "  Error: Invalid supportconfig archive - cannot read tar or compressed file"
 				print >> sys.stderr
 				return
-		except tarfile.ReadError:
-			#cannot open the tar file
-			print >> sys.stderr, "Error: Invalid supportconfig archive"
+		else:
+			print >> sys.stderr, "Error: Zero byte file: " + supportconfigPath
 			print >> sys.stderr
 			return
+		deleteArchive = True
+
 	#if given an extracted supportconfig
 	elif os.path.isdir(supportconfigPath):
 		extractedSupportconfig = supportconfigPath
@@ -1491,6 +1586,7 @@ def analyze(*arg):
 		#we don't want to delete something we did not create.
 		cleanUp = False
 
+	print "Supportconfig Directory:      " + extractedSupportconfig
 	#check for required supportconfig files...
 	testFile = "/basic-environment.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
@@ -1523,10 +1619,15 @@ def analyze(*arg):
 	emailSCAReport(supportconfigPath)
 
 	#clean up
+#	print " + supportconfigPathTarball = " + supportconfigPathTarball
+#	print " + supportconfigPath = " + supportconfigPath
 	if cleanUp:
 		shutil.rmtree(extractedSupportconfig)
-	if deleteArchive and not KeepArchive:
-		os.remove(supportconfigPath)
+	if deleteArchive:
+		if os.path.isfile(supportconfigPath):
+			os.remove(supportconfigPath)
+		if os.path.isfile(supportconfigPathTarball):
+			os.remove(supportconfigPathTarball)
 		if os.path.isfile(supportconfigPath + ".md5"):
 			os.remove(supportconfigPath + ".md5")
 	print
