@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev1'
+SVER = '1.0.9-1.dev2'
 
 ##########################################################################################
 # Python Imports
@@ -1347,6 +1347,9 @@ def analyze(*arg):
 		#validate the file/folder/ip given by the end user
 		givenSupportconfigPath = arg[0]
 
+		if( givenSupportconfigPath == "." ):
+			givenSupportconfigPath = os.getcwd()
+
 		if os.path.isfile(givenSupportconfigPath):
 			print "Supportconfig File:           %s" % givenSupportconfigPath
 		elif os.path.isdir(givenSupportconfigPath):
@@ -1586,7 +1589,7 @@ def analyze(*arg):
 		#we don't want to delete something we did not create.
 		cleanUp = False
 
-	print "Supportconfig Directory:      " + extractedSupportconfig
+	print "Processing Directory:         " + extractedSupportconfig
 	#check for required supportconfig files...
 	testFile = "/basic-environment.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
