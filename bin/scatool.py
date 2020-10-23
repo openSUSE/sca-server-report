@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev11'
+SVER = '1.0.9-1.dev22'
 
 ##########################################################################################
 # Python Imports
@@ -33,6 +33,7 @@ import subprocess
 import os
 import sys
 import glob
+import uuid
 import tarfile
 import shutil
 import datetime
@@ -1271,18 +1272,16 @@ def analyze(*arg):
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
 		print "Running Supportconfig On:     localhost"
-		if( os.path.isfile("/etc/supportconfig.conf")):
-			scOptions = "-b"
-		else:
-			scOptions = "-bo SAM"
+		scUUID = str(uuid.uuid1())
+		supportconfigPath = "/var/log/scc__" + scUUID
 		#run supportconfig
 		try:
-			p = subprocess.Popen(['/sbin/supportconfig', scOptions], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			p = subprocess.Popen(['/sbin/supportconfig', "-bB " + scUUID, "-t /var/log"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			#remove archive
 			deleteArchive = True
 		#if we cannot run supportconfig
 		except Exception:
-			print >> sys.stderr, "Error: Cannot run supportconfig. Please see http://www.novell.com/communities/node/2332/supportconfig-linux#install"
+			print >> sys.stderr, "Error: Cannot run supportconfig."
 			print >> sys.stderr
 			return
 		condition = True
@@ -1321,11 +1320,6 @@ def analyze(*arg):
 		#--WHILE--
 			condition = not bool(out == "" and p.poll() != None)
 			
-		#find tar ball
-		for line in alloutput.split("\n"):
-			if "Log file tar ball:" in line:
-				supportconfigPath = line.split(":")[1].strip()
-
 		if not verboseMode:
 			while( progressCount < progressBarWidth ):
 				progressCount += 1
