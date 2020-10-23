@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Thu Oct 22 21:22:01 UTC 2020 - jason.record@suse.com
+Fri Oct 23 21:18:21 UTC 2020 - jason.record@suse.com
 
+- Fixed scatool fails with no module named readline (bsc#1177249)
 - If run against path '.' use cwd name (issue#1)
 - Added support for xz compression (bsc#1155181)
 

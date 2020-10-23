@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2020 Oct 22
+# Modified:     2020 Oct 23
 
 ##############################################################################
 #
@@ -24,12 +24,11 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev2'
+SVER = '1.0.9-1.dev10'
 
 ##########################################################################################
 # Python Imports
 ##########################################################################################
-import readline
 import subprocess
 import os
 import sys
@@ -67,7 +66,6 @@ def usage():
 	print " -k       Keep archive files (ARCHIVE_MODE)"
 	print " -p       Print a pattern summary"
 	print " -v       Verbose output (LOGLEVEL)"
-	print " -c       Enter SCA Tool console (CONSOLE_MODE)"
 	print
 
 title()
@@ -97,11 +95,6 @@ try:
 	ARCHIVE_MODE = int(os.environ["ARCHIVE_MODE"])
 except Exception:
 	ARCHIVE_MODE = 0
-
-try:
-	CONSOLE_MODE = int(os.environ["CONSOLE_MODE"])
-except Exception:
-	CONSOLE_MODE = 0
 
 try:
 	REMOTE_SC_PATH = str(os.environ["REMOTE_SC_PATH"])
@@ -185,13 +178,6 @@ analysisDateTime = datetime.datetime.now()
 
 #order dependent list of pattern output elements
 RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
-#commands MUST have a function with the same name.
-COMMANDS = ["analyze", "exit", "view", "help"]
-#help pages: 
-#<command name>: <what it does>\n example: <command example>\n <other info>
-COMMANDS_HELP = ["analyze: analyze a supportconfig\nexample: analyze /path/to/supportconfig\nIf no supportconfig is given this will run a supportconfig then analyze the newly created supportconfig",
-		 "view: view report files\nexample: view /path/to/report.html\nIf no path given it will try to open newly created report."]
-command = ""
 
 ##########################################################################################
 # HTML REPORT FUNCTIONS
@@ -1111,7 +1097,7 @@ def runPats(extractedSupportconfig):
 	progressCount = 0
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
-	patternInterval = int(patternStats['Total'] / progressBarWidth)
+	patternInterval = ( int(patternStats['Total']) / int(progressBarWidth) )
 	if( patternInterval < progressBarWidth ):
 		patternInterval = 1
 
@@ -1122,6 +1108,8 @@ def runPats(extractedSupportconfig):
 		sys.stdout.write("Analyzing Supportconfig:      [%s]" % (" " * progressBarWidth))
 		sys.stdout.flush()
 		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
+#debug
+#		sys.stdout.write("\n")
 
 	for patternFile in validPatterns:
 		patternCount += 1
@@ -1138,6 +1126,9 @@ def runPats(extractedSupportconfig):
 					print " ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1]
 			else:
 				#advance the progress bar if it's not full yet
+#debug
+#				sys.stdout.write("Count = " + str(patternCount) + ", Total = " + str(patternStats['Total']) + ", Progress = " + str(progressCount) + ", Width = " + str(progressBarWidth) + ", Interval = " + str(patternInterval) + "\n")
+#				sys.stdout.flush()
 				if( progressCount < progressBarWidth ):
 					#advance the progress bar in equal intervals
 					if( patternCount % patternInterval == 0 ):
@@ -1218,7 +1209,7 @@ def decompressFile(archive, command, options):
 		basecmd = os.path.basename(command)
 		print >> sys.stderr, "  Error: Cannot decompress " + basecmd + " file"
 		print >> sys.stderr
-		return False
+		sys.exit(5)
 	else:
 		return True
 
@@ -1235,7 +1226,7 @@ def unTarFile(archive):
 	if( rc > 0 ):
 		print >> sys.stderr, "  Error: Cannot extract tar file"
 		print >> sys.stderr
-		return False
+		sys.exit(6)
 	else:
 		return True
 
@@ -1565,11 +1556,11 @@ def analyze(*arg):
 				stdout, stderr = process.communicate()
 				rc = process.returncode
 			else:
-				print >> sys.stderr, "  Error: Invalid supportconfig archive - cannot read tar or compressed file"
+				print >> sys.stderr, "  Warning: Unknown supportconfig archive format"
 				print >> sys.stderr
 				return
 		else:
-			print >> sys.stderr, "Error: Zero byte file: " + supportconfigPath
+			print >> sys.stderr, "  Error: Zero byte file: " + supportconfigPath
 			print >> sys.stderr
 			return
 		deleteArchive = True
@@ -1589,21 +1580,20 @@ def analyze(*arg):
 		#we don't want to delete something we did not create.
 		cleanUp = False
 
+        extractedSupportconfig = extractedSupportconfig + "/"
 	print "Processing Directory:         " + extractedSupportconfig
 	#check for required supportconfig files...
-	testFile = "/basic-environment.txt"
+	testFile = "basic-environment.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
 		#not a supportconfig. quit out
-		print >> sys.stderr, "Error:   Invalid supportconfig archive"
-		print >> sys.stderr, "Missing: " + supportconfigPath + testFile
+		print >> sys.stderr, "  Error:   Invalid supportconfig archive - missing " + testFile
 		print >> sys.stderr
 		return
 
-	testFile = "/rpm.txt"
+	testFile = "rpm.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
 		#not a supportconfig. quit out
-		print >> sys.stderr, "Error:   Invalid supportconfig archive"
-		print >> sys.stderr, "Missing: " + supportconfigPath + testFile
+		print >> sys.stderr, "  Error:   Invalid supportconfig archive - missing " + testFile
 		print >> sys.stderr
 		return
 	
@@ -1612,12 +1602,6 @@ def analyze(*arg):
 	runPats(extractedSupportconfig)
 	getHtml(htmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
 	print ("SCA Report File:              %s" % htmlOutputFile)
-
-	#if command was run via console run view
-	if command != "exit":
-		print
-		print "Run \"view\" or open " + htmlOutputFile + " to see results"
-		view()
 
 	emailSCAReport(supportconfigPath)
 
@@ -1715,33 +1699,11 @@ def view(*arg):
 		print >> sys.stderr, "Please run \"help view\""
 
 ##########################################################################################
-# tabSystem
-##########################################################################################
-def tabSystem(text, size):
-	commandBuffer = readline.get_line_buffer()
-	compleateCommands = []
-	for i in COMMANDS:
-		#auto complete to command name
-		if i == commandBuffer.split(" ")[0]:
-			#if the command has an argument auto complete to path names (unless the command is help)
-			if len(commandBuffer.split(" ")) > 0 and commandBuffer.split(" ")[0] != "help":
-				if os.path.isdir((glob.glob(commandBuffer.split(" ")[1]+'*'))[size]):
-					return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size] + "/"
-				return (glob.glob(commandBuffer.split(" ")[1]+'*'))[size]
-		if i.startswith(text):
-			compleateCommands.append(i)
-	if size < len(compleateCommands):
-			return compleateCommands[size]
-	else:
-			return None
-
-##########################################################################################
 # main
 ##########################################################################################
 #read in arguments
 analyzeServer = False
 analyzeFile = ""
-#Do not enter console unless given a -c
 
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
@@ -1754,7 +1716,6 @@ if( len(sys.argv[1:]) > 0 ):
 		usage()
 		sys.exit(2)
 
-	autoExit = True
 	analyzeServer = False
 	analyzeFile = ""
 	for startUpOption, startUpOptionValue in opts:
@@ -1766,8 +1727,6 @@ if( len(sys.argv[1:]) > 0 ):
 			sys.exit()
 		elif startUpOption in ("-k"):
 			KeepArchive = True
-		elif startUpOption in ("-c"):
-			autoExit = False
 		elif startUpOption in ("-e"):
 			emailAddrList = startUpOptionValue
 		elif startUpOption in ("-s"):
@@ -1781,8 +1740,6 @@ if( len(sys.argv[1:]) > 0 ):
 			outputPath = startUpOptionValue
 		else:
 			assert False, "Invalid option"
-elif( CONSOLE_MODE > 0 ):
-	autoExit = False
 else:
 	usage()
 	sys.exit()
@@ -1790,7 +1747,7 @@ else:
 if( len(opts) == 0 and len(args) > 0 ):
 	analyzeServer = True
 	analyzeFile = args[0]
-elif not analyzeServer and autoExit:
+elif not analyzeServer:
 	print "Error: No server to analyze, use -s or -a."
 	print
 	usage()
@@ -1810,33 +1767,9 @@ if( len(outputPath) > 0 ):
 		usage()
 		sys.exit(2)
 
-#auto exit.. or not:
 #if autoExit and analyzeServer:
-if autoExit:
-	command = "exit"
 if analyzeServer == True and analyzeFile != "":
 	analyze(analyzeFile)
 elif analyzeServer == True and analyzeFile == "":
 	analyze()
-
-#get user input:
-readline.set_completer_delims(' \t\n;')
-readline.parse_and_bind("tab: complete")
-#tell readline to use tab complete stuff
-readline.set_completer(tabSystem)
-#main command line input loop
-while command != "exit":
-	#get command (this will use the auto-complete I created.)
-	command = raw_input("^^~ ")
-	#run the command: <argument1>(<argument2>): example "analyze /home/support/nts_123456.tbz" will call "analyze(/home/support/nts_123456.tbz)"
-	if len(command.split(" ")) > 1:
-		if command.split(" ")[0] in COMMANDS:
-			eval(command.split(" ")[0] + "(\"" + command.split(" ")[1] + "\")")
-		else:
-			print >> sys.stderr, command.split(" ")[0] + " command not found, please run \"help\""
-	else:
-		if command in COMMANDS:
-			eval(command + "()")
-		else:
-			print >> sys.stderr, command + " command not found, please run \"help\""
 
