@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Oct 23 21:22:46 UTC 2020 - jason.record@suse.com
+Fri Oct 23 22:24:49 UTC 2020 - jason.record@suse.com
 
+- scatool correctly process -s for local server (bsc#1178088)
 - Fixed progress bar timing (bsc#1178086)
 - Fixed scatool fails with no module named readline (bsc#1177249)
 - If run against path '.' use cwd name (issue#1)
