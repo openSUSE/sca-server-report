@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev10'
+SVER = '1.0.9-1.dev11'
 
 ##########################################################################################
 # Python Imports
@@ -1098,7 +1098,7 @@ def runPats(extractedSupportconfig):
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
 	patternInterval = ( int(patternStats['Total']) / int(progressBarWidth) )
-	if( patternInterval < progressBarWidth ):
+	if( patternStats['Total'] < progressBarWidth ):
 		patternInterval = 1
 
 	print "Total Patterns to Apply:      " + str(patternStats['Total'])
