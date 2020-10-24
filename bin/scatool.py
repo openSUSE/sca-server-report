@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev25'
+SVER = '1.0.9-1.dev26'
 
 ##########################################################################################
 # Python Imports
@@ -1329,11 +1329,17 @@ def analyze(*arg):
 
 	#if a path was given. analyze given file/folder
 	elif len(arg) == 1:
-		#validate the file/folder/ip given by the end user
+		#validate the file/directory/ip given by the end user
 		givenSupportconfigPath = arg[0]
 
 		if( givenSupportconfigPath == "." ):
 			givenSupportconfigPath = os.getcwd()
+		elif( re.search("/", givenSupportconfigPath) ):
+			print "Supportconfig File:           %s" % givenSupportconfigPath
+			print >> sys.stderr, "  Error: File/Directory not found"
+			print >> sys.stderr
+			usage()
+			return
 
 		if os.path.isfile(givenSupportconfigPath):
 			print "Supportconfig File:           %s" % givenSupportconfigPath

@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Sat Oct 24 17:07:39 UTC 2020 - jason.record@suse.com
+Sat Oct 24 17:19:11 UTC 2020 - jason.record@suse.com
 
+- Arg with / treated as files, not remote servers (bsc#1178099)
 - Optimized tar ball extraction (bsc#1178093)
 - Added /etc/os-release support (bsc#1178092)
 - scatool correctly process -s for local server (bsc#1178088)
