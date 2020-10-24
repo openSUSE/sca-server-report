@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev23'
+SVER = '1.0.9-1.dev25'
 
 ##########################################################################################
 # Python Imports
@@ -1213,39 +1213,21 @@ def doKeepArchive(archive):
 		shutil.copy2(archive,archiveKeep)
 
 ##########################################################################################
-# decompressFile(archive, command, options)
+# extractFile(archive, options)
 ##########################################################################################
-# decompressFile decompresses the given archive
+# extractFile extracts the archive with tar
 # Input: archive - path to the supportconfig decompressed tarball
-#        command - path to decompression tool
-#        options - decompression args
-def decompressFile(archive, command, options):
-	print "Decompressing File:           " + archive
-	process = subprocess.Popen([command, options, archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#        options - tar extraction args
+def extractFile(archive, options):
+	print "Extracting File:              " + archive
+	process = subprocess.Popen(["/usr/bin/tar", options, archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout, stderr = process.communicate()
 	rc = process.returncode
 	if( rc > 0 ):
 		basecmd = os.path.basename(command)
-		print >> sys.stderr, "  Error: Cannot decompress " + basecmd + " file"
+		print >> sys.stderr, "  Error: Cannot extract " + basecmd + " file"
 		print >> sys.stderr
-		sys.exit(5)
-	else:
-		return True
-
-##########################################################################################
-# unTarFile(archive)
-##########################################################################################
-# Untar a decompress archive
-# Input: archive - path to the supportconfig decompressed tarball
-def unTarFile(archive):
-	print "Extracting Tar File:          " + archive
-	process = subprocess.Popen(["/usr/bin/tar", "xf", archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	stdout, stderr = process.communicate()
-	rc = process.returncode
-	if( rc > 0 ):
-		print >> sys.stderr, "  Error: Cannot extract tar file"
-		print >> sys.stderr
-		sys.exit(6)
+		sys.exit(7)
 	else:
 		return True
 
@@ -1506,7 +1488,7 @@ def analyze(*arg):
 
 	#if given a supportconfig archive
 	if os.path.isfile(supportconfigPath):
-		print "Evaluating File:              " + supportconfigPath
+#		print "Evaluating File:              " + supportconfigPath
 		#extract file
 		#set TarFile and find the path of the soon to be extracted supportconfig
 		fileInfo = os.stat(supportconfigPath)
@@ -1517,12 +1499,10 @@ def analyze(*arg):
 			if re.search("/x-xz", stdout):
 				if supportconfigPath.endswith('.txz'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/xz', '-d')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-Jxf")
 				elif supportconfigPath.endswith('.tar.xz'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/xz', '-d')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-Jxf")
 				else:
 					print >> sys.stderr, "Error: Unknown xz extension"
 					print >> sys.stderr
@@ -1530,20 +1510,16 @@ def analyze(*arg):
 			elif re.search("/x-bzip2", stdout):
 				if supportconfigPath.endswith('.tbz'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tbz2'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz2'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/bzip2', '-d')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-jxf")
 				else:
 					print >> sys.stderr, "Error: Unknown bzip2 extension"
 					print >> sys.stderr
@@ -1551,22 +1527,17 @@ def analyze(*arg):
 			elif re.search("/x-gzip", stdout):
 				if supportconfigPath.endswith('.tgz'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/gzip', '-df')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-zxf")
 				elif supportconfigPath.endswith('.tar.gz'):
 					KeepArchive and doKeepArchive(supportconfigPath)
-					decompressFile(supportconfigPath, '/usr/bin/gzip', '-df')
-					unTarFile(supportconfigPathTarball)
+					extractFile(supportconfigPath, "-zxf")
 				else:
 					print >> sys.stderr, "Error: Unknown gzip extension"
 					print >> sys.stderr
 					return
 			elif re.search("/x-tar", stdout):
 				KeepArchive and doKeepArchive(supportconfigPath)
-				print "Extracting Tar File:          " + supportconfigPath
-				process = subprocess.Popen(["/usr/bin/tar", "xf", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				stdout, stderr = process.communicate()
-				rc = process.returncode
+				extractFile(supportconfigPath, "-xf")
 			else:
 				print >> sys.stderr, "  Warning: Unknown supportconfig archive format"
 				print >> sys.stderr

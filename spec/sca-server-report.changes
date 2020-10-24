@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Sat Oct 24 16:33:42 UTC 2020 - jason.record@suse.com
+Sat Oct 24 17:07:39 UTC 2020 - jason.record@suse.com
 
+- Optimized tar ball extraction (bsc#1178093)
 - Added /etc/os-release support (bsc#1178092)
 - scatool correctly process -s for local server (bsc#1178088)
 - Fixed progress bar timing (bsc#1178086)
