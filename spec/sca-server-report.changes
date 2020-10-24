@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
-Fri Oct 23 22:24:49 UTC 2020 - jason.record@suse.com
+Sat Oct 24 16:33:42 UTC 2020 - jason.record@suse.com
 
+- Added /etc/os-release support (bsc#1178092)
 - scatool correctly process -s for local server (bsc#1178088)
 - Fixed progress bar timing (bsc#1178086)
 - Fixed scatool fails with no module named readline (bsc#1177249)

@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2020 Oct 23
+# Modified:     2020 Oct 24
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev22'
+SVER = '1.0.9-1.dev23'
 
 ##########################################################################################
 # Python Imports
@@ -200,6 +200,7 @@ def getHeader(*arg):
 	OES = ""
 	INFO = ""
 	VER = ""
+	osArch = ""
 	OSVersion = ""
 	patchLevel = ""
 	kernelVersion = ""
@@ -228,7 +229,8 @@ def getHeader(*arg):
 	#read basic-environment line by line to pull out data.
 	IN_DATE = False
 	IN_UNAME = False
-	IN_RELEASE = False
+	IN_OS_RELEASE = False
+	IN_SUSE_RELEASE = False
 	IN_OES_RELEASE = False
 	IN_FILR = False
 	for line in BASIC_ENV:
@@ -244,8 +246,10 @@ def getHeader(*arg):
 			IN_DATE = True
 		elif "/bin/uname -a" in line:
 			IN_UNAME = True
+		elif "/etc/os-release" in line:
+			IN_OS_RELEASE = True
 		elif "/etc/SuSE-release" in line:
-			IN_RELEASE = True
+			IN_SUSE_RELEASE = True
 		elif "/etc/novell-release" in line:
 			IN_OES_RELEASE = True
 		elif "/etc/Novell-VA-release" in line:
@@ -293,20 +297,34 @@ def getHeader(*arg):
 				if( len(tmp) >= 3 ):
 					kernelVersion = tmp[2].strip()
 					serverName = tmp[1].strip()
+					osArch = tmp[-2].strip()
 					IN_UNAME = False
-		elif( IN_RELEASE ):
+		elif( IN_SUSE_RELEASE ):
 			if "#==[" in line:
-				IN_RELEASE = False
+				IN_SUSE_RELEASE = False
 				PRODUCTS[DISTRO][1] = str(OS)
 				PRODUCTS[DISTRO][3] = str(patchLevel)
 			else:
 				if( len(OS) > 0 ):
 					if line.lower().startswith("version"):
-						OSVersion = line.split('=')[-1].strip()
+						OSVersion = line.split('=')[-1].replace('"', '').strip()
 					elif line.lower().startswith("patchlevel"):
-						patchLevel = line.split('=')[-1].strip()
+						patchLevel = line.split('=')[-1].replace('"', '').strip()
 				else:
 					OS = line.strip()
+		elif( IN_OS_RELEASE ):
+			if "#==[" in line:
+				IN_OS_RELEASE = False
+				PRODUCTS[DISTRO][1] = str(OSVersion) + " (" + osArch + ")"
+				PRODUCTS[DISTRO][3] = str(patchLevel)
+			else:
+				if line.lower().startswith("pretty_name"):
+					OSVersion = line.split('=')[-1].replace('"', '').strip()
+				elif line.lower().startswith("version_id"):
+					if re.search(".", line):
+						patchLevel = line.split('.')[-1].replace('"', '').strip()
+					else:
+						patchLevel = "0"
 		elif( IN_OES_RELEASE):
 			if "#==[" in line:
 				IN_OES_RELEASE = False
