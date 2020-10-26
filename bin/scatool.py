@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev31'
+SVER = '1.0.9-1.dev32'
 
 ##########################################################################################
 # Python Imports
@@ -1326,11 +1326,12 @@ def analyze(*arg):
 		if( givenSupportconfigPath == "." ):
 			givenSupportconfigPath = os.getcwd()
 		elif( re.search("/", givenSupportconfigPath) ):
-			print "Supportconfig File:           %s" % givenSupportconfigPath
-			print >> sys.stderr, "  Error: File/Directory not found"
-			print >> sys.stderr
-			usage()
-			return
+			if not os.path.exists(givenSupportconfigPath):
+				print "Supportconfig File:           %s" % givenSupportconfigPath
+				print >> sys.stderr, "  Error: File/Directory not found"
+				print >> sys.stderr
+				usage()
+				return
 
 		if os.path.isfile(givenSupportconfigPath):
 			print "Supportconfig File:           %s" % givenSupportconfigPath
