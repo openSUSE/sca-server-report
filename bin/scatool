@@ -1,10 +1,10 @@
 #!/bin/bash
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool Wrapper
-# Copyright (c) 2014-2017 SUSE LLC
+# Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Wrapper for /usr/lib/sca/python/scatool.py
-# Modified:     2017 Dec 18
+# Modified:     2020 Oct 26
 
 ##############################################################################
 #
@@ -22,7 +22,7 @@
 #
 #  Authors/Contributors:
 #     David Hamner (ke7oxh@gmail.com)
-#     Jason Record (jrecord@suse.com)
+#     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
 

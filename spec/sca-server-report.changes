@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Mon Oct 26 19:34:34 UTC 2020 - jason.record@suse.com
+
+- scatool correctly cleans up and saves archives (bsc#1178094)
+
+-------------------------------------------------------------------
 Sat Oct 24 17:19:11 UTC 2020 - jason.record@suse.com
 
 - Arg with / treated as files, not remote servers (bsc#1178099)

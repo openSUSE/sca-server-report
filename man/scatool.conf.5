@@ -1,14 +1,14 @@
-.TH SCATOOL.CONF 5 "04 Jun 2014" "sca-server-report" "Supportconfig Analysis Manual"
+.TH SCATOOL.CONF 5 "2020 Oct 26" "sca-server-report" "Supportconfig Analysis Manual"
 .SH NAME
 scatool.conf - Supportconfig Analysis Tool Configuration File
 .SH DESCRIPTION
 The \fBscatool.conf\fR file has default values for \fBscatool\fR.
 .SH GLOBAL VARIABLES
 .TP
-ARCHIVE_MODE
-Once the \fBscatool\fR processes the supportconfig archive, it usually deletes it.
+REMOVE_ARCHIVE
+Once the \fBscatool\fR processes the supportconfig archive, delete the archive, its .md5 file and extracted directory leaving only the html report file. REMOVE_ARCHIVE is disabled by default leaving the original archive in place.
 .RS
-Valid options: 0 = Disable archive mode, 1 = Enable archive mode
+Valid options: 0 = Disable remove archive mode, 1 = Enable remove archive mode
 .RE
 .RS
 Default: 0
@@ -24,7 +24,7 @@ Default: 0
 .RE
 .TP
 OUTPUT_PATH
-The directory where HTML report and supportconfig archive files are saved. If ARCHIVE_MODE is enabled, supportconfig archives are saved here as well. If defined, all HTML report and supportconfig files will be saved in this directory, regardless of the supportconfig archive or directory location. If left undefined or empty, HTML report files are saved in the same directory as the supportconfig archive or directory.
+The directory where HTML report and supportconfig archive files are saved.
 .RS
 Default: (Empty)
 .RE

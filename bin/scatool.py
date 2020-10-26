@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev32'
+SVER = '1.0.9-1.dev35'
 
 ##########################################################################################
 # Python Imports
@@ -63,8 +63,8 @@ def usage():
 	print " -a path  Analyze the supportconfig directory or archive"
 	print "          The path may also be an IP address of a server to analyze"
 	print " -o path  HTML report output directory (OUTPUT_PATH)"
-	print " -e list  Send HTML report to email address(es) provided. Comma separated list."
-	print " -k       Keep archive files (ARCHIVE_MODE)"
+	print " -e list  Send HTML report to email address(es) provided. Comma separated list"
+	print " -r       Remove archive files (REMOVE_ARCHIVE) leaving only the report html file"
 	print " -p       Print a pattern summary"
 	print " -v       Verbose output (LOGLEVEL)"
 	print
@@ -93,9 +93,9 @@ except Exception:
 	SCA_PATTERN_PATH = "/usr/lib/sca/patterns"
 
 try:
-	ARCHIVE_MODE = int(os.environ["ARCHIVE_MODE"])
+	REMOVE_ARCHIVE = int(os.environ["REMOVE_ARCHIVE"])
 except Exception:
-	ARCHIVE_MODE = 0
+	REMOVE_ARCHIVE = 0
 
 try:
 	REMOTE_SC_PATH = str(os.environ["REMOTE_SC_PATH"])
@@ -135,7 +135,7 @@ global HTML
 global outputPath
 global htmlOutputFile
 global emailAddrList
-global KeepArchive
+global removeArchive
 global serverName
 global verboseMode
 global analysisDateTime
@@ -154,10 +154,10 @@ patternStats = {
 	'Succ': 0
 }
 
-if( ARCHIVE_MODE > 0 ):
-	KeepArchive = True
+if( REMOVE_ARCHIVE > 0 ):
+	removeArchive = True
 else:
-	KeepArchive = False
+	removeArchive = False
 
 if( LOGLEVEL == LOGLEVEL_VERBOSE ):
 	verboseMode = True
@@ -1234,7 +1234,7 @@ def analyze(*arg):
 	global outputPath
 	global htmlOutputFile
 	global emailAddrList
-	global KeepArchive
+	global removeArchive
 	global verboseMode
 	global analysisDateTime
 	#reset stuff
@@ -1244,13 +1244,11 @@ def analyze(*arg):
 	remoteSupportconfigPath = ""
 	extractedSupportconfig = ""
 	supportconfigPath = ""
-	supportconfigPathTarball = ""
 	extractedPath = ""
-	deleteArchive = False
 	isIP = False
 	host = "None"
 	isRemoteServer = False
-	cleanUp = True
+	removeSupportconfigDir = True
 	alloutput = ""
 	lineNum = 0
 	progressBarWidth = 48
@@ -1268,14 +1266,14 @@ def analyze(*arg):
 		#run supportconfig
 		try:
 			p = subprocess.Popen(['/sbin/supportconfig', "-bB " + scUUID, "-t /var/log"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			#remove archive
-			deleteArchive = True
 		#if we cannot run supportconfig
 		except Exception:
 			print >> sys.stderr, "Error: Cannot run supportconfig."
 			print >> sys.stderr
 			return
 		condition = True
+		if not removeArchive:
+			removeSupportconfigDir = False
 
 		if verboseMode:
 			print "Gathering Supportconfig:      In Progress"
@@ -1337,6 +1335,8 @@ def analyze(*arg):
 			print "Supportconfig File:           %s" % givenSupportconfigPath
 		elif os.path.isdir(givenSupportconfigPath):
 			print "Supportconfig Directory:      %s" % givenSupportconfigPath
+			if not removeArchive:
+				removeSupportconfigDir = False
 		else:
 			print "Supportconfig Remote Server:  %s" % givenSupportconfigPath
 			ping_server = subprocess.Popen(["/bin/ping", "-c1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1383,8 +1383,6 @@ def analyze(*arg):
 					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -bR ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					#create a local verson of the supportconfig output
 					localSupportconfig = open(outputPath + "/nts_" + str(remoteSupportconfigName) + ".tbz", 'w')
-					#remove local archive
-					deleteArchive = True
 					condition = True
 					endOfSupportconfig = False
 
@@ -1473,10 +1471,8 @@ def analyze(*arg):
 		supportconfigPath = OS_PATH + supportconfigPath
 	base = os.path.splitext(supportconfigPath)[0]
 	if base.endswith('.tar'):
-		supportconfigPathTarball = base
 		extractedSupportconfig = os.path.splitext(base)[0]
 	else:
-		supportconfigPathTarball = base + '.tar'
 		extractedSupportconfig = base
 #	print
 #	print " + Base =                   " + base
@@ -1535,9 +1531,8 @@ def analyze(*arg):
 			print >> sys.stderr, "  Error: Zero byte file: " + supportconfigPath
 			print >> sys.stderr
 			return
-		deleteArchive = True
 
-	#if given an extracted supportconfig
+	#if given an extracted supportconfig directory
 	elif os.path.isdir(supportconfigPath):
 		extractedSupportconfig = supportconfigPath
 		if( len(outputPath) > 0 ):
@@ -1549,11 +1544,11 @@ def analyze(*arg):
 			tmp = htmlOutputFile.split("/")
 			del tmp[-1]
 			htmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
-		#we don't want to delete something we did not create.
-		cleanUp = False
 
-        extractedSupportconfig = extractedSupportconfig + "/"
+	extractedSupportconfig = extractedSupportconfig + "/"
+
 	print "Processing Directory:         " + extractedSupportconfig
+
 	#check for required supportconfig files...
 	testFile = "basic-environment.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
@@ -1578,21 +1573,17 @@ def analyze(*arg):
 	emailSCAReport(supportconfigPath)
 
 	#clean up
-#	print " + supportconfigPathTarball = " + supportconfigPathTarball
 #	print " + supportconfigPath = " + supportconfigPath
-	print "Cleanup =       " + str(cleanUp)
-	print "deleteArchive = " + str(deleteArchive)
-	print "KeepArchive =   " + str(KeepArchive)
-	if cleanUp:
+	print "removeSupportconfigDir = " + str(removeSupportconfigDir)
+	print "REMOVE_ARCHIVE =         " + str(REMOVE_ARCHIVE)
+	print "removeArchive =          " + str(removeArchive)
+	if removeSupportconfigDir:
 		shutil.rmtree(extractedSupportconfig)
-	if deleteArchive:
-		if not KeepArchive:
-			if os.path.isfile(supportconfigPath):
-				os.remove(supportconfigPath)
-			if os.path.isfile(supportconfigPath + ".md5"):
-				os.remove(supportconfigPath + ".md5")
-		if os.path.isfile(supportconfigPathTarball):
-			os.remove(supportconfigPathTarball)
+	if removeArchive:
+		if os.path.isfile(supportconfigPath):
+			os.remove(supportconfigPath)
+		if os.path.isfile(supportconfigPath + ".md5"):
+			os.remove(supportconfigPath + ".md5")
 	print
 			
 ##########################################################################################
@@ -1605,7 +1596,7 @@ analyzeFile = ""
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "ha:so:kcvpe:")
+		opts, args = getopt.getopt(sys.argv[1:], "ha:so:rcvpe:")
 	except getopt.GetoptError as err:
 		# print help information and exit:
 		print "Error: " + str(err) # will print something like "option -b not recognized"
@@ -1622,8 +1613,8 @@ if( len(sys.argv[1:]) > 0 ):
 		elif startUpOption in ("-p"):
 			patternLibraryList()
 			sys.exit()
-		elif startUpOption in ("-k"):
-			KeepArchive = True
+		elif startUpOption in ("-r"):
+			removeArchive = True
 		elif startUpOption in ("-e"):
 			emailAddrList = startUpOptionValue
 		elif startUpOption in ("-s"):
@@ -1664,7 +1655,6 @@ if( len(outputPath) > 0 ):
 		usage()
 		sys.exit(2)
 
-#if autoExit and analyzeServer:
 if analyzeServer == True and analyzeFile != "":
 	analyze(analyzeFile)
 elif analyzeServer == True and analyzeFile == "":
