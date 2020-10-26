@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev30'
+SVER = '1.0.9-1.dev31'
 
 ##########################################################################################
 # Python Imports
@@ -1594,85 +1594,6 @@ def analyze(*arg):
 			os.remove(supportconfigPathTarball)
 	print
 			
-##########################################################################################
-# help
-##########################################################################################
-def help(*arg):
-	#help run without any command name given. print available commands (if a help page is available for a command print first line of help page)
-	if len(arg) == 0:
-		printed = False
-		print "Available Commands:\n"
-		for i in range(0, len(COMMANDS)):
-			printed = False
-			for e in COMMANDS_HELP:
-				if e.startswith(COMMANDS[i]):
-					print e.split("\n")[0]
-					printed = True
-					break
-			if not printed:
-				print COMMANDS[i]
-		print "\nRun \"help <command name>\" for more help\n"
-		
-	#help was run with a command given
-	if len(arg) == 1:
-		#if valid command was given
-		if arg[0] in COMMANDS:
-			#find the help page
-			for i in COMMANDS_HELP:
-				if i.split(":")[0] == arg[0]:
-					#print i (without the command name)
-					print "\n" + i[len(arg[0])+2:] + "\n"
-					return
-			print >> sys.stderr, "Error: No help page for command \"" + arg[0] + "\""
-		else:
-			print >> sys.stderr, "Error: " + arg[0] + " is not a command"
-
-##########################################################################################
-# view
-##########################################################################################
-#take a look at the html
-#once analyze is run you can use "view" to look at the data
-#use: "view" or "view <path to html>"
-def view(*arg):
-	global htmlOutputFile
-	#if no path given. try to view the global html output file.
-	if len(arg) == 0:
-		try:
-			
-			#check path and see if output file is set
-			if htmlOutputFile == "":
-				print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
-				return
-			if os.path.isfile(htmlOutputFile):
-				#check that this is html
-				if htmlOutputFile.endswith(".htm") or htmlOutputFile.endswith(".html"):
-					os.system("w3m " + htmlOutputFile)
-				else:
-					print >> sys.stderr, htmlOutputFile + " is not a html file"
-			else:
-				print >> sys.stderr, htmlOutputFile + " is not a file."
-		except Exception:
-			print >> sys.stderr, "Error: Cannot open output file. Have you run analyze yet?"
-			
-	#A path was given
-	elif len(arg) == 1:
-		try:
-			#check the path
-			if os.path.isfile(arg[0]):
-				#check that this is html
-				if arg[0].endswith(".htm") or arg[0].endswith(".html"):
-					os.system("w3m " + arg[0])
-				else:
-					print >> sys.stderr, arg[0] + " is not a html file"
-			else:
-				print >> sys.stderr, arg[0] + " is not a file."
-		except Exception:
-			pass
-		
-	#....More then two arguments given. Nice :)
-	else:
-		print >> sys.stderr, "Please run \"help view\""
-
 ##########################################################################################
 # main
 ##########################################################################################
