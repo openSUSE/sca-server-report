@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2020 Oct 24
+# Modified:     2020 Oct 26
 
 ##############################################################################
 #
@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev26'
+SVER = '1.0.9-1.dev30'
 
 ##########################################################################################
 # Python Imports
@@ -1204,15 +1204,6 @@ def parseOutput(out, error, pat):
 		return False
 
 ##########################################################################################
-# doKeepArchive(archive)
-##########################################################################################
-def doKeepArchive(archive):
-	if not archive.endswith('.saved'):
-		archiveKeep = archive + ".saved"
-		print "Keeping File:                 " + archiveKeep
-		shutil.copy2(archive,archiveKeep)
-
-##########################################################################################
 # extractFile(archive, options)
 ##########################################################################################
 # extractFile extracts the archive with tar
@@ -1504,10 +1495,8 @@ def analyze(*arg):
 #			print "Detected File Type:           " + stdout
 			if re.search("/x-xz", stdout):
 				if supportconfigPath.endswith('.txz'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-Jxf")
 				elif supportconfigPath.endswith('.tar.xz'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-Jxf")
 				else:
 					print >> sys.stderr, "Error: Unknown xz extension"
@@ -1515,16 +1504,12 @@ def analyze(*arg):
 					return
 			elif re.search("/x-bzip2", stdout):
 				if supportconfigPath.endswith('.tbz'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tbz2'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz2'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-jxf")
 				else:
 					print >> sys.stderr, "Error: Unknown bzip2 extension"
@@ -1532,17 +1517,14 @@ def analyze(*arg):
 					return
 			elif re.search("/x-gzip", stdout):
 				if supportconfigPath.endswith('.tgz'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-zxf")
 				elif supportconfigPath.endswith('.tar.gz'):
-					KeepArchive and doKeepArchive(supportconfigPath)
 					extractFile(supportconfigPath, "-zxf")
 				else:
 					print >> sys.stderr, "Error: Unknown gzip extension"
 					print >> sys.stderr
 					return
 			elif re.search("/x-tar", stdout):
-				KeepArchive and doKeepArchive(supportconfigPath)
 				extractFile(supportconfigPath, "-xf")
 			else:
 				print >> sys.stderr, "  Warning: Unknown supportconfig archive format"
@@ -1597,15 +1579,19 @@ def analyze(*arg):
 	#clean up
 #	print " + supportconfigPathTarball = " + supportconfigPathTarball
 #	print " + supportconfigPath = " + supportconfigPath
+	print "Cleanup =       " + str(cleanUp)
+	print "deleteArchive = " + str(deleteArchive)
+	print "KeepArchive =   " + str(KeepArchive)
 	if cleanUp:
 		shutil.rmtree(extractedSupportconfig)
 	if deleteArchive:
-		if os.path.isfile(supportconfigPath):
-			os.remove(supportconfigPath)
+		if not KeepArchive:
+			if os.path.isfile(supportconfigPath):
+				os.remove(supportconfigPath)
+			if os.path.isfile(supportconfigPath + ".md5"):
+				os.remove(supportconfigPath + ".md5")
 		if os.path.isfile(supportconfigPathTarball):
 			os.remove(supportconfigPathTarball)
-		if os.path.isfile(supportconfigPath + ".md5"):
-			os.remove(supportconfigPath + ".md5")
 	print
 			
 ##########################################################################################
