@@ -3,10 +3,10 @@
 # Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2020 Oct 26
+# Modified:     2020 Oct 27
 
 ##############################################################################
-#
+#command
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; version 2 of the License.
@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev35'
+SVER = '1.0.9-1.dev37'
 
 ##########################################################################################
 # Python Imports
@@ -1215,8 +1215,8 @@ def extractFile(archive, options):
 	stdout, stderr = process.communicate()
 	rc = process.returncode
 	if( rc > 0 ):
-		basecmd = os.path.basename(command)
-		print >> sys.stderr, "  Error: Cannot extract " + basecmd + " file"
+		print >> sys.stderr, "  Error: Cannot extract tar file"
+		print >> sys.stderr, stderr
 		print >> sys.stderr
 		sys.exit(7)
 	else:
@@ -1549,18 +1549,24 @@ def analyze(*arg):
 
 	print "Processing Directory:         " + extractedSupportconfig
 
+	if not os.path.isdir(extractedSupportconfig):
+		#not a supportconfig directory or mismatched name
+		print >> sys.stderr, "  Error: Extracted directory does not match supportconfig filename"
+		print >> sys.stderr
+		return
+
 	#check for required supportconfig files...
 	testFile = "basic-environment.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
 		#not a supportconfig. quit out
-		print >> sys.stderr, "  Error:   Invalid supportconfig archive - missing " + testFile
+		print >> sys.stderr, "  Error: Invalid supportconfig archive - missing " + testFile
 		print >> sys.stderr
 		return
 
 	testFile = "rpm.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
 		#not a supportconfig. quit out
-		print >> sys.stderr, "  Error:   Invalid supportconfig archive - missing " + testFile
+		print >> sys.stderr, "  Error: Invalid supportconfig archive - missing " + testFile
 		print >> sys.stderr
 		return
 	

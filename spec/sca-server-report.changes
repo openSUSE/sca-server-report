@@ -1,19 +1,23 @@
 -------------------------------------------------------------------
-Mon Oct 26 19:34:34 UTC 2020 - jason.record@suse.com
+Tue Oct 27 21:27:59 UTC 2020 - jason.record@suse.com
 
-- scatool correctly cleans up and saves archives (bsc#1178094)
+
+- Additions to version 1.0.1
+  + Exits gracefully when attempting to process damaged files (bsc#1178152)
+  + scatool correctly cleans up and saves archives (bsc#1178094)
 
 -------------------------------------------------------------------
 Sat Oct 24 17:19:11 UTC 2020 - jason.record@suse.com
 
-- Arg with / treated as files, not remote servers (bsc#1178099)
-- Optimized tar ball extraction (bsc#1178093)
-- Added /etc/os-release support (bsc#1178092)
-- scatool correctly process -s for local server (bsc#1178088)
-- Fixed progress bar timing (bsc#1178086)
-- Fixed scatool fails with no module named readline (bsc#1177249)
-- If run against path '.' use cwd name (issue#1)
-- Added support for xz compression (bsc#1155181)
+- Additions to version 1.0.1
+  + Arg with / treated as files, not remote servers (bsc#1178099)
+  + Optimized tar ball extraction (bsc#1178093)
+  + Added /etc/os-release support (bsc#1178092)
+  + scatool correctly process -s for local server (bsc#1178088)
+  + Fixed progress bar timing (bsc#1178086)
+  + Fixed scatool fails with no module named readline (bsc#1177249)
+  + If run against path '.' use cwd name (issue#1)
+  + Added support for xz compression (bsc#1155181)
 
 -------------------------------------------------------------------
 Mon Jan 22 21:58:14 UTC 2018 - jason.record@suse.com
