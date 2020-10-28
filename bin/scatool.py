@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2020 Oct 27
+# Modified:     2020 Oct 28
 
 ##############################################################################
 #command
@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev37'
+SVER = '1.0.9-1.dev40'
 
 ##########################################################################################
 # Python Imports
@@ -1127,7 +1127,6 @@ def runPats(extractedSupportconfig):
 		sys.stdout.write("Analyzing Supportconfig:      [%s]" % (" " * progressBarWidth))
 		sys.stdout.flush()
 		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
-#debug
 #		sys.stdout.write("\n")
 
 	for patternFile in validPatterns:
@@ -1145,7 +1144,6 @@ def runPats(extractedSupportconfig):
 					print " ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1]
 			else:
 				#advance the progress bar if it's not full yet
-#debug
 #				sys.stdout.write("Count = " + str(patternCount) + ", Total = " + str(patternStats['Total']) + ", Progress = " + str(progressCount) + ", Width = " + str(progressBarWidth) + ", Interval = " + str(patternInterval) + "\n")
 #				sys.stdout.flush()
 				if( progressCount < progressBarWidth ):
@@ -1238,8 +1236,8 @@ def analyze(*arg):
 	global verboseMode
 	global analysisDateTime
 	#reset stuff
-	dateStamp = analysisDateTime.strftime("%d%m%y")
-	timeStamp = str(analysisDateTime.hour).zfill(2) + str(analysisDateTime.minute).zfill(2)
+	dateStamp = analysisDateTime.strftime("%y%m%d")
+	timeStamp = str(analysisDateTime.hour).zfill(2) + str(analysisDateTime.minute).zfill(2) + str(analysisDateTime.second).zfill(2)
 	remoteSupportconfigName = ""
 	remoteSupportconfigPath = ""
 	extractedSupportconfig = ""
@@ -1261,11 +1259,18 @@ def analyze(*arg):
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
 		print "Running Supportconfig On:     localhost"
-		scUUID = str(uuid.uuid1())
-		supportconfigPath = "/var/log/scc__" + scUUID
 		#run supportconfig
+
+		localSupportconfigName = str(os.uname()[1]) + "_" + str(dateStamp) + "_" + str(timeStamp)
+		localSupportconfigPath = "/var/log/"
+		supportconfigPath = localSupportconfigPath + "scc_" + localSupportconfigName
+
+#		print "localSupportconfigName = " + localSupportconfigName
+#		print "localSupportconfigPath = " + localSupportconfigPath
+#		print "supportconfigPath      = " + supportconfigPath
+
 		try:
-			p = subprocess.Popen(['/sbin/supportconfig', "-bB " + scUUID, "-t /var/log"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			p = subprocess.Popen(['/sbin/supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		#if we cannot run supportconfig
 		except Exception:
 			print >> sys.stderr, "Error: Cannot run supportconfig."
@@ -1339,10 +1344,10 @@ def analyze(*arg):
 				removeSupportconfigDir = False
 		else:
 			print "Supportconfig Remote Server:  %s" % givenSupportconfigPath
-			ping_server = subprocess.Popen(["/bin/ping", "-c1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			streamdata = ping_server.communicate()[0]
+			ping_server = subprocess.Popen(["/bin/ping", "-c1 -w1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			stdout, stderr = ping_server.communicate()
 			if ping_server.returncode != 0:
-				print >> sys.stderr, "  Error: Cannot communicate with server"
+				print >> sys.stderr, "  Error: Cannot ping remote server"
 				print >> sys.stderr
 				usage()
 				return
@@ -1369,7 +1374,7 @@ def analyze(*arg):
 			else:
 				#we have an IP
 				print "Running Supportconfig On:     " + givenSupportconfigPath
-				sys.stdout.write("  Waiting... ")
+				sys.stdout.write("  Waiting          ")
 				sys.stdout.flush()
 				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
 				remoteSupportconfigPath = REMOTE_SC_PATH
@@ -1380,9 +1385,11 @@ def analyze(*arg):
 						outputPath = remoteSupportconfigPath
 					#run ssh root@host "supportconfig -R REMOTE_SC_PATH -B <timeStamp>; echo -n \~; cat <path to new supportconfig
 					#aka: run supportconfig then send the output back.
-					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -bR ' + remoteSupportconfigPath + ' -B ' + str(remoteSupportconfigName) + ";echo -n \\~; cat " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz" + "; rm " + remoteSupportconfigPath + "/nts_" + str(remoteSupportconfigName) + ".tbz*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+					supportconfigPrefix = "/scc_"
+					supportconfigCompression = ".txz"
+					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigPath + supportconfigPrefix + str(remoteSupportconfigName) + supportconfigCompression + "; rm " + remoteSupportconfigPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression + "*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					#create a local verson of the supportconfig output
-					localSupportconfig = open(outputPath + "/nts_" + str(remoteSupportconfigName) + ".tbz", 'w')
+					localSupportconfig = open(outputPath + supportconfigPrefix + str(remoteSupportconfigName) + supportconfigCompression, 'w')
 					condition = True
 					endOfSupportconfig = False
 
@@ -1437,7 +1444,7 @@ def analyze(*arg):
 							sys.stdout.write("=")
 							sys.stdout.flush()
 
-					supportconfigPath = outputPath + "/nts_" + str(remoteSupportconfigName) + ".tbz"
+					supportconfigPath = outputPath + supportconfigPrefix + str(remoteSupportconfigName) + supportconfigCompression
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
 						print
@@ -1446,7 +1453,7 @@ def analyze(*arg):
 						print >> sys.stderr
 						print >> sys.stderr, "Error: Failed to copy supportconfig from remote server"
 						print >> sys.stderr, "       Verify you can ssh as root into the remote server"
-						print >> sys.stderr, "       and manually run supportconfig."
+						print >> sys.stderr, "       and manually copy the supportconfig to this server."
 						print >> sys.stderr
 						os.remove(supportconfigPath)
 						return
@@ -1456,9 +1463,6 @@ def analyze(*arg):
 					return
 		else:
 			supportconfigPath = givenSupportconfigPath
-	else:
-		#too many arguments
-		print >> sys.stderr, "Please run: \"help analyze\""
 
 	OS_PATH = os.environ["PWD"]
 	if( len(OS_PATH) > 0 ):
@@ -1474,6 +1478,7 @@ def analyze(*arg):
 		extractedSupportconfig = os.path.splitext(base)[0]
 	else:
 		extractedSupportconfig = base
+
 #	print
 #	print " + Base =                   " + base
 #	print " + extractedSupportconfig = " + extractedSupportconfig
@@ -1524,7 +1529,7 @@ def analyze(*arg):
 			elif re.search("/x-tar", stdout):
 				extractFile(supportconfigPath, "-xf")
 			else:
-				print >> sys.stderr, "  Warning: Unknown supportconfig archive format"
+				print >> sys.stderr, "  Warning: Unknown supportconfig tar file format"
 				print >> sys.stderr
 				return
 		else:
@@ -1580,9 +1585,9 @@ def analyze(*arg):
 
 	#clean up
 #	print " + supportconfigPath = " + supportconfigPath
-	print "removeSupportconfigDir = " + str(removeSupportconfigDir)
-	print "REMOVE_ARCHIVE =         " + str(REMOVE_ARCHIVE)
-	print "removeArchive =          " + str(removeArchive)
+#	print "removeSupportconfigDir = " + str(removeSupportconfigDir)
+#	print "REMOVE_ARCHIVE =         " + str(REMOVE_ARCHIVE)
+#	print "removeArchive =          " + str(removeArchive)
 	if removeSupportconfigDir:
 		shutil.rmtree(extractedSupportconfig)
 	if removeArchive:

@@ -1,8 +1,8 @@
 -------------------------------------------------------------------
-Tue Oct 27 21:27:59 UTC 2020 - jason.record@suse.com
-
+Wed Oct 28 19:47:39 UTC 2020 - jason.record@suse.com
 
 - Additions to version 1.0.1
+  + scatool copies remote scc_* supportconfigs (bsc#1178151)
   + Exits gracefully when attempting to process damaged files (bsc#1178152)
   + scatool correctly cleans up and saves archives (bsc#1178094)
 
