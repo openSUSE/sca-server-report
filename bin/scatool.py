@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2020 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2020 Oct 28
+# Modified:     2020 Nov 06
 
 ##############################################################################
 #command
@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-1.dev40'
+SVER = '1.0.9-2'
 
 ##########################################################################################
 # Python Imports
@@ -57,11 +57,13 @@ def title():
 	print
 
 def usage():
-	print "Usage:"
+	print "Usage: scatool [OPTIONS] archive_or_server"
+	print
+	print "OPTIONS"
 	print " -h       Displays this screen"
 	print " -s       Analyze the local server"
-	print " -a path  Analyze the supportconfig directory or archive"
-	print "          The path may also be an IP address of a server to analyze"
+#	print " -a path  Analyze the supportconfig directory or archive"
+#	print "          The path may also be an IP address of a server to analyze"
 	print " -o path  HTML report output directory (OUTPUT_PATH)"
 	print " -e list  Send HTML report to email address(es) provided. Comma separated list"
 	print " -r       Remove archive files (REMOVE_ARCHIVE) leaving only the report html file"
@@ -1387,9 +1389,22 @@ def analyze(*arg):
 					#aka: run supportconfig then send the output back.
 					supportconfigPrefix = "/scc_"
 					supportconfigCompression = ".txz"
-					p = subprocess.Popen(['ssh', "root@" + host, 'supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigPath + supportconfigPrefix + str(remoteSupportconfigName) + supportconfigCompression + "; rm " + remoteSupportconfigPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression + "*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+					localSupportconfigFullPath = outputPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression
+					remoteSupportconfigFullPath = remoteSupportconfigPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression
+
+#					print
+#					print "host                         = " + host
+#					print "remoteSupportconfigName      = " + remoteSupportconfigName
+#					print "remoteSupportconfigPath      = " + remoteSupportconfigPath
+#					print "supportconfigPrefix          = " + supportconfigPrefix
+#					print "supportconfigCompression     = " + supportconfigCompression
+#					print "localSupportconfigFullPath   = " + localSupportconfigFullPath
+#					print "remoteSupportconfigFullPath  = " + remoteSupportconfigFullPath
+#					print
+
+					p = subprocess.Popen(['ssh', "root@" + host, '/sbin/supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigFullPath + "; rm " + remoteSupportconfigFullPath + "*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					#create a local verson of the supportconfig output
-					localSupportconfig = open(outputPath + supportconfigPrefix + str(remoteSupportconfigName) + supportconfigCompression, 'w')
+					localSupportconfig = open(localSupportconfigFullPath, 'w')
 					condition = True
 					endOfSupportconfig = False
 
@@ -1444,7 +1459,7 @@ def analyze(*arg):
 							sys.stdout.write("=")
 							sys.stdout.flush()
 
-					supportconfigPath = outputPath + supportconfigPrefix + str(remoteSupportconfigName) + supportconfigCompression
+					supportconfigPath = localSupportconfigFullPath
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
 						print
@@ -1455,7 +1470,7 @@ def analyze(*arg):
 						print >> sys.stderr, "       Verify you can ssh as root into the remote server"
 						print >> sys.stderr, "       and manually copy the supportconfig to this server."
 						print >> sys.stderr
-						os.remove(supportconfigPath)
+						#os.remove(supportconfigPath)
 						return
 				except Exception:
 					print >> sys.stderr
@@ -1602,12 +1617,14 @@ def analyze(*arg):
 ##########################################################################################
 #read in arguments
 analyzeServer = False
+analyzeLocalServer = False
 analyzeFile = ""
 
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
 	try:
 		opts, args = getopt.getopt(sys.argv[1:], "ha:so:rcvpe:")
+#		print "opts = " + str(len(opts)) + ", args = " + str(len(args)) + ":" + str(args) + ", sys.argv = " + str(len(sys.argv)) + ", last = " + str(sys.argv[-1])
 	except getopt.GetoptError as err:
 		# print help information and exit:
 		print "Error: " + str(err) # will print something like "option -b not recognized"
@@ -1615,9 +1632,10 @@ if( len(sys.argv[1:]) > 0 ):
 		usage()
 		sys.exit(2)
 
-	analyzeServer = False
-	analyzeFile = ""
+#	print
+#	print "Options"
 	for startUpOption, startUpOptionValue in opts:
+#		print "opts = " + str(len(opts)) + ", args = " + str(len(args)) + ", sys.argv = " + str(len(sys.argv)) + ", startUpOption = " + startUpOption + ", startUpOptionValue = " + startUpOptionValue
 		if startUpOption == "-h":
 			usage()
 			sys.exit()
@@ -1633,8 +1651,8 @@ if( len(sys.argv[1:]) > 0 ):
 		elif startUpOption in ("-v"):
 			verboseMode = True
 		elif startUpOption in ("-a"):
-			analyzeServer = True
 			analyzeFile = startUpOptionValue
+			analyzeServer = True
 		elif startUpOption in ("-o"):
 			outputPath = startUpOptionValue
 		else:
@@ -1643,11 +1661,14 @@ else:
 	usage()
 	sys.exit()
 
-if( len(opts) == 0 and len(args) > 0 ):
+# an archive was given, but the -a takes priority
+if( len(args) > 0 ):
 	analyzeServer = True
-	analyzeFile = args[0]
-elif not analyzeServer:
-	print "Error: No server to analyze, use -s or -a."
+	if( analyzeFile == "" ):
+		analyzeFile = args[0]
+
+if not analyzeServer:
+	print "Error: No server to analyze, use -s or specify a supportconfig to analyze or a server to connect."
 	print
 	usage()
 	sys.exit()
