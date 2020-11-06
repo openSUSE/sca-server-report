@@ -1,7 +1,8 @@
 -------------------------------------------------------------------
-Fri Nov  6 23:29:24 UTC 2020 - jason.record@suse.com
+Fri Nov  6 23:43:06 UTC 2020 - jason.record@suse.com
 
 - Additional to version 1.0.1
+  + Fixed service pack version when GA
   + Print actual hostname instead of localhost with -s
   + scatool trys to run README file (bsc#1178528)
 

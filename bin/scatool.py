@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-5'
+SVER = '1.0.9-6'
 
 ##########################################################################################
 # Python Imports
@@ -301,6 +301,20 @@ def getHeader(*arg):
 					serverName = tmp[1].strip()
 					osArch = tmp[-2].strip()
 					IN_UNAME = False
+		elif( IN_OS_RELEASE ):
+			if "#==[" in line:
+				IN_OS_RELEASE = False
+				PRODUCTS[DISTRO][1] = str(OSVersion) + " (" + osArch + ")"
+				PRODUCTS[DISTRO][3] = str(patchLevel)
+			else:
+				if line.lower().startswith("pretty_name"):
+					OSVersion = line.split('=')[-1].replace('"', '').strip()
+				elif line.lower().startswith("version_id"):
+					VERSION_ID_INFO = line.replace('"', "").strip().split('=')[1].split('.')
+					if( len(VERSION_ID_INFO) > 1 ):
+						patchLevel = str(VERSION_ID_INFO[1])
+					else:
+						patchLevel = "0"
 		elif( IN_SUSE_RELEASE ):
 			if "#==[" in line:
 				IN_SUSE_RELEASE = False
@@ -314,19 +328,6 @@ def getHeader(*arg):
 						patchLevel = line.split('=')[-1].replace('"', '').strip()
 				else:
 					OS = line.strip()
-		elif( IN_OS_RELEASE ):
-			if "#==[" in line:
-				IN_OS_RELEASE = False
-				PRODUCTS[DISTRO][1] = str(OSVersion) + " (" + osArch + ")"
-				PRODUCTS[DISTRO][3] = str(patchLevel)
-			else:
-				if line.lower().startswith("pretty_name"):
-					OSVersion = line.split('=')[-1].replace('"', '').strip()
-				elif line.lower().startswith("version_id"):
-					if re.search(".", line):
-						patchLevel = line.split('.')[-1].replace('"', '').strip()
-					else:
-						patchLevel = "0"
 		elif( IN_OES_RELEASE):
 			if "#==[" in line:
 				IN_OES_RELEASE = False
