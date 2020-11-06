@@ -1,7 +1,9 @@
 -------------------------------------------------------------------
-Fri Nov  6 15:23:59 UTC 2020 - jason.record@suse.com
+Fri Nov  6 17:14:48 UTC 2020 - jason.record@suse.com
 
 - Additions to version 1.0.1
+  + Updated man pages for scatool(8) and scatool.conf(5)
+  + Removed CONSOLE_MODE from scatool.conf
   + should support archive or server argument and not require -a (bsc#1178229)
   + scatool copies remote scc_* supportconfigs (bsc#1178151)
   + Exits gracefully when attempting to process damaged files (bsc#1178152)

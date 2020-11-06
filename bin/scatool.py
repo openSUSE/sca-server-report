@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-2'
+SVER = '1.0.9-3'
 
 ##########################################################################################
 # Python Imports
@@ -57,7 +57,7 @@ def title():
 	print
 
 def usage():
-	print "Usage: scatool [OPTIONS] archive_or_server"
+	print "Usage: scatool [OPTIONS] [archive_or_server]"
 	print
 	print "OPTIONS"
 	print " -h       Displays this screen"

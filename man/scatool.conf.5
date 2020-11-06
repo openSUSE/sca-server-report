@@ -1,4 +1,4 @@
-.TH SCATOOL.CONF 5 "2020 Oct 26" "sca-server-report" "Supportconfig Analysis Manual"
+.TH SCATOOL.CONF 5 "2020 Nov 06" "sca-server-report" "Supportconfig Analysis Manual"
 .SH NAME
 scatool.conf - Supportconfig Analysis Tool Configuration File
 .SH DESCRIPTION
@@ -9,15 +9,6 @@ REMOVE_ARCHIVE
 Once the \fBscatool\fR processes the supportconfig archive, delete the archive, its .md5 file and extracted directory leaving only the html report file. REMOVE_ARCHIVE is disabled by default leaving the original archive in place.
 .RS
 Valid options: 0 = Disable remove archive mode, 1 = Enable remove archive mode
-.RE
-.RS
-Default: 0
-.RE
-.TP
-CONSOLE_MODE
-Start \fBscatool\fR in console mode.
-.RS
-Valid options: 0 = Disable console mode, 1 = Enable console mode
 .RE
 .RS
 Default: 0
@@ -80,7 +71,7 @@ Valid options: LOGLEVEL_NORMAL and LOGLEVEL_VERBOSE
 Default: LOGLEVEL_NORMAL
 .RE
 .SH AUTHOR
-Jason Record <jrecord@suse.com>
+Jason Record <jason.record@suse.com>
 .SH COPYRIGHT
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
