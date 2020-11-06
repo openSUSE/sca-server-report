@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Nov  6 23:29:24 UTC 2020 - jason.record@suse.com
+
+- Additional to version 1.0.1
+  + Print actual hostname instead of localhost with -s
+  + scatool trys to run README file (bsc#1178528)
+
+-------------------------------------------------------------------
 Fri Nov  6 17:14:48 UTC 2020 - jason.record@suse.com
 
 - Additions to version 1.0.1

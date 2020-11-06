@@ -24,7 +24,7 @@
 #     Jason Record (jason.record@suse.com)
 #
 ##############################################################################
-SVER = '1.0.9-3'
+SVER = '1.0.9-5'
 
 ##########################################################################################
 # Python Imports
@@ -890,6 +890,10 @@ def patternLibraryList():
 		FILES_FOUND = len(files)
 		if( FILES_FOUND > 1 ):
 			DIRECTORY[root] = FILES_FOUND
+			for onefile in files:
+				if( onefile == "README" ):
+					TOTAL_COUNT -= 1
+					break
 		elif( FILES_FOUND > 0 ):
 			if( files[0] == "README" ):
 				# Readme files don't count
@@ -1121,6 +1125,7 @@ def runPats(extractedSupportconfig):
 	patternInterval = ( int(patternStats['Total']) / int(progressBarWidth) )
 	if( patternStats['Total'] < progressBarWidth ):
 		patternInterval = 1
+	patternSkipped = False
 
 	print "Total Patterns to Apply:      " + str(patternStats['Total'])
 	if verboseMode:
@@ -1134,16 +1139,23 @@ def runPats(extractedSupportconfig):
 	for patternFile in validPatterns:
 		patternCount += 1
 		try:
-			p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			out, error = p.communicate()
-			patternValidated = parseOutput(out, error, patternFile)
+			if patternFile.endswith("README"):
+				patternSkipped = True
+			else:
+				p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				out, error = p.communicate()
+				patternValidated = parseOutput(out, error, patternFile)
 
 			#call parseOutput to see if output was expected
 			if verboseMode:
-				if patternValidated:
-					print " Done:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile
+				if patternSkipped:
+					print " Skip:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile
+					patternSkipped = False
 				else:
-					print " ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1]
+					if patternValidated:
+						print " Done:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile
+					else:
+						print " ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1]
 			else:
 				#advance the progress bar if it's not full yet
 #				sys.stdout.write("Count = " + str(patternCount) + ", Total = " + str(patternStats['Total']) + ", Progress = " + str(progressCount) + ", Width = " + str(progressBarWidth) + ", Interval = " + str(patternInterval) + "\n")
@@ -1260,10 +1272,11 @@ def analyze(*arg):
 
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
-		print "Running Supportconfig On:     localhost"
+		localHostname = str(os.uname()[1])
+		print "Running Supportconfig On:     " + localHostname
 		#run supportconfig
 
-		localSupportconfigName = str(os.uname()[1]) + "_" + str(dateStamp) + "_" + str(timeStamp)
+		localSupportconfigName = localHostname + "_" + str(dateStamp) + "_" + str(timeStamp)
 		localSupportconfigPath = "/var/log/"
 		supportconfigPath = localSupportconfigPath + "scc_" + localSupportconfigName
 
