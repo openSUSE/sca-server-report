@@ -1,7 +1,9 @@
 -------------------------------------------------------------------
-Fri Nov  6 23:43:06 UTC 2020 - jason.record@suse.com
+Thu Nov 12 15:29:10 UTC 2020 - jason.record@suse.com
 
 - Additional to version 1.0.1
+  + Updated the man pages with -r
+  + -k is retained for compatibility, but keeping the archive is default
   + Fixed service pack version when GA
   + Print actual hostname instead of localhost with -s
   + scatool trys to run README file (bsc#1178528)

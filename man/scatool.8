@@ -1,4 +1,4 @@
-.TH SCATOOL 8 "2020 Nov 06" "sca-server-report" "Supportconfig Analysis Manual"
+.TH SCATOOL 8 "2020 Nov 12" "sca-server-report" "Supportconfig Analysis Manual"
 .SH NAME
 scatool - Supportconfig Analysis (SCA) Tool
 .SH SYNOPSIS
@@ -11,7 +11,7 @@ The \fBscatool\fR is used to analyze the local server using supportconfig and th
 Displays the help screen.
 .TP
 \fB\-s\fR
-Run supportconfig on the local server and analyze it. The archive_or_server is not required when using -s because the localhost is assumed.
+Run supportconfig on the local server and analyze it. The archive_or_server is not required when using -s because the local hostname is assumed.
 .TP
 \fB\-o\fR \fIpath\fR
 The HTML report file will be written to this directory. If -o is not specified, the output file will be in the same location as the supportconfig file or directory.
@@ -19,11 +19,11 @@ The HTML report file will be written to this directory. If -o is not specified, 
 \fB\-e\fR \fIlist\fR
 Send the HTML report to the email address(es) provided. Comma separated list.
 .TP
-\fB\-k\fR
-Keep the supportconfig tar ball. Normally the supportconfig tar ball is deleted after its analysis; this options prevents its deletion.
-.TP
 \fB\-p\fR
 Prints a pattern summary of installed patterns. The summary includes the pattern directory and the number of patterns it contains.
+.TP
+\fB\-r\fR
+Remove the supportconfig tar ball or directory after analysis. The default behavior is to keep it. 
 .TP
 \fB\-v\fR
 Run in verbose mode.
@@ -40,14 +40,14 @@ for further details.
 \fBscatool -s\fR
 Runs supportconfig on the local host and analyzes its output. It saves the HTML report file to the same location at the supportconfig with the same name, but ending in .html.
 .TP
-\fBscatool /var/log/scc_localhost_131107_1315.tbz\fR
+\fBscatool /var/log/scc_localhost_131107_1315.txz\fR
 Analyzes the supportconfig archive file specified. The path can be a tarred compressed supportconfig archive or a supportconfig extracted directory, either will work. The HTML report file is saved in the save location as the supportconfig archive or directory.
 .TP
 \fBscatool /var/log/scc_localhost_131107_1315\fR
 Analyzes the supportconfig archive extracted directory.
 .TP
-\fBscatool -sk -o /opt/sca/reports/\fR
-Runs supportconfig on the local host. It saves the HTML report file in the output path specified instead of the default path of the supportconfig tarball. Keeps the supportconfig tar ball for future reference. The -k is the same as ARCHIVE_MODE=1 in /etc/sca/scatool.conf.
+\fBscatool -sr -o /opt/sca/reports/\fR
+Runs supportconfig on the local host. It saves the HTML report file in the output path specified instead of the default path of the supportconfig tarball. Once the analysis is complete, delete the supportconfig archive file and directory. The -r is the same as REMOVE_ARCHIVE=1 in /etc/sca/scatool.conf.
 .TP
 \fBscatool sles_server.company.com\fR
 Establishes an ssh connection to sles_server.company.com to run a supportconfig on the server. The supportconfig is then copied back to the local host to be analyzed. The HTML report file is saved to the default /var/log directory.

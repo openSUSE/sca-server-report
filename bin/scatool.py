@@ -1637,7 +1637,7 @@ analyzeFile = ""
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "ha:so:rcvpe:")
+		opts, args = getopt.getopt(sys.argv[1:], "ha:so:rkcvpe:")
 #		print "opts = " + str(len(opts)) + ", args = " + str(len(args)) + ":" + str(args) + ", sys.argv = " + str(len(sys.argv)) + ", last = " + str(sys.argv[-1])
 	except getopt.GetoptError as err:
 		# print help information and exit:
@@ -1656,6 +1656,9 @@ if( len(sys.argv[1:]) > 0 ):
 		elif startUpOption in ("-p"):
 			patternLibraryList()
 			sys.exit()
+		elif startUpOption in ("-k"):
+			# This is the default behavior, but -k remains for compatibility.
+			removeArchive = False
 		elif startUpOption in ("-r"):
 			removeArchive = True
 		elif startUpOption in ("-e"):
