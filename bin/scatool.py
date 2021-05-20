@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2020 SUSE LLC
+# Copyright (c) 2014-2021 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2020 Nov 06
+# Modified:     2021 May 20
 
 ##############################################################################
 #command
@@ -20,11 +20,11 @@
 #  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 #  Authors/Contributors:
-#     David Hamner (ke7oxh@gmail.com)
-#     Jason Record (jason.record@suse.com)
+#     Jason Record <jason.record@suse.com>
+#     David Hamner <ke7oxh@gmail.com>
 #
 ##############################################################################
-SVER = '1.0.9-6'
+SVER = '1.0.9-6_dev1'
 
 ##########################################################################################
 # Python Imports
@@ -1224,7 +1224,7 @@ def parseOutput(out, error, pat):
 #        options - tar extraction args
 def extractFile(archive, options):
 	print "Extracting File:              " + archive
-	process = subprocess.Popen(["/usr/bin/tar", options, archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	process = subprocess.Popen(["tar", options, archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout, stderr = process.communicate()
 	rc = process.returncode
 	if( rc > 0 ):
@@ -1286,7 +1286,7 @@ def analyze(*arg):
 #		print "supportconfigPath      = " + supportconfigPath
 
 		try:
-			p = subprocess.Popen(['/sbin/supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			p = subprocess.Popen(['supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		#if we cannot run supportconfig
 		except Exception:
 			print >> sys.stderr, "Error: Cannot run supportconfig."
@@ -1360,7 +1360,7 @@ def analyze(*arg):
 				removeSupportconfigDir = False
 		else:
 			print "Supportconfig Remote Server:  %s" % givenSupportconfigPath
-			ping_server = subprocess.Popen(["/bin/ping", "-c1 -w1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			ping_server = subprocess.Popen(["ping", "-c1 -w1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			stdout, stderr = ping_server.communicate()
 			if ping_server.returncode != 0:
 				print >> sys.stderr, "  Error: Cannot ping remote server"
@@ -1521,7 +1521,7 @@ def analyze(*arg):
 		#set TarFile and find the path of the soon to be extracted supportconfig
 		fileInfo = os.stat(supportconfigPath)
 		if( fileInfo.st_size > 0 ):
-			process = subprocess.Popen(["/usr/bin/file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			process = subprocess.Popen(["file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			stdout, stderr = process.communicate()
 #			print "Detected File Type:           " + stdout
 			if re.search("/x-xz", stdout):
