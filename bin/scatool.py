@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2021 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 May 20
+# Modified:     2021 May 25
 
 ##############################################################################
 #command
@@ -24,7 +24,7 @@
 #     David Hamner <ke7oxh@gmail.com>
 #
 ##############################################################################
-SVER = '1.0.9-6_dev1'
+SVER = '1.0.9-8'
 
 ##########################################################################################
 # Python Imports
@@ -196,10 +196,7 @@ def getHeader(*arg):
 	#reset variables
 	DISTRO = 0
 	supportconfigVersion = ""
-	oesVersion = ""
-	oesPatchLevel = ""
 	OS = ""
-	OES = ""
 	INFO = ""
 	VER = ""
 	osArch = ""
@@ -233,8 +230,6 @@ def getHeader(*arg):
 	IN_UNAME = False
 	IN_OS_RELEASE = False
 	IN_SUSE_RELEASE = False
-	IN_OES_RELEASE = False
-	IN_FILR = False
 	for line in BASIC_ENV:
 		if "Script Version:" in line:
 			supportconfigVersion = line.split(':')[-1].strip()
@@ -252,10 +247,6 @@ def getHeader(*arg):
 			IN_OS_RELEASE = True
 		elif "/etc/SuSE-release" in line:
 			IN_SUSE_RELEASE = True
-		elif "/etc/novell-release" in line:
-			IN_OES_RELEASE = True
-		elif "/etc/Novell-VA-release" in line:
-			IN_FILR = True
 		elif( IN_DATE ):
 			if "#==[" in line:
 				IN_DATE = False
@@ -328,30 +319,6 @@ def getHeader(*arg):
 						patchLevel = line.split('=')[-1].replace('"', '').strip()
 				else:
 					OS = line.strip()
-		elif( IN_OES_RELEASE):
-			if "#==[" in line:
-				IN_OES_RELEASE = False
-				PRODUCTS.insert(1, ['Product:', OES, 'Service Pack:', oesPatchLevel])
-			else:
-				if( len(OES) > 0 ):
-					if line.lower().startswith("version"):
-						OESVersion = line.split('=')[-1].strip().split('.')[0]
-					elif line.lower().startswith("patchlevel"):
-						oesPatchLevel = line.split('=')[-1].strip()
-				else:
-					OES = line.strip()
-		elif( IN_FILR ):
-			if "#==[" in line:
-				IN_FILR = False
-				if( INFO and VER ):
-					PRODUCTS.append(['Product:', INFO, 'Version:', VER])
-				INFO = ""
-				VER = ""
-			else:
-				if line.lower().startswith("product"):
-					INFO = line.split('=')[-1].strip()
-				elif line.lower().startswith("version"):
-					VER = line.split('=')[-1].strip()
 
 	del BASIC_ENV
 
@@ -791,16 +758,8 @@ def getTableHtml(val):
 							patternPackage = 'sca-patterns-sle10'
 						elif 'sle9' in patternRelativePath:
 							patternPackage = 'sca-patterns-sle09'
-					elif 'OES' in patternRelativePath:
-						patternPackage = 'sca-patterns-oes'
 					elif 'HAE' in patternRelativePath:
 						patternPackage = 'sca-patterns-hae'
-					elif 'edirectory' in patternRelativePath:
-						patternPackage = 'sca-patterns-edir'
-					elif 'filr' in patternRelativePath:
-						patternPackage = 'sca-patterns-filr'
-					elif 'groupwise' in patternRelativePath:
-						patternPackage = 'sca-patterns-groupwise'
 					patternSourceURL = 'https://github.com/g23guy/' + patternPackage + '/blob/master/' + patternRelativePath
 					
 					#put it in html form
@@ -926,15 +885,11 @@ def patternPreProcessor(extractedSupportconfig):
 	print "Total Patterns Available:     " + str(TOTAL_COUNT)
 	
 	#first get the pattern directory paths for all possible valid patterns
-	#build directory with SLE and OES versions from basic-environment.txt
+	#build directory with SLE versions from basic-environment.txt
 	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
 	basicEnvLines = basicEnv.readlines()
 	SLE_VERSION = 0
 	SLE_SP = 0
-	OES_VERSION = 0
-	OES_SP = 0
-	inOES = False
-	notOES = True
 	inSLES = False
 	inSLESOS = False
 	for lineNumber in range(0, len(basicEnvLines)):
@@ -955,29 +910,13 @@ def patternPreProcessor(extractedSupportconfig):
 				SLE_VERSION = basicEnvLines[lineNumber].split("=")[1].strip()
 			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
 				SLE_SP = basicEnvLines[lineNumber].split("=")[1].strip()
-		elif inOES:
-			if "#==[" in basicEnvLines[lineNumber] :
-				inOES = False
-			elif "Open Enterprise" in basicEnvLines[lineNumber]:
-				notOES = False
-			elif basicEnvLines[lineNumber].startswith("VERSION"):
-				OES_VERSION = basicEnvLines[lineNumber].split("=")[1].strip().split(".")[0]
-			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
-				OES_SP = basicEnvLines[lineNumber].split("=")[1].strip()
-		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
-			inSLES = True
 		elif "# /etc/os-release" in basicEnvLines[lineNumber] :
 			inSLESOS = True
-		elif "# /etc/novell-release" in basicEnvLines[lineNumber] :
-			inOES = True
-	if notOES:
-		OES_VERSION = 0
+		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
+			inSLES = True
 	if( SLE_VERSION > 0 ):
 		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "all/")
 		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "sp" + str(SLE_SP) + "/")
-	if( OES_VERSION > 0 ):
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "all/")
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/OES/oes" + str(OES_VERSION) + "sp" + str(OES_SP) + "/")
 
 	#build directory of additional required patterns by add-on products
 	rpmFile = open(extractedSupportconfig + "/rpm.txt")
@@ -988,14 +927,6 @@ def patternPreProcessor(extractedSupportconfig):
 	for line in RPMs:
 		if inHAE.search(line) and not line.startswith("sca-patterns"):
 			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
-		elif "ndsserv " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/edirectory/"))
-		elif "groupwise" in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
-		elif "datasync-common " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/groupwise/"))
-		elif "filr-famtd " in line.lower() and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/filr/"))
 		elif SUMA.search(line) and not line.startswith("sca-patterns"):
 			VER_MAJOR = str(line.split()[-1].split('.')[0])
 			VER_MINOR = str(line.split()[-1].split('.')[1])
