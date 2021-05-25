@@ -24,7 +24,7 @@
 #     David Hamner <ke7oxh@gmail.com>
 #
 ##############################################################################
-SVER = '1.0.9-8.dev1'
+SVER = '1.0.9-11'
 
 ##########################################################################################
 # Python Imports
@@ -1423,6 +1423,7 @@ def analyze(*arg):
 					return
 		else:
 			supportconfigPath = givenSupportconfigPath
+	supportconfigPath = supportconfigPath.rstrip("/")
 
 	OS_PATH = os.environ["PWD"]
 	if( len(OS_PATH) > 0 ):
