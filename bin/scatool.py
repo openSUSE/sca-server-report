@@ -24,7 +24,7 @@
 #     David Hamner <ke7oxh@gmail.com>
 #
 ##############################################################################
-SVER = '1.0.9-8'
+SVER = '1.0.9-8.dev1'
 
 ##########################################################################################
 # Python Imports
@@ -1448,6 +1448,9 @@ def analyze(*arg):
 	#if given a supportconfig archive
 	if os.path.isfile(supportconfigPath):
 #		print "Evaluating File:              " + supportconfigPath
+		if( len(outputPath) > 0 ):
+			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
+
 		#extract file
 		#set TarFile and find the path of the soon to be extracted supportconfig
 		fileInfo = os.stat(supportconfigPath)
@@ -1499,6 +1502,7 @@ def analyze(*arg):
 
 	#if given an extracted supportconfig directory
 	elif os.path.isdir(supportconfigPath):
+#		print(" + Directory outputPath = " + outputPath)
 		extractedSupportconfig = supportconfigPath
 		if( len(outputPath) > 0 ):
 			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
