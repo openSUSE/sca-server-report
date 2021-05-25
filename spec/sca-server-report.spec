@@ -1,6 +1,6 @@
 # spec file for package sca-server-report
 #
-# Copyright (c) 2017-2020 SUSE LINUX GmbH, Nuernberg, Germany.
+# Copyright (c) 2017-2021 SUSE LINUX GmbH, Nuernberg, Germany.
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
