@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2021 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 Oct 04
+# Modified:     2021 Oct 05
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev2'
+SVER = '1.5.0-0.dev3'
 
 ##########################################################################################
 # Python Imports
@@ -1076,7 +1076,7 @@ def runPats(extractedSupportconfig):
 			else:
 				p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				out, error = p.communicate()
-				patternValidated = parseOutput(out, error, patternFile)
+				patternValidated = parseOutput(out.decode('ascii'), error.decode('ascii'), patternFile)
 
 			#call parseOutput to see if output was expected
 			if verboseMode:
