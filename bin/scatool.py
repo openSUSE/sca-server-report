@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2021 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 Oct 05
+# Modified:     2021 Oct 06
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev3'
+SVER = '1.5.0-0.dev5'
 
 ##########################################################################################
 # Python Imports
@@ -1458,6 +1458,8 @@ def analyze(*arg):
 		if( fileInfo.st_size > 0 ):
 			process = subprocess.Popen(["file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			stdout, stderr = process.communicate()
+			stdout = stdout.decode('ascii')
+			stderr = stderr.decode('ascii')
 #			print "Detected File Type:           " + stdout
 			if re.search("/x-xz", stdout):
 				if supportconfigPath.endswith('.txz'):
