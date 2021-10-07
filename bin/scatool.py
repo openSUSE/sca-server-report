@@ -50,9 +50,9 @@ import email.mime.base
 # HELP FUNCTIONS
 ##########################################################################################
 def title():
-	print("################################################################################")
+	print("#####################################################################################")
 	print("#   SCA Tool v" + SVER)
-	print("################################################################################")
+	print("#####################################################################################")
 	print()
 
 def usage():
@@ -1053,7 +1053,7 @@ def runPats(extractedSupportconfig):
 
 	validPatterns = patternPreProcessor(extractedSupportconfig)
 
-	progressBarWidth = 48
+	progressBarWidth = 52
 	progressCount = 0
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
