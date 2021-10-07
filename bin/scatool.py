@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2021 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 Oct 06
+# Modified:     2021 Oct 07
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev5.1'
+SVER = '1.5.0-0.dev5.5'
 
 ##########################################################################################
 # Python Imports
@@ -140,6 +140,8 @@ global verboseMode
 global analysisDateTime
 global patternStats
 global patternDict
+global OUTFMT
+OUTFMT = '{0:30} {1}'
 knownClasses = []
 results = []
 patternErrorList = []
@@ -872,6 +874,7 @@ def patternLibraryList():
 #returns a list of applicable patterns
 def patternPreProcessor(extractedSupportconfig):
 	global verboseMode
+	global OUTFMT
 	patternFileList = []
 	patternDirectories = [SCA_PATTERN_PATH + "/local/"] #always include the local patterns
 
@@ -879,7 +882,7 @@ def patternPreProcessor(extractedSupportconfig):
 	TOTAL_COUNT=0
 	for root, dirs, files in os.walk(SCA_PATTERN_PATH):
 		TOTAL_COUNT += len(files)
-	print("Total Patterns Available:     " + str(TOTAL_COUNT))
+	print(OUTFMT.format('Total Patterns Available:', TOTAL_COUNT))
 	
 	#first get the pattern directory paths for all possible valid patterns
 	#build directory with SLE versions from basic-environment.txt
@@ -935,7 +938,7 @@ def patternPreProcessor(extractedSupportconfig):
 	for systemElement in patternDirectories:
 		systemDefinition.append(systemElement.split("/")[-2])
 	systemDefinition = sorted(systemDefinition)
-	print("Pattern Definition Filter:    " + " ".join(systemDefinition))
+	print(OUTFMT.format('Pattern Definition Filter:', ' '.join(systemDefinition)))
 
 	#second build the list of valid patterns from the patternDirectories
 	#walk through each valid pattern directory
@@ -962,11 +965,12 @@ def emailSCAReport(supportconfigFile):
 	global serverName
 	global analysisDateTime
 	global patternStats
+	global OUTFMT
 	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 
 	if( len(emailAddrList) > 0 ):
-		print("Emailing SCA Report To:       " + str(emailAddrList))
-#		print "Pattern Stats: " + str(patternStats)
+		print(OUTFMT.format('Emailing SCA Report To:', emailAddrList))
+		#print(OUTFMT.format('Pattern Stats:', patternStats))
 	else:
 		return 0
 	SERVER = 'localhost'
@@ -1044,6 +1048,7 @@ def runPats(extractedSupportconfig):
 	global patternErrorList
 	global patternStats
 	global verboseMode
+	global OUTFMT
 	results = []
 
 	validPatterns = patternPreProcessor(extractedSupportconfig)
@@ -1057,11 +1062,11 @@ def runPats(extractedSupportconfig):
 		patternInterval = 1
 	patternSkipped = False
 
-	print("Total Patterns to Apply:      " + str(patternStats['Total']))
+	print(OUTFMT.format('Total Patterns to Apply:', patternStats['Total']))
 	if verboseMode:
-		print("Analyzing Supportconfig:      In Progress")
+		print(OUTFMT.format('Analyzing Supportconfig:', 'In Progress'))
 	else:
-		sys.stdout.write("Analyzing Supportconfig:      [%s]" % (" " * progressBarWidth))
+		sys.stdout.write("Analyzing Supportconfig:       [%s]" % (" " * progressBarWidth))
 		sys.stdout.flush()
 		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
 #		sys.stdout.write("\n")
@@ -1111,8 +1116,8 @@ def runPats(extractedSupportconfig):
 
 	patternStats['Applied'] = len(results)
 	patternStats['Errors'] = len(patternErrorList)
-	print("Applicable Patterns:          " + str(patternStats['Applied']))
-	print("Pattern Execution Errors:     " + str(patternStats['Errors']))
+	print(OUTFMT.format('Applicable Patterns:', patternStats['Applied']))
+	print(OUTFMT.format('Pattern Execution Errors:', patternStats['Errors']))
 	if not verboseMode:
 		for patternErrorStr in patternErrorList:
 			print("  " + patternErrorStr)
@@ -1152,19 +1157,22 @@ def parseOutput(out, error, pat):
 # Input: archive - path to the supportconfig decompressed tarball
 #        options - tar extraction args
 def extractFile(archive, options):
-	print("Extracting File:              " + archive)
+	global OUTFMT
+	print(OUTFMT.format('Extracting File:', archive))
 	archdir = os.path.dirname(archive)
 	process = subprocess.Popen(["tar", '-v', options, archive, "-C", archdir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout, stderr = process.communicate()
-	#outfile = stdout.decode('ascii').splitlines()[0]
+	outfile = stdout.decode('ascii').splitlines()[0]
+	pathInTarball = archdir + '/' + os.path.dirname(outfile)
+	#print(OUTFMT.format('Embedded Directory:', pathInTarball))
 	rc = process.returncode
 	if( rc > 0 ):
-		print("  Error: Cannot extract tar file", file=sys.stderr)
+		print("+ Error: Cannot extract tar file", file=sys.stderr)
 		print(stderr, file=sys.stderr)
 		print(file=sys.stderr)
 		sys.exit(7)
 	else:
-		return True
+		return pathInTarball
 
 ##########################################################################################
 # Core fuctions
@@ -1181,6 +1189,7 @@ def analyze(*arg):
 	global removeArchive
 	global verboseMode
 	global analysisDateTime
+	global OUTFMT
 	#reset stuff
 	dateStamp = analysisDateTime.strftime("%y%m%d")
 	timeStamp = str(analysisDateTime.hour).zfill(2) + str(analysisDateTime.minute).zfill(2) + str(analysisDateTime.second).zfill(2)
@@ -1189,6 +1198,7 @@ def analyze(*arg):
 	extractedSupportconfig = ""
 	supportconfigPath = ""
 	extractedPath = ""
+	extractedEmeddedPath = ""
 	isIP = False
 	host = "None"
 	isRemoteServer = False
@@ -1205,7 +1215,7 @@ def analyze(*arg):
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
 		localHostname = str(os.uname()[1])
-		print("Running Supportconfig On:     " + localHostname)
+		print(OUTFMT.format('Running Supportconfig On:', localHostname))
 		#run supportconfig
 
 		localSupportconfigName = localHostname + "_" + str(dateStamp) + "_" + str(timeStamp)
@@ -1228,7 +1238,7 @@ def analyze(*arg):
 			removeSupportconfigDir = False
 
 		if verboseMode:
-			print("Gathering Supportconfig:      In Progress")
+			print(OUTFMT.format('Gathering Supportconfig:', 'In Progress'))
 		else:
 			sys.stdout.write("Gathering Supportconfig:      [%s]" % (" " * progressBarWidth))
 			sys.stdout.flush()
@@ -1277,20 +1287,20 @@ def analyze(*arg):
 			givenSupportconfigPath = os.getcwd()
 		elif( re.search("/", givenSupportconfigPath) ):
 			if not os.path.exists(givenSupportconfigPath):
-				print("Supportconfig File:           %s" % givenSupportconfigPath)
+				print(OUTFMT.format('Supportconfig File:', givenSupportconfigPath))
 				print("  Error: File/Directory not found", file=sys.stderr)
 				print(file=sys.stderr)
 				usage()
 				return
 
 		if os.path.isfile(givenSupportconfigPath):
-			print("Supportconfig File:           %s" % givenSupportconfigPath)
+			print(OUTFMT.format('Supportconfig File:', givenSupportconfigPath))
 		elif os.path.isdir(givenSupportconfigPath):
-			print("Supportconfig Directory:      %s" % givenSupportconfigPath)
+			print(OUTFMT.format('Supportconfig Directory:', givenSupportconfigPath))
 			if not removeArchive:
 				removeSupportconfigDir = False
 		else:
-			print("Supportconfig Remote Server:  %s" % givenSupportconfigPath)
+			print(OUTFMT.format('Supportconfig Remote Server:', givenSupportconfigPath))
 			ping_server = subprocess.Popen(["ping", "-c1 -w1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			stdout, stderr = ping_server.communicate()
 			if ping_server.returncode != 0:
@@ -1320,7 +1330,7 @@ def analyze(*arg):
 				supportconfigPath = givenSupportconfigPath
 			else:
 				#we have an IP
-				print("Running Supportconfig On:     " + givenSupportconfigPath)
+				print(OUTFMT.format('Running Supportconfig On:', givenSupportconfigPath))
 				sys.stdout.write("  Waiting          ")
 				sys.stdout.flush()
 				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
@@ -1366,7 +1376,7 @@ def analyze(*arg):
 							if ( out == "=" and not remoteProgressBarSetup ):
 								remoteProgressBarSetup = True
 								if verboseMode:
-									print("Gathering Supportconfig:      In Progress")
+									print(OUTFMT.format('Gathering Supportconfig:', 'In Progress'))
 								else:
 									sys.stdout.write("Gathering Supportconfig:      [%s]" % (" " * progressBarWidth))
 									sys.stdout.flush()
@@ -1408,7 +1418,7 @@ def analyze(*arg):
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
 						print()
-						print("Copied Supportconfig:         " + givenSupportconfigPath + " -> localhost")
+						print(OUTFMT.format('Copied Supportconfig:', givenSupportconfigPath + " -> localhost"))
 					else:
 						print(file=sys.stderr)
 						print("Error: Failed to copy supportconfig from remote server", file=sys.stderr)
@@ -1440,21 +1450,20 @@ def analyze(*arg):
 	else:
 		extractedSupportconfig = base
 
-	#print()
-	#print(" + Base =                   " + base)
-	#print(" + extractedSupportconfig = " + extractedSupportconfig)
-	#print()
+	#print(OUTFMT.format('+ Base:', base))
+	#print(OUTFMT.format('+ extractedSupportconfig:', extractedSupportconfig))
 	htmlOutputFile = extractedSupportconfig + "_report.html"
 
 	#if given a supportconfig archive
 	if os.path.isfile(supportconfigPath):
-#		print("Evaluating File:              " + supportconfigPath)
+		#print(OUTFMT.format('Evaluating File:', supportconfigPath))
 		if( len(outputPath) > 0 ):
 			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
 
 		#extract file
 		#set TarFile and find the path of the soon to be extracted supportconfig
 		fileInfo = os.stat(supportconfigPath)
+		embeddedPath = ''
 		if( fileInfo.st_size > 0 ):
 			process = subprocess.Popen(["file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			stdout, stderr = process.communicate()
@@ -1463,37 +1472,37 @@ def analyze(*arg):
 #			print("Detected File Type:           " + stdout)
 			if re.search("/x-xz", stdout):
 				if supportconfigPath.endswith('.txz'):
-					extractFile(supportconfigPath, "-Jxf")
+					embeddedPath = extractFile(supportconfigPath, "-Jxf")
 				elif supportconfigPath.endswith('.tar.xz'):
-					extractFile(supportconfigPath, "-Jxf")
+					embeddedPath = extractFile(supportconfigPath, "-Jxf")
 				else:
 					print("Error: Unknown xz extension", file=sys.stderr)
 					print(file=sys.stderr)
 					return
 			elif re.search("/x-bzip2", stdout):
 				if supportconfigPath.endswith('.tbz'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tbz2'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz2'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				else:
 					print("Error: Unknown bzip2 extension", file=sys.stderr)
 					print(file=sys.stderr)
 					return
 			elif re.search("/x-gzip", stdout):
 				if supportconfigPath.endswith('.tgz'):
-					extractFile(supportconfigPath, "-zxf")
+					embeddedPath = extractFile(supportconfigPath, "-zxf")
 				elif supportconfigPath.endswith('.tar.gz'):
-					extractFile(supportconfigPath, "-zxf")
+					embeddedPath = extractFile(supportconfigPath, "-zxf")
 				else:
 					print("Error: Unknown gzip extension", file=sys.stderr)
 					print(file=sys.stderr)
 					return
 			elif re.search("/x-tar", stdout):
-				extractFile(supportconfigPath, "-xf")
+				embeddedPath = extractFile(supportconfigPath, "-xf")
 			else:
 				print("  Warning: Unknown supportconfig tar file format", file=sys.stderr)
 				print(file=sys.stderr)
@@ -1505,7 +1514,8 @@ def analyze(*arg):
 
 	#if given an extracted supportconfig directory
 	elif os.path.isdir(supportconfigPath):
-#		print(" + Directory outputPath = " + outputPath)
+		#print(OUTFMT.format('Evaluating Directory:', supportconfigPath))
+		#print(OUTFMT.format('+ Directory outputPath:', outputPath))
 		extractedSupportconfig = supportconfigPath
 		if( len(outputPath) > 0 ):
 			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
@@ -1517,15 +1527,20 @@ def analyze(*arg):
 			del tmp[-1]
 			htmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
 
-	extractedSupportconfig = extractedSupportconfig + "/"
 
-	print("Processing Directory:         " + extractedSupportconfig)
-
-	if not os.path.isdir(extractedSupportconfig):
+	if os.path.isdir(extractedSupportconfig):
+		extractedSupportconfig = extractedSupportconfig + "/"
+		print(OUTFMT.format('Processing Directory:', extractedSupportconfig))
+	elif os.path.isdir(embeddedPath):
+		extractedSupportconfig = embeddedPath + "/"
+		print(OUTFMT.format('Processing Embedded Directory:', extractedSupportconfig))
+	else:
 		#not a supportconfig directory or mismatched name
+		print(OUTFMT.format('Processing Directory:', extractedSupportconfig))
 		print("  Error: Extracted directory does not match supportconfig filename", file=sys.stderr)
 		print(file=sys.stderr)
 		return
+
 
 	#check for required supportconfig files...
 	testFile = "basic-environment.txt"
@@ -1546,7 +1561,7 @@ def analyze(*arg):
 	#run patterns on supportconfig
 	runPats(extractedSupportconfig)
 	getHtml(htmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
-	print(("SCA Report File:              %s" % htmlOutputFile))
+	print(OUTFMT.format('SCA Report File:', htmlOutputFile))
 
 	emailSCAReport(supportconfigPath)
 
