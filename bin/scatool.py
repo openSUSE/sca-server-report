@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev5.7'
+SVER = '1.5.0-0.dev5.10'
 
 ##########################################################################################
 # Python Imports
@@ -1582,6 +1582,7 @@ def analyze(*arg):
 	if removeArchive:
 		if os.path.isfile(supportconfigPath):
 			os.remove(supportconfigPath)
+			print(fieldOutput.format('Deleting Supportconfig:', supportconfigPath))
 		if os.path.isfile(supportconfigPath + ".md5"):
 			os.remove(supportconfigPath + ".md5")
 	print()
