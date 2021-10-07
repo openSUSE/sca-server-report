@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev5'
+SVER = '1.5.0-0.dev5.1'
 
 ##########################################################################################
 # Python Imports
@@ -61,8 +61,6 @@ def usage():
 	print("OPTIONS")
 	print(" -h       Displays this screen")
 	print(" -s       Analyze the local server")
-#	print " -a path  Analyze the supportconfig directory or archive"
-#	print "          The path may also be an IP address of a server to analyze"
 	print(" -o path  HTML report output directory (OUTPUT_PATH)")
 	print(" -e list  Send HTML report to email address(es) provided. Comma separated list")
 	print(" -r       Remove archive files (REMOVE_ARCHIVE) leaving only the report html file")
@@ -1155,8 +1153,10 @@ def parseOutput(out, error, pat):
 #        options - tar extraction args
 def extractFile(archive, options):
 	print("Extracting File:              " + archive)
-	process = subprocess.Popen(["tar", options, archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	archdir = os.path.dirname(archive)
+	process = subprocess.Popen(["tar", '-v', options, archive, "-C", archdir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout, stderr = process.communicate()
+	#outfile = stdout.decode('ascii').splitlines()[0]
 	rc = process.returncode
 	if( rc > 0 ):
 		print("  Error: Cannot extract tar file", file=sys.stderr)
@@ -1440,15 +1440,15 @@ def analyze(*arg):
 	else:
 		extractedSupportconfig = base
 
-#	print
-#	print " + Base =                   " + base
-#	print " + extractedSupportconfig = " + extractedSupportconfig
-#	print
+	#print()
+	#print(" + Base =                   " + base)
+	#print(" + extractedSupportconfig = " + extractedSupportconfig)
+	#print()
 	htmlOutputFile = extractedSupportconfig + "_report.html"
 
 	#if given a supportconfig archive
 	if os.path.isfile(supportconfigPath):
-#		print "Evaluating File:              " + supportconfigPath
+#		print("Evaluating File:              " + supportconfigPath)
 		if( len(outputPath) > 0 ):
 			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
 
@@ -1460,7 +1460,7 @@ def analyze(*arg):
 			stdout, stderr = process.communicate()
 			stdout = stdout.decode('ascii')
 			stderr = stderr.decode('ascii')
-#			print "Detected File Type:           " + stdout
+#			print("Detected File Type:           " + stdout)
 			if re.search("/x-xz", stdout):
 				if supportconfigPath.endswith('.txz'):
 					extractFile(supportconfigPath, "-Jxf")
