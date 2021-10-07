@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev5.5'
+SVER = '1.5.0-0.dev5.6'
 
 ##########################################################################################
 # Python Imports
@@ -1057,7 +1057,7 @@ def runPats(extractedSupportconfig):
 	progressCount = 0
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
-	patternInterval = ( int(patternStats['Total']) / int(progressBarWidth) )
+	patternInterval = int( int(patternStats['Total']) / int(progressBarWidth) )
 	if( patternStats['Total'] < progressBarWidth ):
 		patternInterval = 1
 	patternSkipped = False
