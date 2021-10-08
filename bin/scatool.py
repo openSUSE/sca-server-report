@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev5.10'
+SVER = '1.5.0-0.dev5.11'
 
 ##########################################################################################
 # Python Imports
@@ -1062,6 +1062,7 @@ def runPats(extractedSupportconfig):
 	progressCount = 0
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
+	verboseLine = '{0:6} {1:>5} of {2} {3}'
 	patternInterval = int( int(patternStats['Total']) / int(progressBarWidth) )
 	if( patternStats['Total'] < progressBarWidth ):
 		patternInterval = 1
@@ -1089,13 +1090,14 @@ def runPats(extractedSupportconfig):
 			#call parseOutput to see if output was expected
 			if verboseMode:
 				if patternSkipped:
-					print(" Skip:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile)
+					print(verboseLine.format('Skip:', patternCount, patternStats['Total'], patternFile))
 					patternSkipped = False
 				else:
 					if patternValidated:
-						print(" Done:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile)
+						print(verboseLine.format('Done:', patternCount, patternStats['Total'], patternFile))
+						#print(" Done:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile)
 					else:
-						print(" ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1])
+						print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList[-1]))
 			else:
 				#advance the progress bar if it's not full yet
 #				sys.stdout.write("Count = " + str(patternCount) + ", Total = " + str(patternStats['Total']) + ", Progress = " + str(progressCount) + ", Width = " + str(progressBarWidth) + ", Interval = " + str(patternInterval) + "\n")
@@ -1109,7 +1111,7 @@ def runPats(extractedSupportconfig):
 		except Exception as e:
 			patternErrorList.append(patternFile + " -- Pattern runtime error: " + str(e))
 			if verboseMode:
-				print(" ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1])
+				print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList[-1]))
 
 	#make output look nice
 	if not verboseMode:
