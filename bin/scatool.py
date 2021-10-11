@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev6.5'
+SVER = '1.5.0-0.dev6.6'
 
 ##########################################################################################
 # Python Imports
@@ -1118,9 +1118,7 @@ def runPats(extractedSupportconfig):
 						sys.stdout.flush()
 		except Exception as e:
 			patternErrorList.append(patternFile + " -- Pattern runtime error: " + str(e))
-			if( loglevel['current'] >= loglevel['debug'] ):
-				print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList))
-			elif( loglevel['current'] >= loglevel['verbose'] ):
+			if( loglevel['current'] >= loglevel['verbose'] ):
 				print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList[-1]))
 
 	#make output look nice
@@ -1146,6 +1144,7 @@ def runPats(extractedSupportconfig):
 #check output. If output is good add it to results, updates patternErrorList with invalid pattern output
 def parseOutput(out, error, pat):
 	global results
+	global loglevel
 	global patternErrorList
 	#if no errors
 	if error == "":
@@ -1165,7 +1164,10 @@ def parseOutput(out, error, pat):
 			results.append(full)
 		return True
 	else:
-		patternErrorList.append(pat + " -- Output error: " + str(error.split("\n")[0]))
+		if( loglevel['current'] >= loglevel['debug'] ):
+			patternErrorList.append(pat + " -- Output error: " + str(error))
+		else:
+			patternErrorList.append(pat + " -- Output error: " + str(error.split("\n")[0]))
 		return False
 
 ##########################################################################################
