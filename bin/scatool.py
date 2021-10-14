@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev6.7'
+SVER = '1.5.0-0.dev6.7_1'
 
 ##########################################################################################
 # Python Imports
@@ -1257,7 +1257,7 @@ def analyze(*arg):
 		try:
 			if( loglevel['current'] >= loglevel['debug'] ):
 				print(fieldOutput.format('+ Process Command', "supportconfig -bB " + localSupportconfigName + " -t " + localSupportconfigPath))
-			p = subprocess.Popen(['supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newline=True)
+			p = subprocess.Popen(['supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 		#if we cannot run supportconfig
 		except Exception:
 			print("Error: Cannot run supportconfig.", file=sys.stderr)
