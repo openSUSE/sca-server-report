@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2021 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 Oct 11
+# Modified:     2021 Oct 14
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev6.6'
+SVER = '1.5.0-0.dev6.7'
 
 ##########################################################################################
 # Python Imports
@@ -1091,9 +1091,9 @@ def runPats(extractedSupportconfig):
 			else:
 				if( loglevel['current'] >= loglevel['debug'] ):
 					print(fieldOutput.format('+ Process Command', patternFile + " -p " + extractedSupportconfig))
-				p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 				out, error = p.communicate()
-				patternValidated = parseOutput(out.decode('ascii'), error.decode('ascii'), patternFile)
+				patternValidated = parseOutput(out, error, patternFile)
 
 			#call parseOutput to see if output was expected
 			if( loglevel['current'] >= loglevel['verbose'] ):
@@ -1184,9 +1184,9 @@ def extractFile(archive, options):
 	archdir = os.path.dirname(archive)
 	if( loglevel['current'] >= loglevel['debug'] ):
 		print(fieldOutput.format('+ Process Command', "tar -v " + options + " "  + archive + " -C " + archdir))
-	process = subprocess.Popen(["tar", '-v', options, archive, "-C", archdir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	process = subprocess.Popen(["tar", '-v', options, archive, "-C", archdir], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	stdout, stderr = process.communicate()
-	outfile = stdout.decode('ascii').splitlines()[0]
+	outfile = stdout.splitlines()[0]
 	pathInTarball = archdir + '/' + os.path.dirname(outfile)
 	if( loglevel['current'] >= loglevel['debug'] ):
 		print(fieldOutput.format('+ Embedded Directory', pathInTarball))
@@ -1257,7 +1257,7 @@ def analyze(*arg):
 		try:
 			if( loglevel['current'] >= loglevel['debug'] ):
 				print(fieldOutput.format('+ Process Command', "supportconfig -bB " + localSupportconfigName + " -t " + localSupportconfigPath))
-			p = subprocess.Popen(['supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			p = subprocess.Popen(['supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newline=True)
 		#if we cannot run supportconfig
 		except Exception:
 			print("Error: Cannot run supportconfig.", file=sys.stderr)
@@ -1280,7 +1280,6 @@ def analyze(*arg):
 		#--DO--
 		while condition:
 			out = p.stdout.read(1)
-			out = out.decode('ascii')
 			if out != '':
 				alloutput = alloutput + out
 				if( loglevel['current'] >= loglevel['verbose'] ):
@@ -1508,10 +1507,8 @@ def analyze(*arg):
 		if( fileInfo.st_size > 0 ):
 			if( loglevel['current'] >= loglevel['debug'] ):
 				print(fieldOutput.format('+ Process Command', "file --brief --mime-type " + supportconfigPath))
-			process = subprocess.Popen(["file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			process = subprocess.Popen(["file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 			stdout, stderr = process.communicate()
-			stdout = stdout.decode('ascii')
-			stderr = stderr.decode('ascii')
 			if( loglevel['current'] >= loglevel['debug'] ):
 				print(fieldOutput.format("+ Detected File Type", stdout))
 			if re.search("/x-xz", stdout):
