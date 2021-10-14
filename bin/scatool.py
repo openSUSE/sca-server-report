@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev6.7_1'
+SVER = '1.5.0-0.dev6.8'
 
 ##########################################################################################
 # Python Imports
@@ -1089,9 +1089,10 @@ def runPats(extractedSupportconfig):
 			if patternFile.endswith("README"):
 				patternSkipped = True
 			else:
+				cmd = patternFile + " -p " + extractedSupportconfig
 				if( loglevel['current'] >= loglevel['debug'] ):
-					print(fieldOutput.format('+ Process Command', patternFile + " -p " + extractedSupportconfig))
-				p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+					print(fieldOutput.format('+ Process Command', cmd))
+				p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 				out, error = p.communicate()
 				patternValidated = parseOutput(out, error, patternFile)
 
@@ -1182,9 +1183,10 @@ def extractFile(archive, options):
 	if( loglevel['current'] >= loglevel['normal'] ):
 		print(fieldOutput.format('Extracting File:', archive))
 	archdir = os.path.dirname(archive)
+	cmd = "tar -v " + options + " "  + archive + " -C " + archdir
 	if( loglevel['current'] >= loglevel['debug'] ):
-		print(fieldOutput.format('+ Process Command', "tar -v " + options + " "  + archive + " -C " + archdir))
-	process = subprocess.Popen(["tar", '-v', options, archive, "-C", archdir], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+		print(fieldOutput.format('+ Process Command', cmd))
+	process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	stdout, stderr = process.communicate()
 	outfile = stdout.splitlines()[0]
 	pathInTarball = archdir + '/' + os.path.dirname(outfile)
@@ -1255,13 +1257,13 @@ def analyze(*arg):
 			print(fieldOutput.format('+ supportconfigPath', supportconfigPath))
 
 		try:
+			cmd = "supportconfig -bB " + localSupportconfigName + " -t " + localSupportconfigPath
 			if( loglevel['current'] >= loglevel['debug'] ):
-				print(fieldOutput.format('+ Process Command', "supportconfig -bB " + localSupportconfigName + " -t " + localSupportconfigPath))
-			p = subprocess.Popen(['supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+				print(fieldOutput.format('+ Process Command', cmd))
+			p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 		#if we cannot run supportconfig
 		except Exception:
-			print("Error: Cannot run supportconfig.", file=sys.stderr)
-			print(file=sys.stderr)
+			print("Error: Cannot run supportconfig\n", file=sys.stderr)
 			return
 		condition = True
 		if not removeArchive:
@@ -1332,15 +1334,15 @@ def analyze(*arg):
 			if not removeArchive:
 				removeSupportconfigDir = False
 		else:
+			cmd = "ping -c1 -w1 " + givenSupportconfigPath
 			if( loglevel['current'] >= loglevel['normal'] ):
 				print(fieldOutput.format('Supportconfig Remote Server:', givenSupportconfigPath))
 			if( loglevel['current'] >= loglevel['debug'] ):
-				print(fieldOutput.format('+ Process Command', "ping -c1 -w1 " + givenSupportconfigPath))
-			ping_server = subprocess.Popen(["ping", "-c1 -w1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				print(fieldOutput.format('+ Process Command', cmd))
+			ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			stdout, stderr = ping_server.communicate()
 			if ping_server.returncode != 0:
-				print("  Error: Cannot ping remote server", file=sys.stderr)
-				print(file=sys.stderr)
+				print("  Error: Cannot ping remote server\n", file=sys.stderr)
 				usage()
 				return
 			else:
@@ -1383,6 +1385,7 @@ def analyze(*arg):
 					localSupportconfigFullPath = outputPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression
 					remoteSupportconfigFullPath = remoteSupportconfigPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression
 
+					cmd = "ssh root@" + host + ' /sbin/supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigFullPath + "; rm " + remoteSupportconfigFullPath + "*"
 					if( loglevel['current'] >= loglevel['debug'] ):
 						print(fieldOutput.format('\n+ host', host))
 						print(fieldOutput.format('+ remoteSupportconfigName', remoteSupportconfigName))
@@ -1391,9 +1394,9 @@ def analyze(*arg):
 						print(fieldOutput.format('+ supportconfigCompression', supportconfigCompression))
 						print(fieldOutput.format('+ localSupportconfigFullPath', localSupportconfigFullPath))
 						print(fieldOutput.format('+ remoteSupportconfigFullPath  ', remoteSupportconfigFullPath))
-						print(fieldOutput.format('+ Process Command', "ssh root@" + host + ' /sbin/supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigFullPath + "; rm " + remoteSupportconfigFullPath + "*"))
+						print(fieldOutput.format('+ Process Command', cmd))
 
-					p = subprocess.Popen(['ssh', "root@" + host, '/sbin/supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigFullPath + "; rm " + remoteSupportconfigFullPath + "*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+					p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 					#create a local verson of the supportconfig output
 					localSupportconfig = open(localSupportconfigFullPath, 'w')
 					condition = True
@@ -1505,9 +1508,10 @@ def analyze(*arg):
 		fileInfo = os.stat(supportconfigPath)
 		embeddedPath = ''
 		if( fileInfo.st_size > 0 ):
+			cmd = "file --brief --mime-type " + supportconfigPath
 			if( loglevel['current'] >= loglevel['debug'] ):
-				print(fieldOutput.format('+ Process Command', "file --brief --mime-type " + supportconfigPath))
-			process = subprocess.Popen(["file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+				print(fieldOutput.format('+ Process Command', cmd))
+			process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 			stdout, stderr = process.communicate()
 			if( loglevel['current'] >= loglevel['debug'] ):
 				print(fieldOutput.format("+ Detected File Type", stdout))
