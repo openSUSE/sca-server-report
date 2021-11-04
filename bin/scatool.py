@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2021 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 May 25
+# Modified:     2021 Oct 14
 
 ##############################################################################
 #command
@@ -21,10 +21,9 @@
 #
 #  Authors/Contributors:
 #     Jason Record <jason.record@suse.com>
-#     David Hamner <ke7oxh@gmail.com>
 #
 ##############################################################################
-SVER = '1.0.9-11'
+SVER = '1.5.0-0.dev6.8'
 
 ##########################################################################################
 # Python Imports
@@ -48,30 +47,50 @@ import email.mime.text
 import email.mime.base
 
 ##########################################################################################
+# Global Declarations
+##########################################################################################
+global loglevel
+global results
+global patternErrorList
+global knownClasses
+global HTML
+global outputPath
+global htmlOutputFile
+global emailAddrList
+global removeArchive
+global serverName
+global analysisDateTime
+global patternStats
+global patternDict
+global firstSize
+global fieldOutput
+global progressBarWidth
+loglevel = {'current': 1, 'quiet': 0, 'normal': 1, 'verbose': 2, 'debug': 3}
+
+##########################################################################################
 # HELP FUNCTIONS
 ##########################################################################################
 def title():
-	print "################################################################################"
-	print "#   SCA Tool v" + SVER
-	print "################################################################################"
-	print
+	print("#####################################################################################")
+	print("#   SCA Tool v" + SVER)
+	print("#####################################################################################")
+	print()
 
 def usage():
-	print "Usage: scatool [OPTIONS] [archive_or_server]"
-	print
-	print "OPTIONS"
-	print " -h       Displays this screen"
-	print " -s       Analyze the local server"
-#	print " -a path  Analyze the supportconfig directory or archive"
-#	print "          The path may also be an IP address of a server to analyze"
-	print " -o path  HTML report output directory (OUTPUT_PATH)"
-	print " -e list  Send HTML report to email address(es) provided. Comma separated list"
-	print " -r       Remove archive files (REMOVE_ARCHIVE) leaving only the report html file"
-	print " -p       Print a pattern summary"
-	print " -v       Verbose output (LOGLEVEL)"
-	print
+	print("Usage: scatool [OPTIONS] <archive|server>")
+	print()
+	print("OPTIONS")
+	print(" -h       Displays this screen")
+	print(" -s       Analyze the local server")
+	print(" -o path  HTML report output directory (OUTPUT_PATH)")
+	print(" -e list  Send HTML report to email address(es) provided. Comma separated list")
+	print(" -r       Remove archive files (REMOVE_ARCHIVE) leaving only the report html file")
+	print(" -p       Print a pattern summary")
+	print(" -q       Quiet output")
+	print(" -v       Verbose output")
+	print()
 
-title()
+
 ##########################################################################################
 # Environment and Global Variables
 ##########################################################################################
@@ -80,14 +99,17 @@ try:
 	os.chdir(os.environ["PWD"])
 	setup = os.environ["SCA_READY"]
 except Exception:
-	print >> sys.stderr, "Error: Do not run directly; use scatool"
-	print >> sys.stderr
+	title()
+	print("Error: Do not run directly; use scatool", file=sys.stderr)
+	print(file=sys.stderr)
 	usage()
 	sys.exit()
 if not setup:
+	title()
 	usage()
-	print >> sys.stderr
+	print(file=sys.stderr)
 	sys.exit()
+
 
 try:
 	SCA_PATTERN_PATH = str(os.environ["SCA_PATTERN_PATH"])
@@ -115,34 +137,19 @@ except Exception:
 	OUTPUT_EMAIL_LIST = ""
 
 try:
-	LOGLEVEL_NORMAL = int(os.environ["LOGLEVEL_NORMAL"])
-except Exception:
-	LOGLEVEL_NORMAL = 1
-
-try:
-	LOGLEVEL_VERBOSE = int(os.environ["LOGLEVEL_VERBOSE"])
-except Exception:
-	LOGLEVEL_VERBOSE = 2
-
-try:
 	LOGLEVEL = int(os.environ["LOGLEVEL"])
+	if( LOGLEVEL > loglevel['debug'] ):
+		loglevel['current'] = loglevel['debug']
+	elif( LOGLEVEL < loglevel['quiet'] ):
+		loglevel['current'] = loglevel['quiet']
+	else:
+		loglevel['current'] = loglevel['normal']
 except Exception:
-	LOGLEVEL = LOGLEVEL_NORMAL
+	loglevel['current'] = loglevel['normal']
 
-#setup globals
-global results
-global patternErrorList
-global knownClasses
-global HTML
-global outputPath
-global htmlOutputFile
-global emailAddrList
-global removeArchive
-global serverName
-global verboseMode
-global analysisDateTime
-global patternStats
-global patternDict
+firstSize = 30
+fieldOutput = "{0:" + str(firstSize) + "} {1}"
+progressBarWidth = 52
 knownClasses = []
 results = []
 patternErrorList = []
@@ -161,11 +168,6 @@ if( REMOVE_ARCHIVE > 0 ):
 else:
 	removeArchive = False
 
-if( LOGLEVEL == LOGLEVEL_VERBOSE ):
-	verboseMode = True
-else:
-	verboseMode = False
-
 if( len(OUTPUT_PATH) > 0 ):
 	outputPath = OUTPUT_PATH
 else:
@@ -181,6 +183,7 @@ analysisDateTime = datetime.datetime.now()
 
 #order dependent list of pattern output elements
 RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+
 
 ##########################################################################################
 # HTML REPORT FUNCTIONS
@@ -838,9 +841,9 @@ def patternLibraryList():
 	TOTAL_COUNT=0
 	DIRECTORY = {}
 	FORMATTING = '{0:>5} : {1}'
-	print "Pattern Library Summary\n"
-	print FORMATTING.format('Count', 'Pattern Directory')
-	print FORMATTING.format('=====','========================================')
+	print("Pattern Library Summary\n")
+	print(FORMATTING.format('Count', 'Pattern Directory'))
+	print(FORMATTING.format('=====','========================================'))
 	for root, dirs, files in os.walk(SCA_PATTERN_PATH):
 #		print "root  = " + str(root)
 #		print "dirs  = " + str(dirs)
@@ -863,10 +866,10 @@ def patternLibraryList():
 		elif( len(dirs) == 0 ):
 			DIRECTORY[root] = FILES_FOUND
 	for i in sorted(DIRECTORY, key=str.lower):
-		print FORMATTING.format(DIRECTORY[i], i)
-	print FORMATTING.format(TOTAL_COUNT, 'Total Available Patterns')
-	print
-	
+		print(FORMATTING.format(DIRECTORY[i], i))
+	print(FORMATTING.format(TOTAL_COUNT, 'Total Available Patterns'))
+	print()
+
 
 ##########################################################################################
 # patternPreProcessor
@@ -874,7 +877,8 @@ def patternLibraryList():
 #determines which patterns apply to the supportconfig
 #returns a list of applicable patterns
 def patternPreProcessor(extractedSupportconfig):
-	global verboseMode
+	global loglevel
+	global fieldOutput
 	patternFileList = []
 	patternDirectories = [SCA_PATTERN_PATH + "/local/"] #always include the local patterns
 
@@ -882,8 +886,9 @@ def patternPreProcessor(extractedSupportconfig):
 	TOTAL_COUNT=0
 	for root, dirs, files in os.walk(SCA_PATTERN_PATH):
 		TOTAL_COUNT += len(files)
-	print "Total Patterns Available:     " + str(TOTAL_COUNT)
-	
+	if( loglevel['current'] >= loglevel['normal'] ):
+		print(fieldOutput.format('Total Patterns Available:', TOTAL_COUNT))
+
 	#first get the pattern directory paths for all possible valid patterns
 	#build directory with SLE versions from basic-environment.txt
 	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
@@ -914,6 +919,7 @@ def patternPreProcessor(extractedSupportconfig):
 			inSLESOS = True
 		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
 			inSLES = True
+	SLE_VERSION = int(SLE_VERSION)
 	if( SLE_VERSION > 0 ):
 		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "all/")
 		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "sp" + str(SLE_SP) + "/")
@@ -937,7 +943,8 @@ def patternPreProcessor(extractedSupportconfig):
 	for systemElement in patternDirectories:
 		systemDefinition.append(systemElement.split("/")[-2])
 	systemDefinition = sorted(systemDefinition)
-	print "Pattern Definition Filter:    " + " ".join(systemDefinition)
+	if( loglevel['current'] >= loglevel['normal'] ):
+		print(fieldOutput.format('Pattern Definition Filter:', ' '.join(systemDefinition)))
 
 	#second build the list of valid patterns from the patternDirectories
 	#walk through each valid pattern directory
@@ -959,16 +966,20 @@ def patternPreProcessor(extractedSupportconfig):
 #this is called by analyze.
 #does not return anything
 def emailSCAReport(supportconfigFile):
+	global loglevel
 	global htmlOutputFile
 	global emailAddrList
 	global serverName
 	global analysisDateTime
 	global patternStats
+	global fieldOutput
 	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 
 	if( len(emailAddrList) > 0 ):
-		print "Emailing SCA Report To:       " + str(emailAddrList)
-#		print "Pattern Stats: " + str(patternStats)
+		if( loglevel['current'] >= loglevel['normal'] ):
+			print(fieldOutput.format('Emailing SCA Report To:', emailAddrList))
+		if( loglevel['current'] >= loglevel['debug'] ):
+			print(fieldOutput.format('+ Pattern Stats', patternStats))
 	else:
 		return 0
 	SERVER = 'localhost'
@@ -1027,8 +1038,8 @@ def emailSCAReport(supportconfigFile):
 		server = smtplib.SMTP(SERVER, timeout=15)
 		server.sendmail(FROM,TO,emailMsg.as_string())
 		return True
-	except Exception, error:
-		print "  Error: Unable to send email: '%s'." % str(error)
+	except Exception as error:
+		print("  Error: Unable to send email: '%s'." % str(error), file=sys.stderr)
 		pass
 	finally:
 		if server:
@@ -1045,25 +1056,29 @@ def runPats(extractedSupportconfig):
 	global results
 	global patternErrorList
 	global patternStats
-	global verboseMode
+	global loglevel
+	global fieldOutput
+	global progressBarWidth
 	results = []
 
 	validPatterns = patternPreProcessor(extractedSupportconfig)
 
-	progressBarWidth = 48
 	progressCount = 0
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
-	patternInterval = ( int(patternStats['Total']) / int(progressBarWidth) )
+	verboseLine = '{0:6} {1:>5} of {2} {3}'
+	patternInterval = int( int(patternStats['Total']) / int(progressBarWidth) )
 	if( patternStats['Total'] < progressBarWidth ):
 		patternInterval = 1
 	patternSkipped = False
 
-	print "Total Patterns to Apply:      " + str(patternStats['Total'])
-	if verboseMode:
-		print "Analyzing Supportconfig:      In Progress"
-	else:
-		sys.stdout.write("Analyzing Supportconfig:      [%s]" % (" " * progressBarWidth))
+	if( loglevel['current'] >= loglevel['normal'] ):
+		print(fieldOutput.format('Total Patterns to Apply:', patternStats['Total']))
+
+	if( loglevel['current'] >= loglevel['verbose'] ):
+		print(fieldOutput.format('Analyzing Supportconfig:', 'In Progress'))
+	elif( loglevel['current'] == loglevel['normal'] ):
+		sys.stdout.write("Analyzing Supportconfig:       [%s]" % (" " * progressBarWidth))
 		sys.stdout.flush()
 		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
 #		sys.stdout.write("\n")
@@ -1074,21 +1089,25 @@ def runPats(extractedSupportconfig):
 			if patternFile.endswith("README"):
 				patternSkipped = True
 			else:
-				p = subprocess.Popen([patternFile, '-p', extractedSupportconfig], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				cmd = patternFile + " -p " + extractedSupportconfig
+				if( loglevel['current'] >= loglevel['debug'] ):
+					print(fieldOutput.format('+ Process Command', cmd))
+				p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 				out, error = p.communicate()
 				patternValidated = parseOutput(out, error, patternFile)
 
 			#call parseOutput to see if output was expected
-			if verboseMode:
+			if( loglevel['current'] >= loglevel['verbose'] ):
 				if patternSkipped:
-					print " Skip:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile
+					print(verboseLine.format('Skip:', patternCount, patternStats['Total'], patternFile))
 					patternSkipped = False
 				else:
 					if patternValidated:
-						print " Done:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile
+						print(verboseLine.format('Done:', patternCount, patternStats['Total'], patternFile))
+						#print(" Done:  " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternFile)
 					else:
-						print " ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1]
-			else:
+						print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList[-1]))
+			elif( loglevel['current'] == loglevel['normal'] ):
 				#advance the progress bar if it's not full yet
 #				sys.stdout.write("Count = " + str(patternCount) + ", Total = " + str(patternStats['Total']) + ", Progress = " + str(progressCount) + ", Width = " + str(progressBarWidth) + ", Interval = " + str(patternInterval) + "\n")
 #				sys.stdout.flush()
@@ -1100,24 +1119,25 @@ def runPats(extractedSupportconfig):
 						sys.stdout.flush()
 		except Exception as e:
 			patternErrorList.append(patternFile + " -- Pattern runtime error: " + str(e))
-			if verboseMode:
-				print " ERROR: " + str(patternCount) + " of " + str(patternStats['Total']) + ": " + patternErrorList[-1]
+			if( loglevel['current'] >= loglevel['verbose'] ):
+				print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList[-1]))
 
 	#make output look nice
-	if not verboseMode:
+	if( loglevel['current'] == loglevel['normal'] ):
 		while( progressCount < progressBarWidth ):
 			progressCount += 1
 			sys.stdout.write("=")
 			sys.stdout.flush()
-	sys.stdout.write("\n")
+		sys.stdout.write("\n")
 
 	patternStats['Applied'] = len(results)
 	patternStats['Errors'] = len(patternErrorList)
-	print "Applicable Patterns:          " + str(patternStats['Applied'])
-	print "Pattern Execution Errors:     " + str(patternStats['Errors'])
-	if not verboseMode:
+	if( loglevel['current'] >= loglevel['normal'] ):
+		print(fieldOutput.format('Applicable Patterns:', patternStats['Applied']))
+		print(fieldOutput.format('Pattern Execution Errors:', patternStats['Errors']))
+	if( loglevel['current'] == loglevel['normal'] ):
 		for patternErrorStr in patternErrorList:
-			print "  " + patternErrorStr
+			print("  " + patternErrorStr)
 
 ##########################################################################################
 # parseOutPut
@@ -1125,6 +1145,7 @@ def runPats(extractedSupportconfig):
 #check output. If output is good add it to results, updates patternErrorList with invalid pattern output
 def parseOutput(out, error, pat):
 	global results
+	global loglevel
 	global patternErrorList
 	#if no errors
 	if error == "":
@@ -1144,7 +1165,10 @@ def parseOutput(out, error, pat):
 			results.append(full)
 		return True
 	else:
-		patternErrorList.append(pat + " -- Output error: " + str(error.split("\n")[0]))
+		if( loglevel['current'] >= loglevel['debug'] ):
+			patternErrorList.append(pat + " -- Output error: " + str(error))
+		else:
+			patternErrorList.append(pat + " -- Output error: " + str(error.split("\n")[0]))
 		return False
 
 ##########################################################################################
@@ -1154,17 +1178,28 @@ def parseOutput(out, error, pat):
 # Input: archive - path to the supportconfig decompressed tarball
 #        options - tar extraction args
 def extractFile(archive, options):
-	print "Extracting File:              " + archive
-	process = subprocess.Popen(["tar", options, archive], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	global loglevel
+	global fieldOutput
+	if( loglevel['current'] >= loglevel['normal'] ):
+		print(fieldOutput.format('Extracting File:', archive))
+	archdir = os.path.dirname(archive)
+	cmd = "tar -v " + options + " "  + archive + " -C " + archdir
+	if( loglevel['current'] >= loglevel['debug'] ):
+		print(fieldOutput.format('+ Process Command', cmd))
+	process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	stdout, stderr = process.communicate()
+	outfile = stdout.splitlines()[0]
+	pathInTarball = archdir + '/' + os.path.dirname(outfile)
+	if( loglevel['current'] >= loglevel['debug'] ):
+		print(fieldOutput.format('+ Embedded Directory', pathInTarball))
 	rc = process.returncode
 	if( rc > 0 ):
-		print >> sys.stderr, "  Error: Cannot extract tar file"
-		print >> sys.stderr, stderr
-		print >> sys.stderr
+		print("+ Error: Cannot extract tar file", file=sys.stderr)
+		print(stderr, file=sys.stderr)
+		print(file=sys.stderr)
 		sys.exit(7)
 	else:
-		return True
+		return pathInTarball
 
 ##########################################################################################
 # Core fuctions
@@ -1179,8 +1214,11 @@ def analyze(*arg):
 	global htmlOutputFile
 	global emailAddrList
 	global removeArchive
-	global verboseMode
+	global loglevel
 	global analysisDateTime
+	global fieldOutput
+	global progressBarWidth
+
 	#reset stuff
 	dateStamp = analysisDateTime.strftime("%y%m%d")
 	timeStamp = str(analysisDateTime.hour).zfill(2) + str(analysisDateTime.minute).zfill(2) + str(analysisDateTime.second).zfill(2)
@@ -1189,13 +1227,13 @@ def analyze(*arg):
 	extractedSupportconfig = ""
 	supportconfigPath = ""
 	extractedPath = ""
+	extractedEmeddedPath = ""
 	isIP = False
 	host = "None"
 	isRemoteServer = False
 	removeSupportconfigDir = True
 	alloutput = ""
 	lineNum = 0
-	progressBarWidth = 48
 	remoteProgressBarSetup = False
 	progressCount = 0
 	scHeaderLines = 2
@@ -1205,32 +1243,36 @@ def analyze(*arg):
 	#if we want to run and analyze a supportconfig
 	if len(arg) == 0:
 		localHostname = str(os.uname()[1])
-		print "Running Supportconfig On:     " + localHostname
+		if( loglevel['current'] >= loglevel['normal'] ):
+			print(fieldOutput.format('Running Supportconfig On:', localHostname))
 		#run supportconfig
 
 		localSupportconfigName = localHostname + "_" + str(dateStamp) + "_" + str(timeStamp)
 		localSupportconfigPath = "/var/log/"
 		supportconfigPath = localSupportconfigPath + "scc_" + localSupportconfigName
 
-#		print "localSupportconfigName = " + localSupportconfigName
-#		print "localSupportconfigPath = " + localSupportconfigPath
-#		print "supportconfigPath      = " + supportconfigPath
+		if( loglevel['current'] >= loglevel['debug'] ):
+			print(fieldOutput.format('+ localSupportconfigName', localSupportconfigName))
+			print(fieldOutput.format('+ localSupportconfigPath', localSupportconfigPath))
+			print(fieldOutput.format('+ supportconfigPath', supportconfigPath))
 
 		try:
-			p = subprocess.Popen(['supportconfig', "-bB" + localSupportconfigName, "-t " + localSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			cmd = "supportconfig -bB " + localSupportconfigName + " -t " + localSupportconfigPath
+			if( loglevel['current'] >= loglevel['debug'] ):
+				print(fieldOutput.format('+ Process Command', cmd))
+			p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 		#if we cannot run supportconfig
 		except Exception:
-			print >> sys.stderr, "Error: Cannot run supportconfig."
-			print >> sys.stderr
+			print("Error: Cannot run supportconfig\n", file=sys.stderr)
 			return
 		condition = True
 		if not removeArchive:
 			removeSupportconfigDir = False
 
-		if verboseMode:
-			print "Gathering Supportconfig:      In Progress"
-		else:
-			sys.stdout.write("Gathering Supportconfig:      [%s]" % (" " * progressBarWidth))
+		if( loglevel['current'] >= loglevel['verbose'] ):
+			print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
+		elif( loglevel['current'] == loglevel['normal'] ):
+			sys.stdout.write("Gathering Supportconfig:       [%s]" % (" " * progressBarWidth))
 			sys.stdout.flush()
 			sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
 			sys.stdout.flush()
@@ -1242,10 +1284,10 @@ def analyze(*arg):
 			out = p.stdout.read(1)
 			if out != '':
 				alloutput = alloutput + out
-				if verboseMode:
+				if( loglevel['current'] >= loglevel['verbose'] ):
 					sys.stdout.write(out)
 					sys.stdout.flush()
-				else:
+				elif( loglevel['current'] == loglevel['normal'] ):
 					if out == "\n":
 						lineNum += 1
 						if ( scHeaderLines > 0 ):
@@ -1260,8 +1302,8 @@ def analyze(*arg):
 									sys.stdout.flush()
 		#--WHILE--
 			condition = not bool(out == "" and p.poll() != None)
-			
-		if not verboseMode:
+
+		if( loglevel['current'] == loglevel['normal'] ):
 			while( progressCount < progressBarWidth ):
 				progressCount += 1
 				sys.stdout.write("=")
@@ -1277,25 +1319,30 @@ def analyze(*arg):
 			givenSupportconfigPath = os.getcwd()
 		elif( re.search("/", givenSupportconfigPath) ):
 			if not os.path.exists(givenSupportconfigPath):
-				print "Supportconfig File:           %s" % givenSupportconfigPath
-				print >> sys.stderr, "  Error: File/Directory not found"
-				print >> sys.stderr
+				print(fieldOutput.format('Supportconfig File:', givenSupportconfigPath), file=sys.stderr)
+				print("  Error: File/Directory not found", file=sys.stderr)
+				print(file=sys.stderr)
 				usage()
 				return
 
 		if os.path.isfile(givenSupportconfigPath):
-			print "Supportconfig File:           %s" % givenSupportconfigPath
+			if( loglevel['current'] >= loglevel['normal'] ):
+				print(fieldOutput.format('Supportconfig File:', givenSupportconfigPath))
 		elif os.path.isdir(givenSupportconfigPath):
-			print "Supportconfig Directory:      %s" % givenSupportconfigPath
+			if( loglevel['current'] >= loglevel['normal'] ):
+				print(fieldOutput.format('Supportconfig Directory:', givenSupportconfigPath))
 			if not removeArchive:
 				removeSupportconfigDir = False
 		else:
-			print "Supportconfig Remote Server:  %s" % givenSupportconfigPath
-			ping_server = subprocess.Popen(["ping", "-c1 -w1", givenSupportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			cmd = "ping -c1 -w1 " + givenSupportconfigPath
+			if( loglevel['current'] >= loglevel['normal'] ):
+				print(fieldOutput.format('Supportconfig Remote Server:', givenSupportconfigPath))
+			if( loglevel['current'] >= loglevel['debug'] ):
+				print(fieldOutput.format('+ Process Command', cmd))
+			ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			stdout, stderr = ping_server.communicate()
 			if ping_server.returncode != 0:
-				print >> sys.stderr, "  Error: Cannot ping remote server"
-				print >> sys.stderr
+				print("  Error: Cannot ping remote server\n", file=sys.stderr)
 				usage()
 				return
 			else:
@@ -1313,19 +1360,20 @@ def analyze(*arg):
 					isIP = True
 				except:
 					if isIP:
-						print >> sys.stderr, "  Error: Unable to reach " + givenSupportconfigPath
+						print("  Error: Unable to reach " + givenSupportconfigPath, file=sys.stderr)
 						return
 			if host == "None":
 				#Not an IP. Lets hope it is a PATH
 				supportconfigPath = givenSupportconfigPath
 			else:
 				#we have an IP
-				print "Running Supportconfig On:     " + givenSupportconfigPath
-				sys.stdout.write("  Waiting          ")
-				sys.stdout.flush()
+				if( loglevel['current'] >= loglevel['normal'] ):
+					print(fieldOutput.format('Running Supportconfig On:', givenSupportconfigPath))
+					sys.stdout.write("  Waiting          ")
+					sys.stdout.flush()
 				remoteSupportconfigName = str(givenSupportconfigPath) + "_" + str(dateStamp) + "_" + str(timeStamp)
 				remoteSupportconfigPath = REMOTE_SC_PATH
-				
+
 				#print "lets take a look at that IP "
 				try:
 					if( len(outputPath) == 0 ):
@@ -1337,17 +1385,18 @@ def analyze(*arg):
 					localSupportconfigFullPath = outputPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression
 					remoteSupportconfigFullPath = remoteSupportconfigPath + supportconfigPrefix + remoteSupportconfigName + supportconfigCompression
 
-#					print
-#					print "host                         = " + host
-#					print "remoteSupportconfigName      = " + remoteSupportconfigName
-#					print "remoteSupportconfigPath      = " + remoteSupportconfigPath
-#					print "supportconfigPrefix          = " + supportconfigPrefix
-#					print "supportconfigCompression     = " + supportconfigCompression
-#					print "localSupportconfigFullPath   = " + localSupportconfigFullPath
-#					print "remoteSupportconfigFullPath  = " + remoteSupportconfigFullPath
-#					print
+					cmd = "ssh root@" + host + ' /sbin/supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigFullPath + "; rm " + remoteSupportconfigFullPath + "*"
+					if( loglevel['current'] >= loglevel['debug'] ):
+						print(fieldOutput.format('\n+ host', host))
+						print(fieldOutput.format('+ remoteSupportconfigName', remoteSupportconfigName))
+						print(fieldOutput.format('+ remoteSupportconfigPath', remoteSupportconfigPath))
+						print(fieldOutput.format('+ supportconfigPrefix', supportconfigPrefix))
+						print(fieldOutput.format('+ supportconfigCompression', supportconfigCompression))
+						print(fieldOutput.format('+ localSupportconfigFullPath', localSupportconfigFullPath))
+						print(fieldOutput.format('+ remoteSupportconfigFullPath  ', remoteSupportconfigFullPath))
+						print(fieldOutput.format('+ Process Command', cmd))
 
-					p = subprocess.Popen(['ssh', "root@" + host, '/sbin/supportconfig -bB ' + remoteSupportconfigName + ' -R ' + remoteSupportconfigPath + ";echo -n \\~; cat " + remoteSupportconfigFullPath + "; rm " + remoteSupportconfigFullPath + "*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+					p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 					#create a local verson of the supportconfig output
 					localSupportconfig = open(localSupportconfigFullPath, 'w')
 					condition = True
@@ -1365,18 +1414,18 @@ def analyze(*arg):
 						elif out != '':
 							if ( out == "=" and not remoteProgressBarSetup ):
 								remoteProgressBarSetup = True
-								if verboseMode:
-									print "Gathering Supportconfig:      In Progress"
-								else:
+								if( loglevel['current'] >= loglevel['verbose'] ):
+									print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
+								elif( loglevel['current'] == loglevel['normal'] ):
 									sys.stdout.write("Gathering Supportconfig:      [%s]" % (" " * progressBarWidth))
 									sys.stdout.flush()
 									sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
 									sys.stdout.flush()
 
-							if verboseMode:
+							if( loglevel['current'] >= loglevel['verbose'] ):
 								sys.stdout.write(out.strip("~"))
 								sys.stdout.flush()
-							else:
+							elif( loglevel['current'] == loglevel['normal'] ):
 								if out == "\n":
 									lineNum += 1
 									if ( scHeaderLines > 0 ):
@@ -1398,28 +1447,30 @@ def analyze(*arg):
 					#close the local copy of the remote supportconfig.
 					localSupportconfig.close()
 
-					if not verboseMode and remoteProgressBarSetup:
-						while( progressCount < progressBarWidth ):
-							progressCount += 1
-							sys.stdout.write("=")
-							sys.stdout.flush()
+					if( loglevel['current'] == loglevel['normal'] ):
+						if remoteProgressBarSetup:
+							while( progressCount < progressBarWidth ):
+								progressCount += 1
+								sys.stdout.write("=")
+								sys.stdout.flush()
 
 					supportconfigPath = localSupportconfigFullPath
 					fileInfo = os.stat(supportconfigPath)
 					if( fileInfo.st_size > 0 ):
-						print
-						print "Copied Supportconfig:         " + givenSupportconfigPath + " -> localhost"
+						if( loglevel['current'] >= loglevel['normal'] ):
+							print()
+							print(fieldOutput.format('Copied Supportconfig:', givenSupportconfigPath + " -> localhost"))
 					else:
-						print >> sys.stderr
-						print >> sys.stderr, "Error: Failed to copy supportconfig from remote server"
-						print >> sys.stderr, "       Verify you can ssh as root into the remote server"
-						print >> sys.stderr, "       and manually copy the supportconfig to this server."
-						print >> sys.stderr
+						print(file=sys.stderr)
+						print("Error: Failed to copy supportconfig from remote server", file=sys.stderr)
+						print("       Verify you can ssh as root into the remote server", file=sys.stderr)
+						print("       and manually copy the supportconfig to this server.", file=sys.stderr)
+						print(file=sys.stderr)
 						#os.remove(supportconfigPath)
 						return
 				except Exception:
-					print >> sys.stderr
-					print >> sys.stderr, "  Error: Supportconfig execution failed on " + givenSupportconfigPath + "."
+					print(file=sys.stderr)
+					print("  Error: Supportconfig execution failed on " + givenSupportconfigPath + ".", file=sys.stderr)
 					return
 		else:
 			supportconfigPath = givenSupportconfigPath
@@ -1440,70 +1491,76 @@ def analyze(*arg):
 	else:
 		extractedSupportconfig = base
 
-#	print
-#	print " + Base =                   " + base
-#	print " + extractedSupportconfig = " + extractedSupportconfig
-#	print
+	if( loglevel['current'] >= loglevel['debug'] ):
+		print(fieldOutput.format('+ Base', base))
+		print(fieldOutput.format('+ extractedSupportconfig', extractedSupportconfig))
 	htmlOutputFile = extractedSupportconfig + "_report.html"
 
 	#if given a supportconfig archive
 	if os.path.isfile(supportconfigPath):
-#		print "Evaluating File:              " + supportconfigPath
+		if( loglevel['current'] >= loglevel['debug'] ):
+			print(fieldOutput.format('+ Evaluating File', supportconfigPath))
 		if( len(outputPath) > 0 ):
 			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
 
 		#extract file
 		#set TarFile and find the path of the soon to be extracted supportconfig
 		fileInfo = os.stat(supportconfigPath)
+		embeddedPath = ''
 		if( fileInfo.st_size > 0 ):
-			process = subprocess.Popen(["file", "--brief", "--mime-type", supportconfigPath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			cmd = "file --brief --mime-type " + supportconfigPath
+			if( loglevel['current'] >= loglevel['debug'] ):
+				print(fieldOutput.format('+ Process Command', cmd))
+			process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 			stdout, stderr = process.communicate()
-#			print "Detected File Type:           " + stdout
+			if( loglevel['current'] >= loglevel['debug'] ):
+				print(fieldOutput.format("+ Detected File Type", stdout))
 			if re.search("/x-xz", stdout):
 				if supportconfigPath.endswith('.txz'):
-					extractFile(supportconfigPath, "-Jxf")
+					embeddedPath = extractFile(supportconfigPath, "-Jxf")
 				elif supportconfigPath.endswith('.tar.xz'):
-					extractFile(supportconfigPath, "-Jxf")
+					embeddedPath = extractFile(supportconfigPath, "-Jxf")
 				else:
-					print >> sys.stderr, "Error: Unknown xz extension"
-					print >> sys.stderr
+					print("Error: Unknown xz extension", file=sys.stderr)
+					print(file=sys.stderr)
 					return
 			elif re.search("/x-bzip2", stdout):
 				if supportconfigPath.endswith('.tbz'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tbz2'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				elif supportconfigPath.endswith('.tar.bz2'):
-					extractFile(supportconfigPath, "-jxf")
+					embeddedPath = extractFile(supportconfigPath, "-jxf")
 				else:
-					print >> sys.stderr, "Error: Unknown bzip2 extension"
-					print >> sys.stderr
+					print("Error: Unknown bzip2 extension", file=sys.stderr)
+					print(file=sys.stderr)
 					return
 			elif re.search("/x-gzip", stdout):
 				if supportconfigPath.endswith('.tgz'):
-					extractFile(supportconfigPath, "-zxf")
+					embeddedPath = extractFile(supportconfigPath, "-zxf")
 				elif supportconfigPath.endswith('.tar.gz'):
-					extractFile(supportconfigPath, "-zxf")
+					embeddedPath = extractFile(supportconfigPath, "-zxf")
 				else:
-					print >> sys.stderr, "Error: Unknown gzip extension"
-					print >> sys.stderr
+					print("Error: Unknown gzip extension", file=sys.stderr)
+					print(file=sys.stderr)
 					return
 			elif re.search("/x-tar", stdout):
-				extractFile(supportconfigPath, "-xf")
+				embeddedPath = extractFile(supportconfigPath, "-xf")
 			else:
-				print >> sys.stderr, "  Warning: Unknown supportconfig tar file format"
-				print >> sys.stderr
+				print("  Warning: Unknown supportconfig tar file format", file=sys.stderr)
+				print(file=sys.stderr)
 				return
 		else:
-			print >> sys.stderr, "  Error: Zero byte file: " + supportconfigPath
-			print >> sys.stderr
+			print("  Error: Zero byte file: " + supportconfigPath, file=sys.stderr)
+			print(file=sys.stderr)
 			return
 
 	#if given an extracted supportconfig directory
 	elif os.path.isdir(supportconfigPath):
-#		print(" + Directory outputPath = " + outputPath)
+		#print(fieldOutput.format('Evaluating Directory:', supportconfigPath))
+		#print(fieldOutput.format('+ Directory outputPath:', outputPath))
 		extractedSupportconfig = supportconfigPath
 		if( len(outputPath) > 0 ):
 			htmlOutputFile = outputPath + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
@@ -1515,53 +1572,66 @@ def analyze(*arg):
 			del tmp[-1]
 			htmlOutputFile = "/".join(tmp) + "/" + extractedSupportconfig.strip("/").split("/")[-1] + "_report.html"
 
-	extractedSupportconfig = extractedSupportconfig + "/"
 
-	print "Processing Directory:         " + extractedSupportconfig
-
-	if not os.path.isdir(extractedSupportconfig):
+	if os.path.isdir(extractedSupportconfig):
+		extractedSupportconfig = extractedSupportconfig + "/"
+		if( loglevel['current'] >= loglevel['normal'] ):
+			print(fieldOutput.format('Processing Directory:', extractedSupportconfig))
+	elif os.path.isdir(embeddedPath):
+		extractedSupportconfig = embeddedPath + "/"
+		if( loglevel['current'] >= loglevel['normal'] ):
+			print(fieldOutput.format('Processing Embedded Directory:', extractedSupportconfig))
+	else:
 		#not a supportconfig directory or mismatched name
-		print >> sys.stderr, "  Error: Extracted directory does not match supportconfig filename"
-		print >> sys.stderr
+		if( loglevel['current'] >= loglevel['normal'] ):
+			print(fieldOutput.format('Processing Directory:', extractedSupportconfig))
+		print("  Error: Extracted directory does not match supportconfig filename", file=sys.stderr)
+		print(file=sys.stderr)
 		return
+
 
 	#check for required supportconfig files...
 	testFile = "basic-environment.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
 		#not a supportconfig. quit out
-		print >> sys.stderr, "  Error: Invalid supportconfig archive - missing " + testFile
-		print >> sys.stderr
+		print("  Error: Invalid supportconfig archive - missing " + testFile, file=sys.stderr)
+		print(file=sys.stderr)
 		return
 
 	testFile = "rpm.txt"
 	if not os.path.isfile(extractedSupportconfig + testFile):
 		#not a supportconfig. quit out
-		print >> sys.stderr, "  Error: Invalid supportconfig archive - missing " + testFile
-		print >> sys.stderr
+		print("  Error: Invalid supportconfig archive - missing " + testFile, file=sys.stderr)
+		print(file=sys.stderr)
 		return
-	
+
 	#At this point we should have a extracted supportconfig 
 	#run patterns on supportconfig
 	runPats(extractedSupportconfig)
 	getHtml(htmlOutputFile, extractedSupportconfig, supportconfigPath.split("/")[-1])
-	print ("SCA Report File:              %s" % htmlOutputFile)
+	if( loglevel['current'] >= loglevel['normal'] ):
+		print(fieldOutput.format('SCA Report File:', htmlOutputFile))
 
 	emailSCAReport(supportconfigPath)
 
 	#clean up
-#	print " + supportconfigPath = " + supportconfigPath
-#	print "removeSupportconfigDir = " + str(removeSupportconfigDir)
-#	print "REMOVE_ARCHIVE =         " + str(REMOVE_ARCHIVE)
-#	print "removeArchive =          " + str(removeArchive)
+	if( loglevel['current'] >= loglevel['debug'] ):
+		print(fieldOutput.format("+ supportconfigPath ",supportconfigPath))
+		print(fieldOutput.format("+ removeSupportconfigDir", removeSupportconfigDir))
+		print(fieldOutput.format("+ REMOVE_ARCHIVE", REMOVE_ARCHIVE))
+		print(fieldOutput.format("+ removeArchive", removeArchive))
 	if removeSupportconfigDir:
 		shutil.rmtree(extractedSupportconfig)
 	if removeArchive:
 		if os.path.isfile(supportconfigPath):
 			os.remove(supportconfigPath)
+			if( loglevel['current'] >= loglevel['normal'] ):
+				print(fieldOutput.format('Deleting Supportconfig:', supportconfigPath))
 		if os.path.isfile(supportconfigPath + ".md5"):
 			os.remove(supportconfigPath + ".md5")
-	print
-			
+	if( loglevel['current'] >= loglevel['normal'] ):
+		print()
+
 ##########################################################################################
 # main
 ##########################################################################################
@@ -1573,12 +1643,12 @@ analyzeFile = ""
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "ha:so:rkcvpe:")
+		opts, args = getopt.getopt(sys.argv[1:], "ha:so:rkcqdvpe:")
 #		print "opts = " + str(len(opts)) + ", args = " + str(len(args)) + ":" + str(args) + ", sys.argv = " + str(len(sys.argv)) + ", last = " + str(sys.argv[-1])
 	except getopt.GetoptError as err:
 		# print help information and exit:
-		print "Error: " + str(err) # will print something like "option -b not recognized"
-		print
+		print("Error: " + str(err), file=sys.stderr) # will print something like "option -b not recognized"
+		print(file=sys.stderr)
 		usage()
 		sys.exit(2)
 
@@ -1587,9 +1657,11 @@ if( len(sys.argv[1:]) > 0 ):
 	for startUpOption, startUpOptionValue in opts:
 #		print "opts = " + str(len(opts)) + ", args = " + str(len(args)) + ", sys.argv = " + str(len(sys.argv)) + ", startUpOption = " + startUpOption + ", startUpOptionValue = " + startUpOptionValue
 		if startUpOption == "-h":
+			title()
 			usage()
 			sys.exit()
 		elif startUpOption in ("-p"):
+			title()
 			patternLibraryList()
 			sys.exit()
 		elif startUpOption in ("-k"):
@@ -1601,18 +1673,27 @@ if( len(sys.argv[1:]) > 0 ):
 			emailAddrList = startUpOptionValue
 		elif startUpOption in ("-s"):
 			analyzeServer = True
+		elif startUpOption in ("-d"):
+			loglevel['current'] = loglevel['debug']
+		elif startUpOption in ("-q"):
+			loglevel['current'] = loglevel['quiet']
 		elif startUpOption in ("-v"):
-			verboseMode = True
+			loglevel['current'] = loglevel['verbose']
 		elif startUpOption in ("-a"):
 			analyzeFile = startUpOptionValue
 			analyzeServer = True
 		elif startUpOption in ("-o"):
 			outputPath = startUpOptionValue
 		else:
+			title()
 			assert False, "Invalid option"
 else:
+	title()
 	usage()
 	sys.exit()
+
+if( loglevel['current'] >= loglevel['normal'] ):
+	title()
 
 # an archive was given, but the -a takes priority
 if( len(args) > 0 ):
@@ -1621,8 +1702,8 @@ if( len(args) > 0 ):
 		analyzeFile = args[0]
 
 if not analyzeServer:
-	print "Error: No server to analyze, use -s or specify a supportconfig to analyze or a server to connect."
-	print
+	print("Error: No server to analyze, use -s or specify a supportconfig to analyze or a server to connect.", file=sys.stderr)
+	print(file=sys.stderr)
 	usage()
 	sys.exit()
 
@@ -1633,10 +1714,10 @@ if( len(outputPath) > 0 ):
 		if outputPath.endswith("/"):
 			outputPath = outputPath[:-1]
 	else:
-		print "Error: Directory not found -- " + outputPath
-		print
-		print "Use -o path to specify a valid directory"
-		print
+		print("Error: Directory not found -- " + outputPath, file=sys.stderr)
+		print(file=sys.stderr)
+		print("Use -o path to specify a valid directory", file=sys.stderr)
+		print(file=sys.stderr)
 		usage()
 		sys.exit(2)
 
