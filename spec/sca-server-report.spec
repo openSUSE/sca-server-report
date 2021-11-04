@@ -24,7 +24,7 @@ License:      GPL-2.0
 URL:          https://github.com/g23guy/sca-server-report
 Group:        System/Monitoring
 Source:       %{name}-%{version}.tar.gz
-Requires:     sca-patterns-base
+Requires:     sca-patterns-base >= 1.5.0
 Requires:     python3-base
 Requires:     w3m
 BuildArch:    noarch
