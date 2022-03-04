@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2021 SUSE LLC
+# Copyright (c) 2014-2022 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 Dec 21
+# Modified:     2022 Mar 04
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.1-0.dev16'
+SVER = '1.5.1-1.dev02'
 
 ##########################################################################################
 # Python Imports
@@ -197,6 +197,7 @@ def getProductsList(*arg):
 
 	distroInfo['timeAnalysis'] = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
 	distroInfo['timeArchiveRun'] = "0000-00-00 00:00:00"
+	distroInfo['Summary'] = ''
 
 	#load basic-environment.txt
 	try:
@@ -227,13 +228,10 @@ def getProductsList(*arg):
 			IN_UNAME = True
 		elif "/etc/os-release" in line:
 			IN_OS_RELEASE = True
-		elif "/etc/SuSE-release" in line:
-			IN_SUSE_RELEASE = True
 		elif( IN_DATE ):
 			if "#==[" in line:
 				IN_DATE = False
 			else:
-#%%%
 				dateLine = line
 				dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
 				tmp = dateLine.split() # split into list based on a space
@@ -290,19 +288,25 @@ def getProductsList(*arg):
 					else:
 						productInfo['verminor'] = "0"
 					productInfo['version'] = productInfo['verminor']
-		elif( IN_SUSE_RELEASE ):
-			if "#==[" in line:
-				IN_SUSE_RELEASE = False
-				productInfo['name'] = str(distroInfo['Summary'])
-			else:
-				if( len(distroInfo['Summary']) > 0 ):
-					if line.lower().startswith("version"):
-						productInfo['vermajor'] = line.split('=')[-1].replace('"', '').strip()
-					elif line.lower().startswith("patchlevel"):
-						productInfo['verminor'] = line.split('=')[-1].replace('"', '').strip()
-					productInfo['version'] = productInfo['verminor']
+
+	# Look for SUSE release as a last resort
+	if( len(distroInfo['Summary']) == 0 ):
+		for line in BASIC_ENV:
+			if "/etc/SuSE-release" in line:
+				IN_SUSE_RELEASE = True
+			elif( IN_SUSE_RELEASE ):
+				if "#==[" in line:
+					IN_SUSE_RELEASE = False
+					productInfo['name'] = str(distroInfo['Summary'])
 				else:
-					distroInfo['Summary'] = line.strip()
+					if( len(distroInfo['Summary']) > 0 ):
+						if line.lower().startswith("version"):
+							productInfo['vermajor'] = line.split('=')[-1].replace('"', '').strip()
+						elif line.lower().startswith("patchlevel"):
+							productInfo['verminor'] = line.split('=')[-1].replace('"', '').strip()
+						productInfo['version'] = productInfo['verminor']
+					else:
+						distroInfo['Summary'] = line.strip()
 
 	productsList.append(productInfo)
 
