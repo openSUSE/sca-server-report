@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2021 SUSE LLC
+# Copyright (c) 2014-2022 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 Oct 14
+# Modified:     2022 Mar 07
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.0-0.dev6.8'
+SVER = '1.5.1-1'
 
 ##########################################################################################
 # Python Imports
@@ -58,13 +58,14 @@ global outputPath
 global htmlOutputFile
 global emailAddrList
 global removeArchive
-global serverName
 global analysisDateTime
 global patternStats
 global patternDict
 global firstSize
 global fieldOutput
 global progressBarWidth
+global productsList
+global distroInfo
 loglevel = {'current': 1, 'quiet': 0, 'normal': 1, 'verbose': 2, 'debug': 3}
 
 ##########################################################################################
@@ -178,48 +179,25 @@ if( len(OUTPUT_EMAIL_LIST) > 0 ):
 else:
 	emailAddrList = ""
 
-serverName = "Unknown"
 analysisDateTime = datetime.datetime.now()
 
 #order dependent list of pattern output elements
 RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
 
+productsList = []
+distroInfo = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None'}
 
 ##########################################################################################
-# HTML REPORT FUNCTIONS
+# getProductsList(extractedSupportconfig)
 ##########################################################################################
-##########################################################################################
-# getHeader
-##########################################################################################
-#returns html code. This is the part about the server.
-
-def getHeader(*arg):
-	global serverName
+def getProductsList(*arg):
+	global productsList
+	global distroInfo
 	global analysisDateTime
-	#reset variables
-	DISTRO = 0
-	supportconfigVersion = ""
-	OS = ""
-	INFO = ""
-	VER = ""
-	osArch = ""
-	OSVersion = ""
-	patchLevel = ""
-	kernelVersion = ""
-	hardWare = ""
-	virtualization = ""
-	vmIdentity = ""
-	PRODUCTS = [['Distribution:', 'Unknown', 'Service Pack:', 'Unknown']]
-	#set timeAnalysis (example: 2014-04-10 17:45:15)
-	timeAnalysis = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
-	timeArchiveRun = "0000-00-00 00:00:00"
-	returnHTML = ""
 
-	#set archive name if given
-	if len(arg) == 3:
-		arcName = arg[2]
-	else:
-		arcName = ""
+	distroInfo['timeAnalysis'] = str(analysisDateTime.year) + "-" + str(analysisDateTime.month).zfill(2) + "-" + str(analysisDateTime.day).zfill(2) + " " + str(analysisDateTime.hour).zfill(2) + ":" + str(analysisDateTime.minute).zfill(2) + ":" + str(analysisDateTime.second).zfill(2)
+	distroInfo['timeArchiveRun'] = "0000-00-00 00:00:00"
+	distroInfo['Summary'] = ''
 
 	#load basic-environment.txt
 	try:
@@ -228,6 +206,8 @@ def getHeader(*arg):
 	except:
 		BASIC_ENV = []
 
+	productInfo = {'tag': 'sle', 'patternTag': 'SLE', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
+
 	#read basic-environment line by line to pull out data.
 	IN_DATE = False
 	IN_UNAME = False
@@ -235,21 +215,19 @@ def getHeader(*arg):
 	IN_SUSE_RELEASE = False
 	for line in BASIC_ENV:
 		if "Script Version:" in line:
-			supportconfigVersion = line.split(':')[-1].strip()
+			distroInfo['supportconfigVersion'] = line.split(':')[-1].strip()
 		elif line.startswith("Hardware:"):
-			hardWare = line.split(":")[1].strip()
+			distroInfo['hardWare'] = line.split(":")[1].strip()
 		elif line.startswith("Hypervisor:"):
-			virtualization = line.split(":")[1].strip()
+			distroInfo['virtualization'] = line.split(":")[1].strip()
 		elif line.startswith("Identity:"):
-			vmIdentity = line.split(":")[1].strip()
+			distroInfo['vmIdentity'] = line.split(":")[1].strip()
 		elif "/bin/date" in line:
 			IN_DATE = True
 		elif "/bin/uname -a" in line:
 			IN_UNAME = True
 		elif "/etc/os-release" in line:
 			IN_OS_RELEASE = True
-		elif "/etc/SuSE-release" in line:
-			IN_SUSE_RELEASE = True
 		elif( IN_DATE ):
 			if "#==[" in line:
 				IN_DATE = False
@@ -283,7 +261,7 @@ def getHeader(*arg):
 						tmpMonth = "11"
 					elif "Dec" in tmpMonth:
 						tmpMonth = "12"
-					timeArchiveRun = tmp[-1].strip() + "-" + tmpMonth + "-" + tmp[2].strip().zfill(2) + " " + tmp[3].strip()
+					distroInfo['timeArchiveRun'] = tmp[-1].strip() + "-" + tmpMonth + "-" + tmp[2].strip().zfill(2) + " " + tmp[3].strip()
 					IN_DATE = False
 		elif( IN_UNAME ):
 			if "#==[" in line:
@@ -291,44 +269,55 @@ def getHeader(*arg):
 			else:
 				tmp = line.split()
 				if( len(tmp) >= 3 ):
-					kernelVersion = tmp[2].strip()
-					serverName = tmp[1].strip()
-					osArch = tmp[-2].strip()
+					distroInfo['kernelVersion'] = tmp[2].strip()
+					distroInfo['serverName'] = tmp[1].strip()
+					distroInfo['osArch'] = tmp[-2].strip()
 					IN_UNAME = False
 		elif( IN_OS_RELEASE ):
 			if "#==[" in line:
 				IN_OS_RELEASE = False
-				PRODUCTS[DISTRO][1] = str(OSVersion) + " (" + osArch + ")"
-				PRODUCTS[DISTRO][3] = str(patchLevel)
+				productInfo['name'] = str(distroInfo['Summary']) + " (" + distroInfo['osArch'] + ")"
 			else:
 				if line.lower().startswith("pretty_name"):
-					OSVersion = line.split('=')[-1].replace('"', '').strip()
+					distroInfo['Summary'] = line.split('=')[-1].replace('"', '').strip()
 				elif line.lower().startswith("version_id"):
 					VERSION_ID_INFO = line.replace('"', "").strip().split('=')[1].split('.')
+					productInfo['vermajor'] = str(VERSION_ID_INFO[0])
 					if( len(VERSION_ID_INFO) > 1 ):
-						patchLevel = str(VERSION_ID_INFO[1])
+						productInfo['verminor'] = str(VERSION_ID_INFO[1])
 					else:
-						patchLevel = "0"
-		elif( IN_SUSE_RELEASE ):
-			if "#==[" in line:
-				IN_SUSE_RELEASE = False
-				PRODUCTS[DISTRO][1] = str(OS)
-				PRODUCTS[DISTRO][3] = str(patchLevel)
-			else:
-				if( len(OS) > 0 ):
-					if line.lower().startswith("version"):
-						OSVersion = line.split('=')[-1].replace('"', '').strip()
-					elif line.lower().startswith("patchlevel"):
-						patchLevel = line.split('=')[-1].replace('"', '').strip()
+						productInfo['verminor'] = "0"
+					productInfo['version'] = productInfo['verminor']
+
+	# Look for SUSE release as a last resort
+	if( len(distroInfo['Summary']) == 0 ):
+		for line in BASIC_ENV:
+			if "/etc/SuSE-release" in line:
+				IN_SUSE_RELEASE = True
+			elif( IN_SUSE_RELEASE ):
+				if "#==[" in line:
+					IN_SUSE_RELEASE = False
+					productInfo['name'] = str(distroInfo['Summary'])
 				else:
-					OS = line.strip()
+					if( len(distroInfo['Summary']) > 0 ):
+						if line.lower().startswith("version"):
+							productInfo['vermajor'] = line.split('=')[-1].replace('"', '').strip()
+						elif line.lower().startswith("patchlevel"):
+							productInfo['verminor'] = line.split('=')[-1].replace('"', '').strip()
+						productInfo['version'] = productInfo['verminor']
+					else:
+						distroInfo['Summary'] = line.strip()
+
+	productsList.append(productInfo)
 
 	del BASIC_ENV
+
 
 	#load summary.xml
 	try:
 		with open(arg[0] + "/summary.xml") as f:
 			SUMMARY = f.read().splitlines()
+			f.close()
 	except:
 		SUMMARY = []
 
@@ -339,112 +328,128 @@ def getHeader(*arg):
 	#detect SLE for VMWARE
 	PROD_NAME = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
 	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
-	INFO = {'Product': None, 'Version': None}
+	INFO = {'tag': 'vmw', 'patternTag': 'VMware', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
 	for LINE in SUMMARY:
 		if( IN_PRODUCT ):
 			if PROD_END.search(LINE):
 				IN_PRODUCT = False
 			elif PROD_NAME.search(LINE):
 				try:
-					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+					INFO['name'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
 				except:
 					True
 			elif PROD_VER.search(LINE):
 				try:
-					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
+					INFO['version'] = re.search(r'>(.+?)<', LINE).group(1)
+					if( "." in INFO['version'] ):
+						(INFO['vermajor'], INFO['verminor']) = INFO['version'].split(".")
+					else:
+						INFO['vermajor'] = INFO['version']
+						INFO['verminor'] = "0"
 				except:
 					True
-			if( INFO['Product'] and INFO['Version'] ):
+			if( INFO['name'] and INFO['version'] ):
 				IN_PRODUCT = False
-				PRODUCTS[DISTRO][1] = INFO['Product']
-				PRODUCTS[DISTRO][3] = INFO['Version']
-				INFO = {'Product': None, 'Version': None}
+				productsList.append(INFO)
+				break
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
 
 	#detect SLE for SAP
-	PROD_NAME = re.compile(r'<description>SUSE LINUX Enterprise Server for SAP Applications</description>', re.IGNORECASE)
+	PROD_NAME = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
 	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
-	INFO = {'Product': None, 'Version': None}
+	INFO = {'tag': 'sap', 'patternTag': 'SAP', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
 	for LINE in SUMMARY:
 		if( IN_PRODUCT ):
 			if PROD_END.search(LINE):
 				IN_PRODUCT = False
 			elif PROD_NAME.search(LINE):
 				try:
-					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+					INFO['name'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
 				except:
 					True
 			elif PROD_VER.search(LINE):
 				try:
-					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
+					INFO['version'] = re.search(r'>(.+?)<', LINE).group(1)
+					if( "." in INFO['version'] ):
+						(INFO['vermajor'], INFO['verminor']) = INFO['version'].split(".")
+					else:
+						INFO['vermajor'] = INFO['version']
+						INFO['verminor'] = "0"
 				except:
 					True
-			if( INFO['Product'] and INFO['Version'] ):
+			if( INFO['name'] and INFO['version'] ):
 				IN_PRODUCT = False
-				PRODUCTS[DISTRO][1] = INFO['Product']
-				PRODUCTS[DISTRO][3] = INFO['Version']
-				INFO = {'Product': None, 'Version': None}
+				productsList.append(INFO)
+				break
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
 
 	#get HAE information
 	PROD_NAME = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
 	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
-	INFO = {'Product': None, 'Version': None}
+	INFO = {'tag': 'hae', 'patternTag': 'HAE', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
 	for LINE in SUMMARY:
 		if( IN_PRODUCT ):
 			if PROD_END.search(LINE):
 				IN_PRODUCT = False
 			elif PROD_NAME.search(LINE):
 				try:
-					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
+					INFO['name'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
 				except:
 					True
 			elif PROD_VER.search(LINE):
 				try:
-					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
+					INFO['version'] = re.search(r'>(.+?)<', LINE).group(1)
+					if( "." in INFO['version'] ):
+						(INFO['vermajor'], INFO['verminor']) = INFO['version'].split(".")
+					else:
+						INFO['vermajor'] = INFO['version']
+						INFO['verminor'] = "0"
 				except:
 					True
-			if( INFO['Product'] and INFO['Version'] ):
+			if( INFO['name'] and INFO['version'] ):
 				IN_PRODUCT = False
-				PRODUCTS.append(['Product:', INFO['Product'], 'Version:', INFO['Version']])
-				INFO = {'Product': None, 'Version': None}
+				productsList.append(INFO)
+				break
 		elif PROD_START.search(LINE):
 			IN_PRODUCT = True
 
 	#get SUSE Manager information
-	PROD_NAME = re.compile(r'<name>SUSE-Manager.*</name>', re.IGNORECASE)
-	PROD_VER = re.compile(r'<version>.*</version>', re.IGNORECASE)
-	INFO = {'Product': None, 'Version': None}
-	for LINE in SUMMARY:
-		if( IN_PRODUCT ):
-			if PROD_END.search(LINE):
-				IN_PRODUCT = False
-			elif PROD_NAME.search(LINE):
-				try:
-					INFO['Product'] = re.search(r'>(.+?)<', LINE).group(1).replace('-', ' ')
-				except:
-					True
-			elif PROD_VER.search(LINE):
-				try:
-					INFO['Version'] = re.search(r'>(.+?)<', LINE).group(1)
-				except:
-					True
-			if( INFO['Product'] and INFO['Version'] ):
-				IN_PRODUCT = False
-				PRODUCTS.append(['Product:', INFO['Product'], 'Version:', INFO['Version']])
-				INFO = {'Product': None, 'Version': None}
-		elif PROD_START.search(LINE):
-			IN_PRODUCT = True
+	# TO DO
 
 	del SUMMARY
 
-#	print "["
-#	for INFO in PRODUCTS:
-#		print " " + str(INFO)
-#	print "]"
+#	print()
+#	print(distroInfo)
+#	print()
+#	print("[")
+#	for INFO in productsList:
+#		print(str(INFO))
+#	print("]")
 #	sys.exit()
+
+
+##########################################################################################
+# HTML REPORT FUNCTIONS
+##########################################################################################
+##########################################################################################
+# getHeader
+##########################################################################################
+#returns html code. This is the part about the server.
+
+def getHeader(*arg):
+#%%% No *arg needed??
+	global productsList
+	global distroInfo
+	#reset variables
+	returnHTML = ""
+
+	#set archive name if given
+	if len(arg) == 1:
+		arcName = arg[0]
+	else:
+		arcName = ""
 
 	#create HTML from the data we just got
 	returnHTML += '<H1>Supportconfig Analysis Report</H1>\n'
@@ -452,10 +457,10 @@ def getHeader(*arg):
 
 	returnHTML += '<TABLE CELLPADDING="5">\n'
 	returnHTML += '<TR><TD><B>Analysis Date:</B></TD><TD>'
-	returnHTML += timeAnalysis
+	returnHTML += distroInfo['timeAnalysis']
 	returnHTML += '</TD></TR>\n'
 	returnHTML += '<TR><TD><B>Supportconfig Run Date:</B></TD><TD>'
-	returnHTML += timeArchiveRun
+	returnHTML += distroInfo['timeArchiveRun']
 	returnHTML += '</TD></TR>\n'
 	returnHTML += '<TR><TD><B>Supportconfig File:</B></TD><TD>'
 	returnHTML += arcName
@@ -470,36 +475,36 @@ def getHeader(*arg):
 
 	#Server name and hardWare
 	returnHTML += '<TR><TD><B>Server Name:</B></TD><TD>'
-	returnHTML += serverName
+	returnHTML += distroInfo['serverName']
 	returnHTML += '</TD><TD><B>Hardware:</B></TD><TD>'
-	returnHTML += hardWare
+	returnHTML += distroInfo['hardWare']
 	returnHTML += '</TD></TR>\n'
 
 	#Products included in supportconfig
-	for INFO in PRODUCTS:
+	for PROD in productsList:
 		returnHTML += '<TR><TD><B>'
-		returnHTML += str(INFO[0])
+		returnHTML += str(PROD['nameTag'])
 		returnHTML += '</B></TD><TD>'
-		returnHTML += str(INFO[1])
+		returnHTML += str(PROD['name'])
 		returnHTML += '</TD><TD><B>'
-		returnHTML += str(INFO[2])
+		returnHTML += str(PROD['versionTag'])
 		returnHTML += '</B></TD><TD>'
-		returnHTML += str(INFO[3])
+		returnHTML += str(PROD['version'])
 		returnHTML += '</TD></TR>\n'
 
-	if virtualization != "None" and virtualization != "":
+	if distroInfo['virtualization'] != "None" and distroInfo['virtualization'] != "":
 		#hypervisor stuff
 		returnHTML += '<TR><TD><B>Hypervisor:</B></TD><TD>'
-		returnHTML += virtualization
+		returnHTML += distroInfo['virtualization']
 		returnHTML += '</TD><TD><B>Identity:</B></TD><TD>'
-		returnHTML += vmIdentity
+		returnHTML += distroInfo['vmIdentity']
 		returnHTML += '</TD></TR>\n'
 
 	#kernel Version and Supportconfig version
 	returnHTML += '<TR><TD><B>Kernel Version:</B></TD><TD>'
-	returnHTML += kernelVersion
+	returnHTML += distroInfo['kernelVersion']
 	returnHTML += '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
-	returnHTML += supportconfigVersion
+	returnHTML += distroInfo['supportconfigVersion']
 	returnHTML += '</TD></TR>\n'
 	returnHTML += '</TABLE>\n'
 	returnHTML += '<HR />\n'
@@ -557,7 +562,7 @@ def getHtml(OutPutFile, archivePath, archiveFile):
 	global knownClasses
 	global results
 	global HTML
-	global serverName
+	global distroInfo
 	
 	#get known classes
 	getClasses()
@@ -598,15 +603,15 @@ def getHtml(OutPutFile, archivePath, archiveFile):
 	
 	#get header html
 	HTML += "<BODY BGPROPERTIES=FIXED BGCOLOR=\"#FFFFFF\" TEXT=\"#000000\">" + "\n"
-	HTML += getHeader(archivePath, OutPutFile, archiveFile)
+	HTML += getHeader(OutPutFile)
 
-	# getHeader probes the archive for serverName, so the header has to be retrieved after getHeader is called.
+	# getHeader probes the archive for distroInfo['serverName'], so the header has to be retrieved after getHeader is called.
 	# temporarily storing header in HTML_HEADER
 	#html top bit:
 	HTML_HEADER += "<!DOCTYPE html>" + "\n"
 	HTML_HEADER += "<HTML>" + "\n"
 	HTML_HEADER += "<HEAD>" + "\n"
-	HTML_HEADER += "<TITLE>SCA Report for " + serverName + "</TITLE>" + "\n"
+	HTML_HEADER += "<TITLE>SCA Report for " + distroInfo['serverName'] + "</TITLE>" + "\n"
 	HTML_HEADER += "<STYLE TYPE=\"text/css\">" + "\n"
 	HTML_HEADER += "  a {text-decoration: none}  /* no underlined links */" + "\n"
 	HTML_HEADER += "  a:link {color:#0000FF;}  /* unvisited link */" + "\n"
@@ -879,6 +884,8 @@ def patternLibraryList():
 def patternPreProcessor(extractedSupportconfig):
 	global loglevel
 	global fieldOutput
+	global productsList
+	getProductsList(extractedSupportconfig)
 	patternFileList = []
 	patternDirectories = [SCA_PATTERN_PATH + "/local/"] #always include the local patterns
 
@@ -889,54 +896,14 @@ def patternPreProcessor(extractedSupportconfig):
 	if( loglevel['current'] >= loglevel['normal'] ):
 		print(fieldOutput.format('Total Patterns Available:', TOTAL_COUNT))
 
-	#first get the pattern directory paths for all possible valid patterns
-	#build directory with SLE versions from basic-environment.txt
-	basicEnv = open(extractedSupportconfig + "/basic-environment.txt")
-	basicEnvLines = basicEnv.readlines()
-	SLE_VERSION = 0
-	SLE_SP = 0
-	inSLES = False
-	inSLESOS = False
-	for lineNumber in range(0, len(basicEnvLines)):
-		if inSLESOS:
-			if "#==[" in basicEnvLines[lineNumber] :
-				inSLESOS = False
-			elif basicEnvLines[lineNumber].startswith("VERSION_ID"):
-				VERSION_ID = basicEnvLines[lineNumber].split("=")[1].strip().strip('"')
-				SLE_VERSION = str(VERSION_ID).split(".")[0]
-				if( len(str(VERSION_ID).split(".")) > 1 ):
-					SLE_SP = VERSION_ID.split(".")[1].strip()
-				else:
-					SLE_SP = 0
-		elif inSLES:
-			if "#==[" in basicEnvLines[lineNumber] :
-				inSLES = False
-			elif basicEnvLines[lineNumber].startswith("VERSION"):
-				SLE_VERSION = basicEnvLines[lineNumber].split("=")[1].strip()
-			elif basicEnvLines[lineNumber].startswith("PATCHLEVEL"):
-				SLE_SP = basicEnvLines[lineNumber].split("=")[1].strip()
-		elif "# /etc/os-release" in basicEnvLines[lineNumber] :
-			inSLESOS = True
-		elif "# /etc/SuSE-release" in basicEnvLines[lineNumber] :
-			inSLES = True
-	SLE_VERSION = int(SLE_VERSION)
-	if( SLE_VERSION > 0 ):
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "all/")
-		patternDirectories.append(str(SCA_PATTERN_PATH) + "/SLE/sle" + str(SLE_VERSION) + "sp" + str(SLE_SP) + "/")
-
-	#build directory of additional required patterns by add-on products
-	rpmFile = open(extractedSupportconfig + "/rpm.txt")
-	RPMs = rpmFile.readlines()
-	rpmFile.close()
-	inHAE = re.compile('openais|resource-agents|cluster-glue|corosync|csync2|pacemaker|heartbeat', re.IGNORECASE)
-	SUMA = re.compile("^susemanager\s|^susemanager-proxy\s", re.IGNORECASE)
-	for line in RPMs:
-		if inHAE.search(line) and not line.startswith("sca-patterns"):
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/HAE/"))
-		elif SUMA.search(line) and not line.startswith("sca-patterns"):
-			VER_MAJOR = str(line.split()[-1].split('.')[0])
-			VER_MINOR = str(line.split()[-1].split('.')[1])
-			patternDirectories.append(str(SCA_PATTERN_PATH + "/suma/suma" + VER_MAJOR + VER_MINOR + "all/"))
+	for CLASS in productsList:
+		basePatternPath = str(SCA_PATTERN_PATH) + "/" + str(CLASS['patternTag']) + "/"
+		classPath = basePatternPath + str(CLASS['tag']) + str(CLASS['vermajor']) + "all/"
+		if os.path.isdir(classPath):
+			patternDirectories.append(classPath)
+		classPath = basePatternPath + str(CLASS['tag']) + str(CLASS['vermajor']) + "sp" + str(CLASS['verminor']) + "/"
+		if os.path.isdir(classPath):
+			patternDirectories.append(classPath)
 
 	patternDirectories = list(set(patternDirectories)) #create a unique sorted list
 	systemDefinition = []
@@ -949,13 +916,11 @@ def patternPreProcessor(extractedSupportconfig):
 	#second build the list of valid patterns from the patternDirectories
 	#walk through each valid pattern directory
 	for patternDirectory in patternDirectories:
-		#only include patterns that exist
-		if os.path.isdir(patternDirectory):
-			#get the patterns from the valid directory
-			for root, dirs, patternFiles in os.walk(patternDirectory):
-				#joint the filenames with the root path
-				for patternFile in patternFiles:
-					patternFileList.append(os.path.join(root, patternFile))
+		#get the patterns from the valid directory
+		for root, dirs, patternFiles in os.walk(patternDirectory):
+			#joint the filenames with the root path
+			for patternFile in patternFiles:
+				patternFileList.append(os.path.join(root, patternFile))
 
 	return patternFileList
 
@@ -969,7 +934,7 @@ def emailSCAReport(supportconfigFile):
 	global loglevel
 	global htmlOutputFile
 	global emailAddrList
-	global serverName
+	global distroInfo
 	global analysisDateTime
 	global patternStats
 	global fieldOutput
@@ -985,14 +950,14 @@ def emailSCAReport(supportconfigFile):
 	SERVER = 'localhost'
 	TO = re.split(r',\s*|\s*', emailAddrList)
 	FROM = 'SCA Tool <root>'
-	SUBJECT = "SCA Report for " + str(serverName) + ": " + str(patternStats['Applied']) + "/" + str(patternStats['Total']) + ", " + str(patternStats['Crit']) + ":" + str(patternStats['Warn']) + ":" + str(patternStats['Recc']) + ":" + str(patternStats['Succ'])
+	SUBJECT = "SCA Report for " + str(distroInfo['serverName']) + ": " + str(patternStats['Applied']) + "/" + str(patternStats['Total']) + ", " + str(patternStats['Crit']) + ":" + str(patternStats['Warn']) + ":" + str(patternStats['Recc']) + ":" + str(patternStats['Succ'])
 	SCA_REPORT = htmlOutputFile.split('/')[-1]
 
 	# create text email
 	text = "* Supportconfig Analysis Report *\n"
 	text += "Analysis Date:             " + str(timeAnalysis) + "\n"
 	text += "Supportconfig Archive:    " + str(supportconfigFile) + "\n"
-	text += "Server Analyzed:          " + str(serverName) + "\n"
+	text += "Server Analyzed:          " + str(distroInfo['serverName']) + "\n"
 	text += "Total Patterns Evaluated: " + str(patternStats['Total']) + "\n"
 	text += "Applicable to Server:     " + str(patternStats['Applied']) + "\n"
 	text += "  Critical:               " + str(patternStats['Crit']) + "\n"
@@ -1009,7 +974,7 @@ def emailSCAReport(supportconfigFile):
 	html += '<table>\n'
 	html += "<tr><td>Analysis Date:</td><td>" + str(timeAnalysis) + '</td></tr>\n'
 	html += "<tr><td>Supportconfig Archive:</td><td>" + str(supportconfigFile) + '</td></tr>\n'
-	html += "<tr><td>Server Analyzed:</td><td>" + str(serverName) + '</td></tr>\n'
+	html += "<tr><td>Server Analyzed:</td><td>" + str(distroInfo['serverName']) + '</td></tr>\n'
 	html += "<tr><td>Total Patterns Evaluated:</td><td>" + str(patternStats['Total']) + '</td></tr>\n'
 	html += "<tr><td>Applicable to Server:</td><td>" + str(patternStats['Applied']) + '</td></tr>\n'
 	html += "<tr><td>&nbsp;&nbsp;Critical:</td><td>" + str(patternStats['Crit']) + '</td></tr>\n'
