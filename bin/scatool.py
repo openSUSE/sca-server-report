@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2022 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2022 Mar 04
+# Modified:     2022 Mar 07
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.1-1.dev02'
+SVER = '1.5.1-1.dev04'
 
 ##########################################################################################
 # Python Imports
@@ -185,7 +185,7 @@ analysisDateTime = datetime.datetime.now()
 RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
 
 productsList = []
-distroInfo = {'serverName': 'Unknown'}
+distroInfo = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None'}
 
 ##########################################################################################
 # getProductsList(extractedSupportconfig)
