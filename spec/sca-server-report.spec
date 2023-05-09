@@ -26,7 +26,6 @@ Group:        System/Monitoring
 Source:       %{name}-%{version}.tar.gz
 Requires:     sca-patterns-base >= 1.5.0
 Requires:     python3-base
-Requires:     w3m
 BuildArch:    noarch
 
 %description

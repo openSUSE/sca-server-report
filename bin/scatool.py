@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2022 SUSE LLC
+# Copyright (c) 2014-2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2022 Mar 07
+# Modified:     2023 Febr 10
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.1-1'
+SVER = '1.5.1-1_dev11'
 
 ##########################################################################################
 # Python Imports
@@ -428,6 +428,36 @@ def getProductsList(*arg):
 #		print(str(INFO))
 #	print("]")
 #	sys.exit()
+
+##########################################################################################
+# ProgressBar class
+##########################################################################################
+class ProgressBar():
+	"Initialize and update progress bar class"
+	def __init__(self, prefix, bar_width, total):
+		self.prefix = prefix
+		self.bar_width = bar_width
+		self.total = total
+		self.count = 0
+		self.out = sys.stdout
+
+	def __str__(self):
+		return 'class %s(\n  prefix=%r \n  bar_width=%r \n  total=%r\n)' % (self.__class__.__name__, self.prefix, self.bar_width, self.total)
+
+	def update(self, count):
+		if( count > self.total ):
+			self.count = self.total
+		else:
+			self.count = count
+		percent_complete = int(100*self.count/self.total)
+		current_progress = int(self.bar_width*self.count/self.total)
+		print("{}[{}{}] {:3g}% {:3g}/{:3g}".format(self.prefix, "#"*current_progress, "."*(self.bar_width-current_progress), percent_complete, self.count, self.total), end='\r', file=self.out, flush=True)
+		#print("{}[{}{}] {:3g}%".format(self.prefix, "#"*current_progress, "."*(self.bar_width-current_progress), percent_complete), end='\r', file=self.out, flush=True)
+
+	def finish(self):
+		if( self.count < self.total ):
+			self.update(self.total)
+		print("\n", flush=True, file=self.out)
 
 
 ##########################################################################################
@@ -1032,9 +1062,6 @@ def runPats(extractedSupportconfig):
 	patternCount = 0
 	patternStats['Total'] = len(validPatterns)
 	verboseLine = '{0:6} {1:>5} of {2} {3}'
-	patternInterval = int( int(patternStats['Total']) / int(progressBarWidth) )
-	if( patternStats['Total'] < progressBarWidth ):
-		patternInterval = 1
 	patternSkipped = False
 
 	if( loglevel['current'] >= loglevel['normal'] ):
@@ -1043,10 +1070,7 @@ def runPats(extractedSupportconfig):
 	if( loglevel['current'] >= loglevel['verbose'] ):
 		print(fieldOutput.format('Analyzing Supportconfig:', 'In Progress'))
 	elif( loglevel['current'] == loglevel['normal'] ):
-		sys.stdout.write("Analyzing Supportconfig:       [%s]" % (" " * progressBarWidth))
-		sys.stdout.flush()
-		sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
-#		sys.stdout.write("\n")
+		ascbar = ProgressBar("Analyzing Supportconfig:       ", progressBarWidth, patternStats['Total'])
 
 	for patternFile in validPatterns:
 		patternCount += 1
@@ -1073,15 +1097,7 @@ def runPats(extractedSupportconfig):
 					else:
 						print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList[-1]))
 			elif( loglevel['current'] == loglevel['normal'] ):
-				#advance the progress bar if it's not full yet
-#				sys.stdout.write("Count = " + str(patternCount) + ", Total = " + str(patternStats['Total']) + ", Progress = " + str(progressCount) + ", Width = " + str(progressBarWidth) + ", Interval = " + str(patternInterval) + "\n")
-#				sys.stdout.flush()
-				if( progressCount < progressBarWidth ):
-					#advance the progress bar in equal intervals
-					if( patternCount % patternInterval == 0 ):
-						progressCount += 1
-						sys.stdout.write("=")
-						sys.stdout.flush()
+				ascbar.update(patternCount)
 		except Exception as e:
 			patternErrorList.append(patternFile + " -- Pattern runtime error: " + str(e))
 			if( loglevel['current'] >= loglevel['verbose'] ):
@@ -1089,11 +1105,7 @@ def runPats(extractedSupportconfig):
 
 	#make output look nice
 	if( loglevel['current'] == loglevel['normal'] ):
-		while( progressCount < progressBarWidth ):
-			progressCount += 1
-			sys.stdout.write("=")
-			sys.stdout.flush()
-		sys.stdout.write("\n")
+		ascbar.finish()
 
 	patternStats['Applied'] = len(results)
 	patternStats['Errors'] = len(patternErrorList)
@@ -1237,10 +1249,7 @@ def analyze(*arg):
 		if( loglevel['current'] >= loglevel['verbose'] ):
 			print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
 		elif( loglevel['current'] == loglevel['normal'] ):
-			sys.stdout.write("Gathering Supportconfig:       [%s]" % (" " * progressBarWidth))
-			sys.stdout.flush()
-			sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
-			sys.stdout.flush()
+			scbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
 
 		#this acts like a do-while. I love do-while :)
 		#print output of the subprocess (supportconfig)
@@ -1248,6 +1257,7 @@ def analyze(*arg):
 		while condition:
 			out = p.stdout.read(1)
 			if out != '':
+				progressCount += 1
 				alloutput = alloutput + out
 				if( loglevel['current'] >= loglevel['verbose'] ):
 					sys.stdout.write(out)
@@ -1255,25 +1265,14 @@ def analyze(*arg):
 				elif( loglevel['current'] == loglevel['normal'] ):
 					if out == "\n":
 						lineNum += 1
+						scbar.update(lineNum)
 						if ( scHeaderLines > 0 ):
 							scHeaderLines -= 1
-						else:
-							#advance the progress bar if it's not full yet
-							if( progressCount < progressBarWidth ):
-								#advance the progress bar in equal intervals
-								if( lineNum % scInterval == 0 ):
-									progressCount += 1
-									sys.stdout.write("=")
-									sys.stdout.flush()
 		#--WHILE--
 			condition = not bool(out == "" and p.poll() != None)
 
 		if( loglevel['current'] == loglevel['normal'] ):
-			while( progressCount < progressBarWidth ):
-				progressCount += 1
-				sys.stdout.write("=")
-				sys.stdout.flush()
-			sys.stdout.write("\n")
+			scbar.finish()
 
 	#if a path was given. analyze given file/folder
 	elif len(arg) == 1:
@@ -1382,10 +1381,7 @@ def analyze(*arg):
 								if( loglevel['current'] >= loglevel['verbose'] ):
 									print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
 								elif( loglevel['current'] == loglevel['normal'] ):
-									sys.stdout.write("Gathering Supportconfig:      [%s]" % (" " * progressBarWidth))
-									sys.stdout.flush()
-									sys.stdout.write("\b" * (progressBarWidth+1)) # return to start of line, after '['
-									sys.stdout.flush()
+									rscbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
 
 							if( loglevel['current'] >= loglevel['verbose'] ):
 								sys.stdout.write(out.strip("~"))
@@ -1393,16 +1389,7 @@ def analyze(*arg):
 							elif( loglevel['current'] == loglevel['normal'] ):
 								if out == "\n":
 									lineNum += 1
-									if ( scHeaderLines > 0 ):
-										scHeaderLines -= 1
-									else:
-										#advance the progress bar if it's not full yet
-										if( progressCount < progressBarWidth ):
-											#advance the progress bar in equal intervals
-											if( lineNum % scInterval == 0 ):
-												progressCount += 1
-												sys.stdout.write("=")
-												sys.stdout.flush()
+									rscbar.update(lineNum)
 						#if we are ate the end of the file output
 						if out == "~":
 							endOfSupportconfig = True
@@ -1414,10 +1401,7 @@ def analyze(*arg):
 
 					if( loglevel['current'] == loglevel['normal'] ):
 						if remoteProgressBarSetup:
-							while( progressCount < progressBarWidth ):
-								progressCount += 1
-								sys.stdout.write("=")
-								sys.stdout.flush()
+							rscbar.finish()
 
 					supportconfigPath = localSupportconfigFullPath
 					fileInfo = os.stat(supportconfigPath)
