@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2023 Febr 10
+# Modified:     2023 Aug 18
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.1-1_dev11'
+SVER = '1.5.1-3'
 
 ##########################################################################################
 # Python Imports
@@ -63,6 +63,7 @@ global patternStats
 global patternDict
 global firstSize
 global fieldOutput
+global progressBarActive
 global progressBarWidth
 global productsList
 global distroInfo
@@ -88,6 +89,7 @@ def usage():
 	print(" -r       Remove archive files (REMOVE_ARCHIVE) leaving only the report html file")
 	print(" -p       Print a pattern summary")
 	print(" -q       Quiet output")
+	print(" -b       Batch mode that disables the progress bar")
 	print(" -v       Verbose output")
 	print()
 
@@ -150,6 +152,7 @@ except Exception:
 
 firstSize = 30
 fieldOutput = "{0:" + str(firstSize) + "} {1}"
+progressBarActive = True
 progressBarWidth = 52
 knownClasses = []
 results = []
@@ -1054,6 +1057,7 @@ def runPats(extractedSupportconfig):
 	global loglevel
 	global fieldOutput
 	global progressBarWidth
+	global progressBarActive
 	results = []
 
 	validPatterns = patternPreProcessor(extractedSupportconfig)
@@ -1070,7 +1074,10 @@ def runPats(extractedSupportconfig):
 	if( loglevel['current'] >= loglevel['verbose'] ):
 		print(fieldOutput.format('Analyzing Supportconfig:', 'In Progress'))
 	elif( loglevel['current'] == loglevel['normal'] ):
-		ascbar = ProgressBar("Analyzing Supportconfig:       ", progressBarWidth, patternStats['Total'])
+		if progressBarActive:
+			ascbar = ProgressBar("Analyzing Supportconfig:       ", progressBarWidth, patternStats['Total'])
+		else:
+			print(fieldOutput.format('Analyzing Supportconfig:', 'In Progress'))
 
 	for patternFile in validPatterns:
 		patternCount += 1
@@ -1097,7 +1104,8 @@ def runPats(extractedSupportconfig):
 					else:
 						print(verboseLine.format('ERROR:', patternCount, patternStats['Total'], patternErrorList[-1]))
 			elif( loglevel['current'] == loglevel['normal'] ):
-				ascbar.update(patternCount)
+				if progressBarActive:
+					ascbar.update(patternCount)
 		except Exception as e:
 			patternErrorList.append(patternFile + " -- Pattern runtime error: " + str(e))
 			if( loglevel['current'] >= loglevel['verbose'] ):
@@ -1105,7 +1113,8 @@ def runPats(extractedSupportconfig):
 
 	#make output look nice
 	if( loglevel['current'] == loglevel['normal'] ):
-		ascbar.finish()
+		if progressBarActive:
+			ascbar.finish()
 
 	patternStats['Applied'] = len(results)
 	patternStats['Errors'] = len(patternErrorList)
@@ -1194,6 +1203,7 @@ def analyze(*arg):
 	global loglevel
 	global analysisDateTime
 	global fieldOutput
+	global progressBarActive
 	global progressBarWidth
 
 	#reset stuff
@@ -1249,7 +1259,10 @@ def analyze(*arg):
 		if( loglevel['current'] >= loglevel['verbose'] ):
 			print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
 		elif( loglevel['current'] == loglevel['normal'] ):
-			scbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
+			if progressBarActive:
+				scbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
+			else:
+				print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
 
 		#this acts like a do-while. I love do-while :)
 		#print output of the subprocess (supportconfig)
@@ -1265,14 +1278,16 @@ def analyze(*arg):
 				elif( loglevel['current'] == loglevel['normal'] ):
 					if out == "\n":
 						lineNum += 1
-						scbar.update(lineNum)
+						if progressBarActive:
+							scbar.update(lineNum)
 						if ( scHeaderLines > 0 ):
 							scHeaderLines -= 1
 		#--WHILE--
 			condition = not bool(out == "" and p.poll() != None)
 
 		if( loglevel['current'] == loglevel['normal'] ):
-			scbar.finish()
+			if progressBarActive:
+				scbar.finish()
 
 	#if a path was given. analyze given file/folder
 	elif len(arg) == 1:
@@ -1381,7 +1396,10 @@ def analyze(*arg):
 								if( loglevel['current'] >= loglevel['verbose'] ):
 									print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
 								elif( loglevel['current'] == loglevel['normal'] ):
-									rscbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
+									if progressBarActive:
+										rscbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
+									else:
+										print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
 
 							if( loglevel['current'] >= loglevel['verbose'] ):
 								sys.stdout.write(out.strip("~"))
@@ -1389,7 +1407,8 @@ def analyze(*arg):
 							elif( loglevel['current'] == loglevel['normal'] ):
 								if out == "\n":
 									lineNum += 1
-									rscbar.update(lineNum)
+									if progressBarActive:
+										rscbar.update(lineNum)
 						#if we are ate the end of the file output
 						if out == "~":
 							endOfSupportconfig = True
@@ -1401,7 +1420,8 @@ def analyze(*arg):
 
 					if( loglevel['current'] == loglevel['normal'] ):
 						if remoteProgressBarSetup:
-							rscbar.finish()
+							if progressBarActive:
+								rscbar.finish()
 
 					supportconfigPath = localSupportconfigFullPath
 					fileInfo = os.stat(supportconfigPath)
@@ -1592,7 +1612,7 @@ analyzeFile = ""
 # Process command line arguments
 if( len(sys.argv[1:]) > 0 ):
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "ha:so:rkcqdvpe:")
+		opts, args = getopt.getopt(sys.argv[1:], "ha:bso:rkcqdvpe:")
 #		print "opts = " + str(len(opts)) + ", args = " + str(len(args)) + ":" + str(args) + ", sys.argv = " + str(len(sys.argv)) + ", last = " + str(sys.argv[-1])
 	except getopt.GetoptError as err:
 		# print help information and exit:
@@ -1613,6 +1633,8 @@ if( len(sys.argv[1:]) > 0 ):
 			title()
 			patternLibraryList()
 			sys.exit()
+		elif startUpOption in ("-b"):
+			progressBarActive = False
 		elif startUpOption in ("-k"):
 			# This is the default behavior, but -k remains for compatibility.
 			removeArchive = False
