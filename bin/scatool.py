@@ -3,7 +3,7 @@
 # Copyright (c) 2014-2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2023 Aug 18
+# Modified:     2023 Aug 19
 
 ##############################################################################
 #command
@@ -23,7 +23,7 @@
 #     Jason Record <jason.record@suse.com>
 #
 ##############################################################################
-SVER = '1.5.1-3'
+SVER = '1.5.1-4'
 
 ##########################################################################################
 # Python Imports
@@ -41,10 +41,9 @@ import time
 import getopt
 import re
 import smtplib
-import email
-import email.encoders
-import email.mime.text
-import email.mime.base
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
 ##########################################################################################
 # Global Declarations
@@ -981,7 +980,7 @@ def emailSCAReport(supportconfigFile):
 	else:
 		return 0
 	SERVER = 'localhost'
-	TO = re.split(r',\s*|\s*', emailAddrList)
+	TO = emailAddrList.split(',')
 	FROM = 'SCA Tool <root>'
 	SUBJECT = "SCA Report for " + str(distroInfo['serverName']) + ": " + str(patternStats['Applied']) + "/" + str(patternStats['Total']) + ", " + str(patternStats['Crit']) + ":" + str(patternStats['Warn']) + ":" + str(patternStats['Recc']) + ":" + str(patternStats['Succ'])
 	SCA_REPORT = htmlOutputFile.split('/')[-1]
@@ -1016,17 +1015,16 @@ def emailSCAReport(supportconfigFile):
 	html += "<tr><td>&nbsp;&nbsp;Success:</td><td>" + str(patternStats['Succ']) + '</td></tr>\n'
 	html += "<tr><td>Source:</td><td>scatool v" + str(SVER) + '</td></tr>\n'
 	html += "</table>\n</body></html>\n\n"
-	emailMsg = email.MIMEMultipart.MIMEMultipart('alternative')
+	emailMsg = MIMEMultipart()
 	emailMsg['Subject'] = SUBJECT
 	emailMsg['From'] = FROM
 	emailMsg['To'] = ', '.join(TO)
-	emailMsg.attach(email.mime.text.MIMEText(text,'plain'))
-	emailMsg.attach(email.mime.text.MIMEText(html,'html'))
+	emailMsg.attach(MIMEText(text,'plain'))
+	emailMsg.attach(MIMEText(html,'html'))
 
 	# now attach the file
-	fileMsg = email.mime.base.MIMEBase('text','html')
-	fileMsg.set_payload(file(htmlOutputFile).read())
-	email.encoders.encode_base64(fileMsg)
+	with open(htmlOutputFile, 'rb') as file:
+		fileMsg = MIMEApplication(file.read(), _subtype="html")
 	fileMsg.add_header('Content-Disposition','attachment;filename=' + SCA_REPORT)
 	emailMsg.attach(fileMsg)
 
