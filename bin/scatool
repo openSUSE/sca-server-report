@@ -407,6 +407,8 @@ Class instance of {}
 		self.pattern_stats['Errors'] = len(self.pattern_error_list)
 		self.msg.normal('Applicable Patterns:', str(self.pattern_stats['Applied']))
 		self.msg.normal('Pattern Execution Errors:', str(self.pattern_stats['Errors']))
+################################################################
+# Change back to get list of patterns with errors
 #%%%	if( msg.get_level() >= msg.LOG_NORMAL ):
 		if( msg.get_level() >= msg.LOG_DEBUG ):
 			for pattern_error_str in self.pattern_error_list:
