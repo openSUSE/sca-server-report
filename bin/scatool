@@ -1,11 +1,11 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev1'
+SVER = '3.0.0_dev2'
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2023 Sep 18
+# Modified:     2023 Sep 19
 #
 ##############################################################################
 #
@@ -22,7 +22,7 @@ SVER = '3.0.0_dev1'
 #  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 #  Authors/Contributors:
-#     Jason Record <jason.record@suse.com>
+#	Jason Record <jason.record@suse.com>
 #
 ##############################################################################
 
@@ -45,9 +45,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
+width = 0
+description_width = 0
 progress_bar_active = True
-output_path = ''
-output_file_html = ''
+report_file_path = ''
 email_addr_list = ''
 remove_archive = False
 analyze_server = False
@@ -55,26 +56,29 @@ output_type = 'html'
 config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
 analysis_datetime = datetime.datetime.now()
 
+def separator_line(use_char = '#'):
+	print("{}".format(use_char*width))
+
 def title():
-	print("#####################################################################################")
+	separator_line()
 	print("#   SCA Tool v" + SVER)
-	print("#####################################################################################")
+	separator_line()
 	print()
 
 def usage():
-	print("Usage: scatool [OPTIONS] [archive|server]")
-	display = "  {:33s} {}"
+	print("Usage: scatool [OPTIONS] [-s]|[archive|server]")
+	display = "  {:33} {}"
 	print()
 	print("OPTIONS")
 	print(display.format('-h, --help', "Displays this screen"))
 	print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
-	print(display.format('-e <list>, --email <list>', "Send HTML report to email address(es) provided. Comma separated list"))
+	print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
 	print(display.format('-o <path>, --output <path>', "HTML report output directory (OUTPUT_PATH)"))
 	print(display.format('-p, --summary', "Print a pattern summary"))
-	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the report html file"))
+	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the SCA Report file"))
 	print(display.format('-s, --server', "Analyze the local server"))
-	print(display.format('-t, --output_type', "Output type, options: html. Default: HTML"))
-	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Minimal"))
+	print(display.format('-t, --output_type', "SCA Report file output type, options: html. Default: html"))
+	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
 	print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
 	print()
 
@@ -97,17 +101,22 @@ def config_entry(_entry, trailer = ''):
 
 class ProgressBar():
 	"""Initialize and update progress bar class"""
-	seperator_len = 85
-	def __init__(self, prefix, total, bar_width = seperator_len):
-		self.base_len = seperator_len
-		self.bar_width_orig = bar_width
-		self.bar_width = bar_width
+
+	def __init__(self, prefix, total):
+		self.base_len = int(width)
+		self.desc_width = int(description_width) + 1
+		self.bar_width = self.base_len
 		self.prefix = prefix
-		self.total = total
+		self.prefix_size = len(self.prefix)
+		self.total = int(total)
 		self.count = 0
 		self.out = sys.stdout
-		if ( self.bar_width_orig == self.base_len ):
-			self.bar_width = self.base_len - len(self.prefix) - 2
+		if self.prefix_size > self.desc_width:
+			self.bar_width = self.base_len - self.prefix_size - 2
+		else:
+			self.bar_width = self.base_len - self.desc_width - 2
+		self.display = "{:" + str(self.desc_width) + "s}[{}{}] {:3g}% {:3g}/{}"
+#		print("** ProgressBar base_len={}, bar_width={}, desc_width={}, prefix_size={}, display={}".format(self.base_len, self.bar_width, self.desc_width, self.prefix_size, self.display))
 
 	def __str__(self):
 		return 'class %s(\n  prefix=%r \n  bar_width=%r \n  total=%r\n)' % (self.__class__.__name__, self.prefix, self.bar_width, self.total)
@@ -115,7 +124,7 @@ class ProgressBar():
 	def set_prefix(self, _prefix):
 		self.prefix = _prefix
 		if ( self.bar_width_orig == self.base_len ):
-			self.bar_width = self.base_len - len(self.prefix) - 2
+			self.bar_width = self.base_len - self.prefix_size - 2
 		else:
 			self.bar_width = self.bar_width_orig
 
@@ -124,7 +133,8 @@ class ProgressBar():
 
 	def inc_count(self, increment = 1):
 		"""Increments one by default"""
-		self.count += increment
+		if self.count < self.total:
+			self.count += increment
 
 	def get_total(self):
 		return self.total
@@ -135,27 +145,37 @@ class ProgressBar():
 	def update(self):
 		percent_complete = int(100*self.count/self.total)
 		current_progress = int(self.bar_width*self.count/self.total)
-		print("{}[{}{}] {:3g}% {:3g}/{}".format(self.prefix, "#"*current_progress, "."*(self.bar_width-current_progress), percent_complete, self.count, self.total), end='\r', file=self.out, flush=True)
+		print(self.display.format(self.prefix, "#"*current_progress, "."*(self.bar_width-current_progress), percent_complete, self.count, self.total), end='\r', file=self.out, flush=True)
 
 	def finish(self):
-		print("\n", flush=True, file=self.out)
+		if self.count != self.total:
+			self.count = self.total
+			self.update()
+		print("", flush=True, file=self.out)
 
 class DisplayMessages():
 	"Display message string for a given log level"
-	LOG_QUIET	= 0	# turns off messages
-	LOG_MIN		= 1	# minimal messages
-	LOG_NORMAL	= 2	# normal, but significant, messages
-	LOG_VERBOSE	= 3	# detailed messages
-	LOG_DEBUG	= 4	# debug-level messages
-	LOG_LEVELS      = {0: "Quiet", 1: "Minimal", 2: "Normal", 3: "Verbose", 4: "Debug" }
-	DISPLAY_PAIR    = "{0:30} = {1}"
-	DISPLAY         = "{0:30}"
+	LOG_QUIET = 0	# turns off messages
+	LOG_MIN = 1	# minimal messages
+	LOG_NORMAL = 2	# normal, but significant, messages
+	LOG_VERBOSE = 3	# detailed messages
+	LOG_DEBUG = 4	# debug-level messages
+	LOG_LEVELS = {0: "Quiet", 1: "Minimal", 2: "Normal", 3: "Verbose", 4: "Debug" }
 
-	def __init__(self, level=LOG_MIN):
-		self.level = level
+	def __init__(self):
+		self.level = self.LOG_MIN # instance default
+		self.desc_width = 30 # instance default
+		self.msg_display = "{:" + str(self.desc_width) + "}"
+		self.msg_display_pair = self.msg_display + " = {}"
+#		print("** DisplayMessages desc_width={}, msg_display={}, msg_display_pair={}".format(self.desc_width, self.msg_display, self.msg_display_pair))
 
 	def __str__ (self):
 		return "class %s(level=%r)" % (self.__class__.__name__,self.level)
+
+	def set_width(self, width_value):
+		self.desc_width = width_value
+		self.msg_display = "{:" + str(self.desc_width) + "}"
+		self.msg_display_pair = self.msg_display + " = {}"
 
 	def get_level(self):
 		return self.level
@@ -191,11 +211,11 @@ class DisplayMessages():
 
 	def __write_paired_msg(self, level, msgtag, msgstr):
 		if( level <= self.level ):
-			print(self.DISPLAY_PAIR.format(msgtag, msgstr))
+			print(self.msg_display_pair.format(msgtag, msgstr))
 
 	def __write_msg(self, level, msgtag):
 		if( level <= self.level ):
-			print(self.DISPLAY.format(msgtag))
+			print(self.msg_display.format(msgtag))
 
 	def quiet(self, msgtag = None, msgstr = None):
 		"Write messages even if quiet is set"
@@ -252,37 +272,452 @@ class DisplayMessages():
 			if( self.level >= self.LOG_DEBUG ):
 				print()
 
-def patternLibraryList():
-	TOTAL_COUNT=0
+class SupportconfigAnalysis():
+	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+
+	def __init__(self, msg, config, extracted_path):
+		self.msg = msg
+		self.config = config
+		self.sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
+		self.location = extracted_path
+		self.analysis_datetime = datetime.datetime.now()
+		self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
+		self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
+		self.products_list = self.__get_products_list()
+		self.patterns_available = self.__get_available_pattern_count()
+		self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
+		self.applicable_patterns = self.__get_applicable_patterns()
+		self.results = []
+		self.pattern_error_list = []
+		self.pattern_stats = {
+	'Total': 0,
+	'Applied': 0,
+	'Errors': 0,
+	'Crit': 0,
+	'Warn': 0,
+	'Recc': 0,
+	'Succ': 0
+}
+
+		self.__apply_patterns()
+
+	# runpats gets the pattern results. runpats calls patternPreProcessor
+	# getHtml(htmlOutputFile, self.location, supportconfigPath.split("/")[-1])
+	# getHtml calls getClasses
+	# email the report file
+	# delete the archive and directory as needed
+
+
+	def __str__ (self):
+		pattern = '''
+Class instance of {}
+  sca_patterns_path = {}
+  location = {}
+  distro_info = {}\n
+  products_list = {}\n
+  patterns_available = {}
+  pattern_filtered_directories = {}
+  applicable_patterns = {}
+  pattern_stats = {}
+'''
+		return pattern.format(self.__class__.__name__, self.sca_patterns_path, self.location, self.distro_info, self.products_list, self.patterns_available, self.pattern_filtered_directories, str(len(self.applicable_patterns)), self.pattern_stats)
+
+	def get_results(self):
+		return self.results
+
+	def __parse_results_output(self, out, error, pat):
+		if error == "":
+			output = out.strip().split("|")
+			if( len(output) < len(RESULT_ELEMENT) ):
+				self.pattern_error_list.append(pat + " -- Insufficient output elements: " + str(len(output)) + " < " + str(len(RESULT_ELEMENT)))
+				return False
+
+			for i in range(0, len(RESULT_ELEMENT)):
+				if not RESULT_ELEMENT[i] in output[i]:
+					self.pattern_error_list.append(pat + " -- Invalid output element: " + str(RESULT_ELEMENT[i]) + " not found in " + str(output[i]))
+					return False
+
+			#if overall outcome of pattern was valid
+			if int(output[5].split("=")[1]) >= 0 and int(output[5].split("=")[1]) < 5:
+				full = [pat] + output # insert the pattern path at the begining of results
+				self.results.append(full)
+				return True
+			else:
+				self.pattern_error_list.append(pat + " -- Output results error: " + str(output[5]))
+				return False
+		else:
+			if( msg.get_level() >= msg.LOG_DEBUG ):
+				self.pattern_error_list.append(pat + " -- Output error: " + str(error))
+			else:
+				self.pattern_error_list.append(pat + " -- Output error: " + str(error.split("\n")[0]))
+			return False
+
+	def __apply_patterns(self):
+		pattern_count = 0
+		self.pattern_stats['Total'] = len(self.applicable_patterns)
+		verbose_line = '{0:6} {1:>5} of {2} {3}'
+		pattern_skipped = False
+
+		self.msg.normal('Total Patterns to Apply:', self.pattern_stats['Total'])
+
+		if( msg.get_level() >= msg.LOG_VERBOSE ):
+			msg.verbose('Analyzing Supportconfig', 'In Progress')
+		elif( msg.get_level() >= msg.LOG_MIN ):
+			if progress_bar_active:
+				ascbar = ProgressBar("Analyzing Supportconfig:", self.pattern_stats['Total'])
+			else:
+				msg.min('Analyzing Supportconfig', 'In Progress')
+
+		for test_pattern in self.applicable_patterns:
+			pattern_count += 1
+			try:
+				if test_pattern.endswith("README"):
+					pattern_skipped = True
+				else:
+					cmd = test_pattern + " -p " + self.location
+					self.msg.debug('Process Command', cmd)
+					p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+					out, error = p.communicate()
+					pattern_is_valid = self.__parse_results_output(out, error, test_pattern)
+
+				#call parseOutput to see if output was expected
+				if( msg.get_level() >= msg.LOG_VERBOSE ):
+					if pattern_skipped:
+						self.msg.verbose(verbose_line.format('Skip:', pattern_count, self.pattern_stats['Total'], test_pattern))
+						pattern_skipped = False
+					else:
+						if pattern_is_valid:
+							self.msg.verbose(verbose_line.format('Done:', pattern_count, self.pattern_stats['Total'], test_pattern))
+						else:
+							self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['Total'], self.pattern_error_list[-1]))
+				elif( msg.get_level() >= msg.LOG_MIN ):
+					if progress_bar_active:
+						ascbar.inc_count()
+						ascbar.update()
+			except Exception as e:
+				self.pattern_error_list.append(test_pattern + " -- Pattern runtime error: " + str(e))
+				self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['Total'], self.pattern_error_list[-1]))
+
+		#make output look nice
+		if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
+			if progress_bar_active:
+				ascbar.finish()
+
+		self.pattern_stats['Applied'] = len(self.results)
+		self.pattern_stats['Errors'] = len(self.pattern_error_list)
+		self.msg.normal('Applicable Patterns:', str(self.pattern_stats['Applied']))
+		self.msg.normal('Pattern Execution Errors:', str(self.pattern_stats['Errors']))
+#%%%	if( msg.get_level() >= msg.LOG_NORMAL ):
+		if( msg.get_level() >= msg.LOG_DEBUG ):
+			for pattern_error_str in self.pattern_error_list:
+				print("  " + pattern_error_str)
+
+	def __get_available_pattern_count(self):
+		total_count = 0
+		for root, dirs, files in os.walk(self.sca_patterns_path):
+			total_count += len(files)
+		self.msg.normal("Total Available Patterns", total_count)
+		return total_count
+
+	def __get_pattern_filtered_directories(self):
+		pattern_directories = [self.sca_patterns_path + '/local/']
+		for product_included in self.products_list:
+			base_pattern_path = str(self.sca_patterns_path) + "/" + str(product_included['patternTag']) + "/"
+			pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "all/"
+			if os.path.isdir(pattern_filter_path):
+				pattern_directories.append(pattern_filter_path)
+			pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "sp" + str(product_included['verminor']) + "/"
+			if os.path.isdir(pattern_filter_path):
+				pattern_directories.append(pattern_filter_path)
+
+		pattern_directories = list(set(pattern_directories)) #create a unique sorted list
+		self.msg.debug('Pattern Filtered Directories', ' '.join(pattern_directories))
+		pattern_definition_filter = []
+		for test_directory in pattern_directories:
+			pattern_definition_filter.append(test_directory.split("/")[-2])
+		pattern_definition_filter = sorted(pattern_definition_filter)
+		self.msg.normal('Pattern Definition Filter', ' '.join(pattern_definition_filter))
+
+		return pattern_directories
+
+	def __get_applicable_patterns(self):
+		pattern_file_list = []
+		for pattern_directory in self.pattern_filtered_directories:
+			#get the patterns from the valid directory
+			for root, dirs, pattern_files in os.walk(pattern_directory):
+				#joint the filenames with the root path
+				for pattern_file in pattern_files:
+					pattern_file_list.append(os.path.join(root, pattern_file))
+
+		return pattern_file_list
+
+	def __get_products_list(self):
+		products_found = []
+		#load basic-environment.txt
+		try:
+			with open(self.location + "/basic-environment.txt") as f:
+				basic_env_file = f.read().splitlines()
+				f.close()
+		except:
+			basic_env_file = []
+
+		product_info = {'tag': 'sle', 'patternTag': 'SLE', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
+
+		#read basic-environment line by line to pull out data.
+		in_date = False
+		in_uname = False
+		in_os_release = False
+		in_suse_release = False
+		for line in basic_env_file:
+			if "Script Version:" in line:
+				self.distro_info['supportconfigVersion'] = line.split(':')[-1].strip()
+			elif line.startswith("Hardware:"):
+				self.distro_info['hardWare'] = line.split(":")[1].strip()
+			elif line.startswith("Hypervisor:"):
+				self.distro_info['virtualization'] = line.split(":")[1].strip()
+			elif line.startswith("Identity:"):
+				self.distro_info['vmIdentity'] = line.split(":")[1].strip()
+			elif "/bin/date" in line:
+				in_date = True
+			elif "/bin/uname -a" in line:
+				in_uname = True
+			elif "/etc/os-release" in line:
+				in_os_release = True
+			elif( in_date ):
+				if "#==[" in line:
+					in_date = False
+				else:
+					dateLine = line
+					dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
+					tmp = dateLine.split() # split into list based on a space
+					if( len(tmp) >= 4 ):
+						tmpMonth = tmp[1].strip()
+						if "Jan" in tmpMonth:
+							tmpMonth = "01"
+						elif "Feb" in tmpMonth:
+							tmpMonth = "02"
+						elif "Mar" in tmpMonth:
+							tmpMonth = "03"
+						elif "Apr" in tmpMonth:
+							tmpMonth = "04"
+						elif "May" in tmpMonth:
+							tmpMonth = "05"
+						elif "Jun" in tmpMonth:
+							tmpMonth = "06"
+						elif "Jul" in tmpMonth:
+							tmpMonth = "07"
+						elif "Aug" in tmpMonth:
+							tmpMonth = "08"
+						elif "Sep" in tmpMonth:
+							tmpMonth = "09"
+						elif "Oct" in tmpMonth:
+							tmpMonth = "10"
+						elif "Nov" in tmpMonth:
+							tmpMonth = "11"
+						elif "Dec" in tmpMonth:
+							tmpMonth = "12"
+						self.distro_info['timeArchiveRun'] = tmp[-1].strip() + "-" + tmpMonth + "-" + tmp[2].strip().zfill(2) + " " + tmp[3].strip()
+						in_date = False
+			elif( in_uname ):
+				if "#==[" in line:
+					in_uname = False
+				else:
+					tmp = line.split()
+					if( len(tmp) >= 3 ):
+						self.distro_info['kernelVersion'] = tmp[2].strip()
+						self.distro_info['serverName'] = tmp[1].strip()
+						self.distro_info['osArch'] = tmp[-2].strip()
+						in_uname = False
+			elif( in_os_release ):
+				if "#==[" in line:
+					in_os_release = False
+					product_info['name'] = str(self.distro_info['Summary']) + " (" + self.distro_info['osArch'] + ")"
+				else:
+					if line.lower().startswith("pretty_name"):
+						self.distro_info['Summary'] = line.split('=')[-1].replace('"', '').strip()
+					elif line.lower().startswith("version_id"):
+						VERSION_ID_summary_info = line.replace('"', "").strip().split('=')[1].split('.')
+						product_info['vermajor'] = str(VERSION_ID_summary_info[0])
+						if( len(VERSION_ID_summary_info) > 1 ):
+							product_info['verminor'] = str(VERSION_ID_summary_info[1])
+						else:
+							product_info['verminor'] = "0"
+						product_info['version'] = product_info['verminor']
+
+		# Look for SUSE release as a last resort
+		if( len(self.distro_info['Summary']) == 0 ):
+			for line in basic_env_file:
+				if "/etc/SuSE-release" in line:
+					in_suse_release = True
+				elif( in_suse_release ):
+					if "#==[" in line:
+						in_suse_release = False
+						product_info['name'] = str(self.distro_info['Summary'])
+					else:
+						if( len(self.distro_info['Summary']) > 0 ):
+							if line.lower().startswith("version"):
+								product_info['vermajor'] = line.split('=')[-1].replace('"', '').strip()
+							elif line.lower().startswith("patchlevel"):
+								product_info['verminor'] = line.split('=')[-1].replace('"', '').strip()
+							product_info['version'] = product_info['verminor']
+						else:
+							self.distro_info['Summary'] = line.strip()
+
+		products_found.append(product_info)
+
+		del basic_env_file
+
+
+		#load summary.xml
+		try:
+			with open(self.location + "/summary.xml") as f:
+				summary_file = f.read().splitlines()
+				f.close()
+		except:
+			summary_file = []
+
+		product_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
+		product_end = re.compile(r'</product>', re.IGNORECASE)
+		in_product = False
+
+		#detect SLE for VMWARE
+		product_name = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
+		product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+		summary_info = {'tag': 'vmw', 'patternTag': 'VMware', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+		for line in summary_file:
+			if( in_product ):
+				if product_end.search(line):
+					in_product = False
+				elif product_name.search(line):
+					try:
+						summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+					except:
+						True
+				elif product_version.search(line):
+					try:
+						summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+						if( "." in summary_info['version'] ):
+							(summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+						else:
+							summary_info['vermajor'] = summary_info['version']
+							summary_info['verminor'] = "0"
+					except:
+						True
+				if( summary_info['name'] and summary_info['version'] ):
+					in_product = False
+					products_found.append(summary_info)
+					break
+			elif product_start.search(line):
+				in_product = True
+
+		#detect SLE for SAP
+		product_name = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
+		product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+		summary_info = {'tag': 'sap', 'patternTag': 'SAP', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+		for line in summary_file:
+			if( in_product ):
+				if product_end.search(line):
+					in_product = False
+				elif product_name.search(line):
+					try:
+						summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+					except:
+						True
+				elif product_version.search(line):
+					try:
+						summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+						if( "." in summary_info['version'] ):
+							(summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+						else:
+							summary_info['vermajor'] = summary_info['version']
+							summary_info['verminor'] = "0"
+					except:
+						True
+				if( summary_info['name'] and summary_info['version'] ):
+					in_product = False
+					products_found.append(summary_info)
+					break
+			elif product_start.search(line):
+				in_product = True
+
+		#get HAE information
+		product_name = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
+		product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+		summary_info = {'tag': 'hae', 'patternTag': 'HAE', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+		for line in summary_file:
+			if( in_product ):
+				if product_end.search(line):
+					in_product = False
+				elif product_name.search(line):
+					try:
+						summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+					except:
+						True
+				elif product_version.search(line):
+					try:
+						summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+						if( "." in summary_info['version'] ):
+							(summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+						else:
+							summary_info['vermajor'] = summary_info['version']
+							summary_info['verminor'] = "0"
+					except:
+						True
+				if( summary_info['name'] and summary_info['version'] ):
+					in_product = False
+					products_found.append(summary_info)
+					break
+			elif product_start.search(line):
+				in_product = True
+
+		#get SUSE Manager information
+		# TO DO
+
+		del summary_file
+
+		if( self.msg.get_level() >= self.msg.LOG_DEBUG ):
+			print()
+			print("Distro Info: {}\n".format(self.distro_info))
+			print("Products List")
+			print("[")
+			for summary_info in products_found:
+				print(str(summary_info))
+			print("]")
+#			sys.exit()
+
+		return products_found
+
+def patternLibraryList(msg, config):
+	total_count=0
 	DIRECTORY = {}
 	FORMATTING = '{0:>5} : {1}'
 	print("Pattern Library Summary\n")
 	print(FORMATTING.format('Count', 'Pattern Directory'))
 	print(FORMATTING.format('=====','========================================'))
-	for root, dirs, files in os.walk(SCA_PATTERN_PATH):
+	for root, dirs, files in os.walk(self.location):
 #		print "root  = " + str(root)
 #		print "dirs  = " + str(dirs)
 #		print "files = " + str(files)
 #		print
-		TOTAL_COUNT += len(files)
+		total_count += len(files)
 		FILES_FOUND = len(files)
 		if( FILES_FOUND > 1 ):
 			DIRECTORY[root] = FILES_FOUND
 			for onefile in files:
 				if( onefile == "README" ):
-					TOTAL_COUNT -= 1
+					total_count -= 1
 					break
 		elif( FILES_FOUND > 0 ):
 			if( files[0] == "README" ):
 				# Readme files don't count
-				TOTAL_COUNT -= 1
+				total_count -= 1
 			else:
 				DIRECTORY[root] = FILES_FOUND
 		elif( len(dirs) == 0 ):
 			DIRECTORY[root] = FILES_FOUND
 	for i in sorted(DIRECTORY, key=str.lower):
 		print(FORMATTING.format(DIRECTORY[i], i))
-	print(FORMATTING.format(TOTAL_COUNT, 'Total Available Patterns'))
+	print(FORMATTING.format(total_count, 'Total Available Patterns'))
 	print()
 
 def evaluate_supportconfig_given(msg, given_path):
@@ -354,19 +789,21 @@ def i_am_root():
 		return False
 	return True
 
-def get_local_supportconfig(msg):
+def get_local_supportconfig(msg, config):
 	local_hostname = str(os.uname()[1])
 	msg.normal('Running Supportconfig On', local_hostname)
 	analysis_datetime = datetime.datetime.now()
 	date_stamp = analysis_datetime.strftime("%y%m%d")
 	time_stamp = str(analysis_datetime.hour).zfill(2) + str(analysis_datetime.minute).zfill(2) + str(analysis_datetime.second).zfill(2)
-
-	local_supportconfig_name = "scc_" + local_hostname + "_" + str(date_stamp) + "_" + str(time_stamp)
-	local_supportconfig_path = "/var/log/"
-	supportconfig_path = local_supportconfig_path + local_supportconfig_name
+	supportconfig_output_lines = config_entry(config.get("Supportconfig", "output_lines"))
+	supportconfig_filename_prefix = config_entry(config.get("Supportconfig", "filename_prefix"))
+	local_supportconfig_path = config_entry(config.get("Supportconfig", "path_local"), '/')
+	local_supportconfig_name = local_hostname + "_" + str(date_stamp) + "_" + str(time_stamp)
+	supportconfig_path = local_supportconfig_path + supportconfig_filename_prefix + local_supportconfig_name
 
 	try:
-		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
+#		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
+		cmd = "supportconfig -mbB " + local_supportconfig_name + " -t " + local_supportconfig_path
 		msg.debug('Process Command', cmd)
 		p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	#if we cannot run supportconfig
@@ -374,35 +811,37 @@ def get_local_supportconfig(msg):
 		print("Error: Cannot run supportconfig\n", file=sys.stderr)
 		return
 	condition = True
-%%%
-	if( loglevel['current'] >= loglevel['verbose'] ):
-		print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
-	elif( loglevel['current'] == loglevel['normal'] ):
-		if progressBarActive:
-			scbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
+
+	if( msg.get_level() == msg.LOG_MIN ):
+		if progress_bar_active:
+			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
+
+	if( msg.get_level() >= msg.LOG_VERBOSE ):
+		msg.verbose('Gathering Supportconfig', 'In Progress')
+	elif( msg.get_level() >= msg.LOG_MIN ):
+		if progress_bar_active:
+			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
 		else:
-			print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
+			msg.min('Gathering Supportconfig', 'In Progress')
 
 	while condition:
 		out = p.stdout.read(1)
 		if out != '':
-			progressCount += 1
-			alloutput = alloutput + out
-			if( loglevel['current'] >= loglevel['verbose'] ):
+			if( msg.get_level() >= msg.LOG_VERBOSE ):
 				sys.stdout.write(out)
 				sys.stdout.flush()
-			elif( loglevel['current'] == loglevel['normal'] ):
+			elif( msg.get_level() >= msg.LOG_MIN ):
 				if out == "\n":
-					lineNum += 1
-					if progressBarActive:
-						scbar.update(lineNum)
-					if ( scHeaderLines > 0 ):
-						scHeaderLines -= 1
+					if progress_bar_active:
+						scbar.inc_count()
+						scbar.update()
 		condition = not bool(out == "" and p.poll() != None)
 
-	if( loglevel['current'] == loglevel['normal'] ):
-		if progressBarActive:
+	if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
+		if progress_bar_active:
 			scbar.finish()
+	
+	return supportconfig_path
 
 
 ##############################################################################
@@ -411,10 +850,15 @@ def get_local_supportconfig(msg):
 
 def main(argv):
 	"main entry point"
-	global SVER, progress_bar_active, output_path, output_file_html, email_addr_list, remove_archive, analyze_server, output_type, config_file
+	global SVER, progress_bar_active, report_file_path, email_addr_list, remove_archive, analyze_server, output_type, config_file
+	global width, description_width
 
 	if( os.path.exists(config_file) ):
 		config.read(config_file)
+		width = int(config_entry(config.get("Common", "display_width")))
+		description_width = int(config_entry(config.get("Common", "description_width")))
+		msg.set_width(description_width)
+		print("width={}, description_width={}".format(width, description_width))
 		config_logging = msg.validate_level(config_entry(config.get("Common", "log_level")))
 		if( config_logging >= msg.LOG_QUIET ):
 			msg.set_level(config_logging)
@@ -441,10 +885,10 @@ def main(argv):
 		elif opt in {"-e", "--email"}:
 			email_addr_list = arg
 		elif opt in {"-o", "--output"}:
-			output_path = arg
+			report_file_path = arg
 		elif opt in {"-p", "--summary"}:
 			title()
-			patternLibraryList()
+			patternLibraryList(msg, config)
 			sys.exit(0)
 		elif opt in {"-r", "--remove"}:
 			remove_archive = True
@@ -468,35 +912,36 @@ def main(argv):
 	process_dirs = {} # key = supportconfig directory, value = the supportconfig tarball
 	if total_args_given > 0:
 		for given_source in args:
-			supportconfig_source = evaluate_supportconfig_given(msg, given_source)
+			supportconfig_data = evaluate_supportconfig_given(msg, given_source)
 			supportconfig_dir = ''
-			if supportconfig_source['valid']:
-				if supportconfig_source['type'] == 'dir':
-					supportconfig_dir = supportconfig_source['source']
+			if supportconfig_data['valid']:
+				if supportconfig_data['type'] == 'dir':
+					supportconfig_dir = supportconfig_data['source']
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						process_dirs[supportconfig_dir] = ''
-						print("Create a supportconfig instance")
-				elif supportconfig_source['type'] == 'file':
-					supportconfig_dir = extracted_supportconfig(msg, supportconfig_source['source'])
+				elif supportconfig_data['type'] == 'file':
+					supportconfig_dir = extracted_supportconfig(msg, supportconfig_data['source'])
 					if valid_supportconfig_dir(msg, supportconfig_dir):
-						process_dirs[supportconfig_dir] = supportconfig_source['source']
-						print("Create a supportconfig instance")
+						process_dirs[supportconfig_dir] = supportconfig_data['source']
 				else:
 					if i_am_root():
 						print("Get remote supportconfig -- PENDING")
 						print("Extract supportconfig")
 						print("Create a supportconfig instance")
 					else:
-						msg.min("Evaluating Server", "Root user required for " + supportconfig_source['source'])
+						msg.min("Evaluating Server", "Root user required for " + supportconfig_data['source'])
 			else:
 				msg.min("Error: Invalid supportconfig source - " + given_source)
-
-		print("Process: " + str(process_dirs))
 	elif analyze_server:
 		if i_am_root():
-			print("Run supportconfig locally")
-			print("Evaluate")
-			process_dirs['local_supportconfig_dir'] = 'local_supportconfig_tarball'
+			given_source = get_local_supportconfig(msg, config)
+			supportconfig_data = evaluate_supportconfig_given(msg, given_source)
+			if supportconfig_data['valid']:
+					supportconfig_dir = supportconfig_data['source']
+					if valid_supportconfig_dir(msg, supportconfig_dir):
+						process_dirs[supportconfig_dir] = ''
+			else:
+				msg.min("Error: Invalid supportconfig source - " + given_source)
 		else:
 			msg.min("Analyze Local Server", "Root user required to run supportconfig")
 
@@ -505,11 +950,18 @@ def main(argv):
 		usage()
 		sys.exit(0)
 
+	if len(process_dirs) > 0:
+		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
+			msg.min("Supportconfig Directory", supportconfig_directory)
+			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
+#			print(sca_data)
+			print()
+			del sca_data
+			
 # Entry point
 if __name__ == "__main__":
 	signal.signal(signal.SIGINT, signal_handler)
 	config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
 	msg = DisplayMessages()
 	main(sys.argv)
-
 
