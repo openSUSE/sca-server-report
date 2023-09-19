@@ -1,11 +1,12 @@
-#!/bin/bash
+#!/usr/bin/python3
+SVER = '3.0.0_dev1'
 ##############################################################################
-# scatool - Supportconfig Analysis (SCA) Tool Wrapper
-# Copyright (c) 2014-2021 SUSE LLC
+# scatool - Supportconfig Analysis (SCA) Tool
+# Copyright (c) 2023 SUSE LLC
 #
-# Description:  Wrapper for /usr/lib/sca/python/scatool.py
-# Modified:     2021 Oct 04
-
+# Description:  Runs and analyzes local or remote supportconfigs
+# Modified:     2023 Sep 18
+#
 ##############################################################################
 #
 #  This program is free software; you can redistribute it and/or modify
@@ -25,17 +26,490 @@
 #
 ##############################################################################
 
-CONF_FILE='/etc/scatool/scatool.conf'
-if [[ -s $CONF_FILE ]]
-then
-	. $CONF_FILE
-else
-	echo "Error: File not found -- $CONF_FILE"
-	exit 1
-fi
-BIN_PATH='/usr/lib/sca/python'
-SCA_READY="True"
-export SCA_READY
+import os
+import re
+import sys
+import glob
+import uuid
+import tarfile
+import signal
+import shutil
+import datetime
+import socket
+import time
+import getopt
+import smtplib
+import subprocess
+import configparser
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
-python3 ${BIN_PATH}/scatool.py "$@"
+progress_bar_active = True
+output_path = ''
+output_file_html = ''
+email_addr_list = ''
+remove_archive = False
+analyze_server = False
+output_type = 'html'
+config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
+analysis_datetime = datetime.datetime.now()
+
+def title():
+	print("#####################################################################################")
+	print("#   SCA Tool v" + SVER)
+	print("#####################################################################################")
+	print()
+
+def usage():
+	print("Usage: scatool [OPTIONS] [archive|server]")
+	display = "  {:33s} {}"
+	print()
+	print("OPTIONS")
+	print(display.format('-h, --help', "Displays this screen"))
+	print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
+	print(display.format('-e <list>, --email <list>', "Send HTML report to email address(es) provided. Comma separated list"))
+	print(display.format('-o <path>, --output <path>', "HTML report output directory (OUTPUT_PATH)"))
+	print(display.format('-p, --summary', "Print a pattern summary"))
+	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the report html file"))
+	print(display.format('-s, --server', "Analyze the local server"))
+	print(display.format('-t, --output_type', "Output type, options: html. Default: HTML"))
+	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Minimal"))
+	print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
+	print()
+
+def option_error(msg):
+	print(msg)
+	print()
+	usage()
+	sys.exit(1)
+
+def signal_handler(sig, frame):
+	print("\n\nAborting...\n")
+	sys.exit(1)
+
+def config_entry(_entry, trailer = ''):
+	formatted_entry = _entry.strip('\"\'')
+	if( len(trailer) > 0 ):
+		if not formatted_entry.endswith(trailer):
+			formatted_entry = formatted_entry + str(trailer)
+	return formatted_entry
+
+class ProgressBar():
+	"""Initialize and update progress bar class"""
+	seperator_len = 85
+	def __init__(self, prefix, total, bar_width = seperator_len):
+		self.base_len = seperator_len
+		self.bar_width_orig = bar_width
+		self.bar_width = bar_width
+		self.prefix = prefix
+		self.total = total
+		self.count = 0
+		self.out = sys.stdout
+		if ( self.bar_width_orig == self.base_len ):
+			self.bar_width = self.base_len - len(self.prefix) - 2
+
+	def __str__(self):
+		return 'class %s(\n  prefix=%r \n  bar_width=%r \n  total=%r\n)' % (self.__class__.__name__, self.prefix, self.bar_width, self.total)
+
+	def set_prefix(self, _prefix):
+		self.prefix = _prefix
+		if ( self.bar_width_orig == self.base_len ):
+			self.bar_width = self.base_len - len(self.prefix) - 2
+		else:
+			self.bar_width = self.bar_width_orig
+
+	def set_total(self, _new_total):
+		self.total = _new_total
+
+	def inc_count(self, increment = 1):
+		"""Increments one by default"""
+		self.count += increment
+
+	def get_total(self):
+		return self.total
+
+	def get_count(self):
+		return self.count
+
+	def update(self):
+		percent_complete = int(100*self.count/self.total)
+		current_progress = int(self.bar_width*self.count/self.total)
+		print("{}[{}{}] {:3g}% {:3g}/{}".format(self.prefix, "#"*current_progress, "."*(self.bar_width-current_progress), percent_complete, self.count, self.total), end='\r', file=self.out, flush=True)
+
+	def finish(self):
+		print("\n", flush=True, file=self.out)
+
+class DisplayMessages():
+	"Display message string for a given log level"
+	LOG_QUIET	= 0	# turns off messages
+	LOG_MIN		= 1	# minimal messages
+	LOG_NORMAL	= 2	# normal, but significant, messages
+	LOG_VERBOSE	= 3	# detailed messages
+	LOG_DEBUG	= 4	# debug-level messages
+	LOG_LEVELS      = {0: "Quiet", 1: "Minimal", 2: "Normal", 3: "Verbose", 4: "Debug" }
+	DISPLAY_PAIR    = "{0:30} = {1}"
+	DISPLAY         = "{0:30}"
+
+	def __init__(self, level=LOG_MIN):
+		self.level = level
+
+	def __str__ (self):
+		return "class %s(level=%r)" % (self.__class__.__name__,self.level)
+
+	def get_level(self):
+		return self.level
+
+	def get_level_str(self):
+		return self.LOG_LEVELS[self.level]
+
+	def set_level(self, level):
+		if( level >= self.LOG_DEBUG ):
+			self.level = self.LOG_DEBUG
+		else:
+			self.level = level
+
+	def validate_level(self, level):
+		validated_level = -1
+		if( level.isdigit() ):
+			validated_level = int(level)
+		else:
+			argstr = level.lower()
+			if( argstr.startswith("qui") ):
+				validated_level = self.LOG_QUIET
+			elif( argstr.startswith("min") ):
+				validated_level = self.LOG_MIN
+			elif( argstr.startswith("norm") ):
+				validated_level = self.LOG_NORMAL
+			elif( argstr.startswith("verb") ):
+				validated_level = self.LOG_VERBOSE
+			elif( argstr.startswith("debug") ):
+				validated_level = self.LOG_DEBUG
+
+		return validated_level
+
+
+	def __write_paired_msg(self, level, msgtag, msgstr):
+		if( level <= self.level ):
+			print(self.DISPLAY_PAIR.format(msgtag, msgstr))
+
+	def __write_msg(self, level, msgtag):
+		if( level <= self.level ):
+			print(self.DISPLAY.format(msgtag))
+
+	def quiet(self, msgtag = None, msgstr = None):
+		"Write messages even if quiet is set"
+		if msgtag:
+			if msgstr:
+				self.__write_paired_msg(self.LOG_QUIET, msgtag, msgstr)
+			else:
+				self.__write_msg(self.LOG_QUIET, msgtag)
+		else:
+			if( self.level >= self.LOG_QUIET ):
+				print()
+
+	def min(self, msgtag = None, msgstr = None):
+		"Write the minium amount of messages"
+		if msgtag:
+			if msgstr:
+				self.__write_paired_msg(self.LOG_MIN, msgtag, msgstr)
+			else:
+				self.__write_msg(self.LOG_MIN, msgtag)
+		else:
+			if( self.level >= self.LOG_MIN ):
+				print()
+
+	def normal(self, msgtag = None, msgstr = None):
+		"Write normal, but significant, messages"
+		if msgtag:
+			if msgstr:
+				self.__write_paired_msg(self.LOG_NORMAL, msgtag, msgstr)
+			else:
+				self.__write_msg(self.LOG_NORMAL, msgtag)
+		else:
+			if( self.level >= self.LOG_NORMAL ):
+				print()
+
+	def verbose(self, msgtag = None, msgstr = None):
+		"Write more verbose informational messages"
+		if msgtag:
+			if msgstr:
+				self.__write_paired_msg(self.LOG_VERBOSE, msgtag, msgstr)
+			else:
+				self.__write_msg(self.LOG_VERBOSE, msgtag)
+		else:
+			if( self.level >= self.LOG_VERBOSE ):
+				print()
+
+	def debug(self, msgtag = None, msgstr = None):
+		"Write all messages, including debug level"
+		if msgtag:
+			if msgstr:
+				self.__write_paired_msg(self.LOG_DEBUG, msgtag, msgstr)
+			else:
+				self.__write_msg(self.LOG_DEBUG, msgtag)
+		else:
+			if( self.level >= self.LOG_DEBUG ):
+				print()
+
+def patternLibraryList():
+	TOTAL_COUNT=0
+	DIRECTORY = {}
+	FORMATTING = '{0:>5} : {1}'
+	print("Pattern Library Summary\n")
+	print(FORMATTING.format('Count', 'Pattern Directory'))
+	print(FORMATTING.format('=====','========================================'))
+	for root, dirs, files in os.walk(SCA_PATTERN_PATH):
+#		print "root  = " + str(root)
+#		print "dirs  = " + str(dirs)
+#		print "files = " + str(files)
+#		print
+		TOTAL_COUNT += len(files)
+		FILES_FOUND = len(files)
+		if( FILES_FOUND > 1 ):
+			DIRECTORY[root] = FILES_FOUND
+			for onefile in files:
+				if( onefile == "README" ):
+					TOTAL_COUNT -= 1
+					break
+		elif( FILES_FOUND > 0 ):
+			if( files[0] == "README" ):
+				# Readme files don't count
+				TOTAL_COUNT -= 1
+			else:
+				DIRECTORY[root] = FILES_FOUND
+		elif( len(dirs) == 0 ):
+			DIRECTORY[root] = FILES_FOUND
+	for i in sorted(DIRECTORY, key=str.lower):
+		print(FORMATTING.format(DIRECTORY[i], i))
+	print(FORMATTING.format(TOTAL_COUNT, 'Total Available Patterns'))
+	print()
+
+def evaluate_supportconfig_given(msg, given_path):
+	type_found = {'valid': False, 'type': '', 'source': ''}
+	msg.debug("Evaluating", given_path)
+	if os.path.exists(given_path):
+		if os.path.isfile(given_path):
+			type_found['valid'] = True
+			type_found['type'] = 'file'
+		elif os.path.isdir(given_path):
+			type_found['valid'] = True
+			type_found['type'] = 'dir'
+		type_found['source'] = os.path.abspath(given_path)
+	else:
+		cmd = "ping -c1 -w1 " + given_path
+		msg.verbose("Pinging", given_path)
+		msg.debug("Process Command", cmd)
+		ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		stdout, stderr = ping_server.communicate()
+		if ping_server.returncode == 0:
+			type_found['valid'] = True
+			type_found['type'] = 'remote'
+			type_found['source'] = given_path
+
+	msg.debug("Supportconfig Evaluation", type_found)
+	return type_found
+
+def extracted_supportconfig(msg, tarball):
+	path_in_tarball = ''
+	msg.normal("Extracting File", tarball)
+	cmd = "file --brief --mime-type " + tarball
+	msg.debug('Process Command', cmd)
+	process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+	stdout, stderr = process.communicate()
+	file_type = stdout.strip()
+	msg.debug('File Type', file_type)
+	archdir = os.path.dirname(tarball)
+	cmd = "tar -xvf "  + tarball + " -C " + archdir
+	msg.debug('Process Command', cmd)
+	process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+	stdout, stderr = process.communicate()
+	outfile = stdout.splitlines()[0]
+	rc = process.returncode
+	if( rc > 0 ):
+		print("+ Error: Cannot extract tar file", file=sys.stderr)
+		print(stderr, file=sys.stderr)
+		print(file=sys.stderr)
+		sys.exit(7)
+	else:
+		path_in_tarball = archdir + '/' + os.path.dirname(outfile)
+		msg.verbose('Embedded Directory', path_in_tarball)
+
+	return path_in_tarball
+
+def valid_supportconfig_dir(msg, check_dir):
+	test_files = ['basic-environment.txt', 'rpm.txt']
+	msg.normal("Evaluating Directory", check_dir)
+	for test_file in test_files:
+		file_path = check_dir + '/' + test_file
+		if not os.path.isfile(file_path):
+			#not a supportconfig. quit out
+			msg.min("Error: Invalid supportconfig archive - missing " + file_path)
+			return False
+
+	return True
+
+def i_am_root():
+	if not os.environ.get("SUDO_UID") and os.geteuid() != 0:
+		return False
+	return True
+
+def get_local_supportconfig(msg):
+	local_hostname = str(os.uname()[1])
+	msg.normal('Running Supportconfig On', local_hostname)
+	analysis_datetime = datetime.datetime.now()
+	date_stamp = analysis_datetime.strftime("%y%m%d")
+	time_stamp = str(analysis_datetime.hour).zfill(2) + str(analysis_datetime.minute).zfill(2) + str(analysis_datetime.second).zfill(2)
+
+	local_supportconfig_name = "scc_" + local_hostname + "_" + str(date_stamp) + "_" + str(time_stamp)
+	local_supportconfig_path = "/var/log/"
+	supportconfig_path = local_supportconfig_path + local_supportconfig_name
+
+	try:
+		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
+		msg.debug('Process Command', cmd)
+		p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+	#if we cannot run supportconfig
+	except Exception:
+		print("Error: Cannot run supportconfig\n", file=sys.stderr)
+		return
+	condition = True
+%%%
+	if( loglevel['current'] >= loglevel['verbose'] ):
+		print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
+	elif( loglevel['current'] == loglevel['normal'] ):
+		if progressBarActive:
+			scbar = ProgressBar("Gathering Supportconfig:       ", progressBarWidth, scTotal)
+		else:
+			print(fieldOutput.format('Gathering Supportconfig:', 'In Progress'))
+
+	while condition:
+		out = p.stdout.read(1)
+		if out != '':
+			progressCount += 1
+			alloutput = alloutput + out
+			if( loglevel['current'] >= loglevel['verbose'] ):
+				sys.stdout.write(out)
+				sys.stdout.flush()
+			elif( loglevel['current'] == loglevel['normal'] ):
+				if out == "\n":
+					lineNum += 1
+					if progressBarActive:
+						scbar.update(lineNum)
+					if ( scHeaderLines > 0 ):
+						scHeaderLines -= 1
+		condition = not bool(out == "" and p.poll() != None)
+
+	if( loglevel['current'] == loglevel['normal'] ):
+		if progressBarActive:
+			scbar.finish()
+
+
+##############################################################################
+# Main
+##############################################################################
+
+def main(argv):
+	"main entry point"
+	global SVER, progress_bar_active, output_path, output_file_html, email_addr_list, remove_archive, analyze_server, output_type, config_file
+
+	if( os.path.exists(config_file) ):
+		config.read(config_file)
+		config_logging = msg.validate_level(config_entry(config.get("Common", "log_level")))
+		if( config_logging >= msg.LOG_QUIET ):
+			msg.set_level(config_logging)
+		else:
+			msg.verbose("Warning: Invalid log level in config file, using instance default")
+	else:
+		title()
+		print("Error: File not found - " + config_file + "\n")
+		sys.exit(1)
+
+	try:
+		(optlist, args) = getopt.gnu_getopt(argv[1:], "hbe:o:pl:qrsv", ["help", "batch", "email=", "output=", "summary", "log_level=", "quiet", "remove", "server", "verbose"])
+	except getopt.GetoptError as exc:
+		title()
+		print("Error:", exc, file=sys.stderr)
+		sys.exit(2)
+	for opt, arg in optlist:
+		if opt in {"-h", "--help"}:
+			title()
+			usage()
+			sys.exit(0)
+		elif opt in {"-b", "--batch"}:
+			progress_bar_active = False
+		elif opt in {"-e", "--email"}:
+			email_addr_list = arg
+		elif opt in {"-o", "--output"}:
+			output_path = arg
+		elif opt in {"-p", "--summary"}:
+			title()
+			patternLibraryList()
+			sys.exit(0)
+		elif opt in {"-r", "--remove"}:
+			remove_archive = True
+		elif opt in {"-s", "--server"}:
+			analyze_server = True
+		elif opt in {"-q", "--quiet"}:
+			msg.set_level(msg.LOG_QUIET)
+		elif opt in {"-v", "--verbose"}:
+			msg.set_level(msg.LOG_VERBOSE)
+		elif opt in {"-l", "--log_level"}:
+			user_logging = msg.validate_level(arg)
+			if( user_logging >= msg.LOG_QUIET ):
+				msg.set_level(user_logging)
+			else:
+				print("Warning: Invalid log level, using instance default")
+
+	if( msg.get_level() > msg.LOG_QUIET ):
+		title()
+
+	total_args_given = len(args)
+	process_dirs = {} # key = supportconfig directory, value = the supportconfig tarball
+	if total_args_given > 0:
+		for given_source in args:
+			supportconfig_source = evaluate_supportconfig_given(msg, given_source)
+			supportconfig_dir = ''
+			if supportconfig_source['valid']:
+				if supportconfig_source['type'] == 'dir':
+					supportconfig_dir = supportconfig_source['source']
+					if valid_supportconfig_dir(msg, supportconfig_dir):
+						process_dirs[supportconfig_dir] = ''
+						print("Create a supportconfig instance")
+				elif supportconfig_source['type'] == 'file':
+					supportconfig_dir = extracted_supportconfig(msg, supportconfig_source['source'])
+					if valid_supportconfig_dir(msg, supportconfig_dir):
+						process_dirs[supportconfig_dir] = supportconfig_source['source']
+						print("Create a supportconfig instance")
+				else:
+					if i_am_root():
+						print("Get remote supportconfig -- PENDING")
+						print("Extract supportconfig")
+						print("Create a supportconfig instance")
+					else:
+						msg.min("Evaluating Server", "Root user required for " + supportconfig_source['source'])
+			else:
+				msg.min("Error: Invalid supportconfig source - " + given_source)
+
+		print("Process: " + str(process_dirs))
+	elif analyze_server:
+		if i_am_root():
+			print("Run supportconfig locally")
+			print("Evaluate")
+			process_dirs['local_supportconfig_dir'] = 'local_supportconfig_tarball'
+		else:
+			msg.min("Analyze Local Server", "Root user required to run supportconfig")
+
+	else:
+		title()
+		usage()
+		sys.exit(0)
+
+# Entry point
+if __name__ == "__main__":
+	signal.signal(signal.SIGINT, signal_handler)
+	config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+	msg = DisplayMessages()
+	main(sys.argv)
+
 
