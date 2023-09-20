@@ -276,6 +276,7 @@ class DisplayMessages():
 
 class SupportconfigAnalysis():
 	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+	SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
 
 	def __init__(self, msg, config, extracted_path):
 		self.msg = msg
@@ -285,22 +286,28 @@ class SupportconfigAnalysis():
 		self.analysis_datetime = datetime.datetime.now()
 		self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
 		self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
+		self.results = []
+		self.runtime_error_list = []
+		self.pattern_stats = {
+	'total': 0,
+	'applicable': 0,
+	'applied': 0,
+	'runtime_errors': 0,
+	self.SEV_TABLE['-2']: 0,
+	self.SEV_TABLE['-1']: 0,
+	self.SEV_TABLE['0']: 0,
+	self.SEV_TABLE['1']: 0,
+	self.SEV_TABLE['2']: 0,
+	self.SEV_TABLE['3']: 0,
+	self.SEV_TABLE['4']: 0,
+	self.SEV_TABLE['5']: 0,
+	self.SEV_TABLE['6']: 0,
+	'filter': []
+}
 		self.products_list = self.__get_products_list()
-		self.patterns_available = self.__get_available_pattern_count()
+		self.all_patterns = self.__get_available_patterns()
 		self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
 		self.applicable_patterns = self.__get_applicable_patterns()
-		self.results = []
-		self.pattern_error_list = []
-		self.pattern_stats = {
-	'Total': 0,
-	'Applied': 0,
-	'Errors': 0,
-	'Crit': 0,
-	'Warn': 0,
-	'Recc': 0,
-	'Succ': 0
-}
-
 		self.__apply_patterns()
 
 	# runpats gets the pattern results. runpats calls patternPreProcessor
@@ -331,42 +338,41 @@ Class instance of {}
 		if error == "":
 			output = out.strip().split("|")
 			if( len(output) < len(self.RESULT_ELEMENT) ):
-				self.pattern_error_list.append(pat + " -- Insufficient output elements: " + str(len(output)) + " < " + str(len(self.RESULT_ELEMENT)))
+				self.runtime_error_list.append(pat + " -- Insufficient output elements: " + str(len(output)) + " < " + str(len(self.RESULT_ELEMENT)))
+				self.pattern_stats['runtime_errors'] += 1
 				return False
 
 			for i in range(0, len(self.RESULT_ELEMENT)):
 				if not self.RESULT_ELEMENT[i] in output[i]:
-					self.pattern_error_list.append(pat + " -- Invalid output element: " + str(self.RESULT_ELEMENT[i]) + " not found in " + str(output[i]))
+					self.runtime_error_list.append(pat + " -- Invalid output element: " + str(self.RESULT_ELEMENT[i]) + " not found in " + str(output[i]))
+					self.pattern_stats['runtime_errors'] += 1
 					return False
 
 			#if overall outcome of pattern was valid
-			if int(output[5].split("=")[1]) >= 0 and int(output[5].split("=")[1]) < 5:
+			overall = output[5].split("=")[1]
+			self.pattern_stats[self.SEV_TABLE[str(overall)]] += 1
+			if int(overall) >= 0 and int(overall) < 5:
 				full = [pat] + output # insert the pattern path at the begining of results
 				self.results.append(full)
-				return True
-			else:
-				self.pattern_error_list.append(pat + " -- Output result: " + str(output[5]))
-				return False
+			return True
 		else:
-			if( msg.get_level() >= msg.LOG_DEBUG ):
-				self.pattern_error_list.append(pat + " -- Output error: " + str(error))
-			else:
-				self.pattern_error_list.append(pat + " -- Output error: " + str(error.split("\n")[0]))
+			self.runtime_error_list.append(pat + " -- Output error: " + str(error))
+			self.pattern_stats['runtime_errors'] += 1
 			return False
 
 	def __apply_patterns(self):
 		pattern_count = 0
-		self.pattern_stats['Total'] = len(self.applicable_patterns)
+		self.pattern_stats['applicable'] = len(self.applicable_patterns)
 		verbose_line = '{0:6} {1:>5} of {2} {3}'
 		pattern_skipped = False
 
-		self.msg.normal('Total Patterns to Apply:', self.pattern_stats['Total'])
+		self.msg.min('Pattern Filter', ' '.join(self.pattern_stats['filter']))
 
 		if( msg.get_level() >= msg.LOG_VERBOSE ):
 			msg.verbose('Analyzing Supportconfig', 'In Progress')
 		elif( msg.get_level() >= msg.LOG_MIN ):
 			if progress_bar_active:
-				ascbar = ProgressBar("Analyzing Supportconfig:", self.pattern_stats['Total'])
+				ascbar = ProgressBar("Analyzing Supportconfig:", self.pattern_stats['applicable'])
 			else:
 				msg.min('Analyzing Supportconfig', 'In Progress')
 
@@ -385,48 +391,70 @@ Class instance of {}
 				#call parseOutput to see if output was expected
 				if( msg.get_level() >= msg.LOG_VERBOSE ):
 					if pattern_skipped:
-						self.msg.verbose(verbose_line.format('Skip:', pattern_count, self.pattern_stats['Total'], test_pattern))
+						self.msg.verbose(verbose_line.format('Skip:', pattern_count, self.pattern_stats['total'], test_pattern))
 						pattern_skipped = False
 					else:
 						if pattern_is_valid:
-							self.msg.verbose(verbose_line.format('Done:', pattern_count, self.pattern_stats['Total'], test_pattern))
+							self.msg.verbose(verbose_line.format('Done:', pattern_count, self.pattern_stats['applicable'], test_pattern))
 						else:
-							self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['Total'], self.pattern_error_list[-1]))
+							self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], test_pattern + " - Output Error"))
 				elif( msg.get_level() >= msg.LOG_MIN ):
 					if progress_bar_active:
 						ascbar.inc_count()
 						ascbar.update()
 			except Exception as e:
-				self.pattern_error_list.append(test_pattern + " -- Pattern runtime error: " + str(e))
-				self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['Total'], self.pattern_error_list[-1]))
+				self.runtime_error_list.append(test_pattern + " -- Pattern runtime error: " + str(e))
+				self.pattern_stats['runtime_errors'] += 1
+				self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], self.runtime_error_list[-1]))
 
 		#make output look nice
 		if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
 			if progress_bar_active:
 				ascbar.finish()
 
-		self.pattern_stats['Applied'] = len(self.results)
-		self.pattern_stats['Errors'] = len(self.pattern_error_list)
-		self.msg.min('Applicable Patterns:', str(self.pattern_stats['Applied']))
-		self.msg.min('Pattern Execution Errors:', str(self.pattern_stats['Errors']))
-################################################################
-# Change back to get list of patterns with errors
-#%%%	if( msg.get_level() >= msg.LOG_NORMAL ):
-		if( msg.get_level() >= msg.LOG_DEBUG ):
-			for pattern_error_str in self.pattern_error_list:
-				print("  " + pattern_error_str)
+		if( msg.get_level() >= msg.LOG_VERBOSE ):
+			msg.verbose()
+			separator_line('-')
+		self.pattern_stats['applied'] = len(self.results)
+		self.msg.normal('Total Patterns', str(self.pattern_stats['total']))
+		self.msg.normal('Filtered Patterns', str(self.pattern_stats['applicable']))
+		self.msg.min('Applicable Patterns', str(self.pattern_stats['applied']))
+		self.msg.normal('+ Critical', str(self.pattern_stats['critical']))
+		self.msg.normal('+ Warning', str(self.pattern_stats['warning']))
+		self.msg.normal('+ Recommend', str(self.pattern_stats['recommend']))
+		self.msg.verbose('+ Promotion', str(self.pattern_stats['promotion']))
+		self.msg.normal('+ Success', str(self.pattern_stats['success']))
+		self.msg.verbose('+ Error', str(self.pattern_stats['error']))
+		self.msg.verbose('+ Ignore', str(self.pattern_stats['ignore']))
+		self.msg.verbose('+ Partial', str(self.pattern_stats['partial']))
+		self.msg.verbose('+ Temporary', str(self.pattern_stats['temp']))
 
-	def __get_available_pattern_count(self):
-		total_count = 0
+		self.msg.min()
+		level_now = msg.get_level()
+		if( level_now >= msg.LOG_MIN ):
+			if self.pattern_stats['runtime_errors'] > 0:
+				self.msg.min('Pattern Execution Errors:', str(self.pattern_stats['runtime_errors']))
+				separator_line('-')
+				for pattern_error_str in self.runtime_error_list:
+					print(pattern_error_str)
+					print()
+
+	def __get_available_patterns(self):
+		file_list = []
 		for root, dirs, files in os.walk(self.sca_patterns_path):
-			total_count += len(files)
-		self.msg.normal("Total Available Patterns", total_count)
-		return total_count
+			for name in files:
+				if "README" in name:
+					continue
+				else:
+					file_list.append(os.path.join(root, name))
+		file_list.sort()
+		self.pattern_stats['total'] = len(file_list)
+		return file_list
 
 	def __get_pattern_filtered_directories(self):
-		pattern_directories = [self.sca_patterns_path + '/local/']
+		pattern_directories = [self.sca_patterns_path + 'local/']
 		for product_included in self.products_list:
-			base_pattern_path = str(self.sca_patterns_path) + "/" + str(product_included['patternTag']) + "/"
+			base_pattern_path = str(self.sca_patterns_path) + str(product_included['patternTag']) + "/"
 			pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "all/"
 			if os.path.isdir(pattern_filter_path):
 				pattern_directories.append(pattern_filter_path)
@@ -439,20 +467,16 @@ Class instance of {}
 		pattern_definition_filter = []
 		for test_directory in pattern_directories:
 			pattern_definition_filter.append(test_directory.split("/")[-2])
-		pattern_definition_filter = sorted(pattern_definition_filter)
-		self.msg.normal('Pattern Definition Filter', ' '.join(pattern_definition_filter))
+		self.pattern_stats['filter'] = sorted(pattern_definition_filter)
 
 		return pattern_directories
 
 	def __get_applicable_patterns(self):
 		pattern_file_list = []
-		for pattern_directory in self.pattern_filtered_directories:
-			#get the patterns from the valid directory
-			for root, dirs, pattern_files in os.walk(pattern_directory):
-				#joint the filenames with the root path
-				for pattern_file in pattern_files:
-					pattern_file_list.append(os.path.join(root, pattern_file))
-
+		for check_pattern in self.all_patterns:
+			for filtered_directory in self.pattern_filtered_directories:
+				if filtered_directory in check_pattern:
+					pattern_file_list.append(check_pattern)
 		return pattern_file_list
 
 	def __get_products_list(self):
@@ -964,15 +988,21 @@ def main(argv):
 		usage()
 		sys.exit(0)
 
-	if len(process_dirs) > 0:
+	num_of_supportconfigs = len(process_dirs)
+	if num_of_supportconfigs > 1:
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
 			msg.min("Processing Supportconfig", supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
 			results = sca_data.get_results()
-			for r in results:
-				print(r)
-#			print(sca_data)
-			print()
+			del sca_data
+			separator_line('=')
+			msg.min()
+		msg.min()
+	elif num_of_supportconfigs > 0:
+		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
+			msg.min("Processing Supportconfig", supportconfig_directory)
+			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
+			results = sca_data.get_results()
 			del sca_data
 			
 # Entry point
