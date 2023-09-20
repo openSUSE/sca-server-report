@@ -1,11 +1,13 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev2'
+SVER = '3.0.0_dev3'
+# Revert %%% locations
+
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2023 Sep 19
+# Modified:     2023 Sep 20
 #
 ##############################################################################
 #
@@ -328,13 +330,13 @@ Class instance of {}
 	def __parse_results_output(self, out, error, pat):
 		if error == "":
 			output = out.strip().split("|")
-			if( len(output) < len(RESULT_ELEMENT) ):
-				self.pattern_error_list.append(pat + " -- Insufficient output elements: " + str(len(output)) + " < " + str(len(RESULT_ELEMENT)))
+			if( len(output) < len(self.RESULT_ELEMENT) ):
+				self.pattern_error_list.append(pat + " -- Insufficient output elements: " + str(len(output)) + " < " + str(len(self.RESULT_ELEMENT)))
 				return False
 
-			for i in range(0, len(RESULT_ELEMENT)):
-				if not RESULT_ELEMENT[i] in output[i]:
-					self.pattern_error_list.append(pat + " -- Invalid output element: " + str(RESULT_ELEMENT[i]) + " not found in " + str(output[i]))
+			for i in range(0, len(self.RESULT_ELEMENT)):
+				if not self.RESULT_ELEMENT[i] in output[i]:
+					self.pattern_error_list.append(pat + " -- Invalid output element: " + str(self.RESULT_ELEMENT[i]) + " not found in " + str(output[i]))
 					return False
 
 			#if overall outcome of pattern was valid
@@ -343,7 +345,7 @@ Class instance of {}
 				self.results.append(full)
 				return True
 			else:
-				self.pattern_error_list.append(pat + " -- Output results error: " + str(output[5]))
+				self.pattern_error_list.append(pat + " -- Output result: " + str(output[5]))
 				return False
 		else:
 			if( msg.get_level() >= msg.LOG_DEBUG ):
@@ -405,8 +407,8 @@ Class instance of {}
 
 		self.pattern_stats['Applied'] = len(self.results)
 		self.pattern_stats['Errors'] = len(self.pattern_error_list)
-		self.msg.normal('Applicable Patterns:', str(self.pattern_stats['Applied']))
-		self.msg.normal('Pattern Execution Errors:', str(self.pattern_stats['Errors']))
+		self.msg.min('Applicable Patterns:', str(self.pattern_stats['Applied']))
+		self.msg.min('Pattern Execution Errors:', str(self.pattern_stats['Errors']))
 ################################################################
 # Change back to get list of patterns with errors
 #%%%	if( msg.get_level() >= msg.LOG_NORMAL ):
@@ -689,38 +691,37 @@ Class instance of {}
 
 		return products_found
 
-def patternLibraryList(msg, config):
+def show_pattern_library(msg, location):
 	total_count=0
-	DIRECTORY = {}
-	FORMATTING = '{0:>5} : {1}'
-	print("Pattern Library Summary\n")
-	print(FORMATTING.format('Count', 'Pattern Directory'))
-	print(FORMATTING.format('=====','========================================'))
-	for root, dirs, files in os.walk(self.location):
-#		print "root  = " + str(root)
-#		print "dirs  = " + str(dirs)
-#		print "files = " + str(files)
-#		print
-		total_count += len(files)
-		FILES_FOUND = len(files)
-		if( FILES_FOUND > 1 ):
-			DIRECTORY[root] = FILES_FOUND
-			for onefile in files:
-				if( onefile == "README" ):
-					total_count -= 1
-					break
-		elif( FILES_FOUND > 0 ):
-			if( files[0] == "README" ):
-				# Readme files don't count
-				total_count -= 1
+	directory = {}
+	file_list = []
+	display = '{0:>17} : {1}'
+	msg.min("Pattern Library Summary\n")
+	msg.min(display.format('Pattern Directory', 'Count'))
+	msg.min(display.format('=================', '====='))
+	for root, dirs, files in os.walk(location):
+		file_list = []
+		for name in files:
+			if "README" in name:
+				continue
 			else:
-				DIRECTORY[root] = FILES_FOUND
-		elif( len(dirs) == 0 ):
-			DIRECTORY[root] = FILES_FOUND
-	for i in sorted(DIRECTORY, key=str.lower):
-		print(FORMATTING.format(DIRECTORY[i], i))
-	print(FORMATTING.format(total_count, 'Total Available Patterns'))
-	print()
+				file_list.append(os.path.join(root, name))
+		if len(file_list) > 0:
+			file_list.sort()
+			directory[root] = file_list
+			total_count += len(file_list)
+
+	for _dir, _list in sorted(directory.items()):
+		if( msg.get_level() >= msg.LOG_NORMAL ):
+			msg.min(display.format(_dir, len(_list)))
+			for _pat in _list:
+				msg.normal(_pat)
+		elif( msg.get_level() >= msg.LOG_MIN ):
+			msg.min(display.format(os.path.basename(_dir), len(_list)))
+		msg.normal()
+
+	msg.quiet(display.format(total_count, 'Total Available Patterns'))
+	msg.min()
 
 def evaluate_supportconfig_given(msg, given_path):
 	type_found = {'valid': False, 'type': '', 'source': ''}
@@ -747,7 +748,7 @@ def evaluate_supportconfig_given(msg, given_path):
 	msg.debug("Supportconfig Evaluation", type_found)
 	return type_found
 
-def extracted_supportconfig(msg, tarball):
+def extract_supportconfig(msg, tarball):
 	path_in_tarball = ''
 	msg.normal("Extracting File", tarball)
 	cmd = "file --brief --mime-type " + tarball
@@ -776,7 +777,6 @@ def extracted_supportconfig(msg, tarball):
 
 def valid_supportconfig_dir(msg, check_dir):
 	test_files = ['basic-environment.txt', 'rpm.txt']
-	msg.normal("Evaluating Directory", check_dir)
 	for test_file in test_files:
 		file_path = check_dir + '/' + test_file
 		if not os.path.isfile(file_path):
@@ -784,6 +784,7 @@ def valid_supportconfig_dir(msg, check_dir):
 			msg.min("Error: Invalid supportconfig archive - missing " + file_path)
 			return False
 
+	msg.verbose("Valid Supportconfig", check_dir)
 	return True
 
 def i_am_root():
@@ -793,7 +794,7 @@ def i_am_root():
 
 def get_local_supportconfig(msg, config):
 	local_hostname = str(os.uname()[1])
-	msg.normal('Running Supportconfig On', local_hostname)
+	msg.min('Running Supportconfig On', local_hostname)
 	analysis_datetime = datetime.datetime.now()
 	date_stamp = analysis_datetime.strftime("%y%m%d")
 	time_stamp = str(analysis_datetime.hour).zfill(2) + str(analysis_datetime.minute).zfill(2) + str(analysis_datetime.second).zfill(2)
@@ -804,8 +805,7 @@ def get_local_supportconfig(msg, config):
 	supportconfig_path = local_supportconfig_path + supportconfig_filename_prefix + local_supportconfig_name
 
 	try:
-#		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
-		cmd = "supportconfig -mbB " + local_supportconfig_name + " -t " + local_supportconfig_path
+		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
 		msg.debug('Process Command', cmd)
 		p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	#if we cannot run supportconfig
@@ -855,17 +855,28 @@ def main(argv):
 	global SVER, progress_bar_active, report_file_path, email_addr_list, remove_archive, analyze_server, output_type, config_file
 	global width, description_width
 
+	pattern_library = False
+
 	if( os.path.exists(config_file) ):
 		config.read(config_file)
 		width = int(config_entry(config.get("Common", "display_width")))
 		description_width = int(config_entry(config.get("Common", "description_width")))
+		sca_library_path = config_entry(config.get("Common", "sca_library_path"), '/')
+		sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
 		msg.set_width(description_width)
-		print("width={}, description_width={}".format(width, description_width))
 		config_logging = msg.validate_level(config_entry(config.get("Common", "log_level")))
 		if( config_logging >= msg.LOG_QUIET ):
 			msg.set_level(config_logging)
 		else:
 			msg.verbose("Warning: Invalid log level in config file, using instance default")
+##################
+#%%%
+# Not setting environment variables here. 
+# Work around: set the environment variables in bash terminal
+	#	sys.path.append(os.path.abspath(sca_library_path + 'python'))
+	#	os.environ['PYTHONPATH'] = os.path.abspath(sca_library_path + 'python')
+	#	os.environ['PERL5LIB'] = os.path.abspath(sca_library_path + 'perl')
+	#	os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
 	else:
 		title()
 		print("Error: File not found - " + config_file + "\n")
@@ -889,9 +900,7 @@ def main(argv):
 		elif opt in {"-o", "--output"}:
 			report_file_path = arg
 		elif opt in {"-p", "--summary"}:
-			title()
-			patternLibraryList(msg, config)
-			sys.exit(0)
+			pattern_library = True
 		elif opt in {"-r", "--remove"}:
 			remove_archive = True
 		elif opt in {"-s", "--server"}:
@@ -910,6 +919,10 @@ def main(argv):
 	if( msg.get_level() > msg.LOG_QUIET ):
 		title()
 
+	if pattern_library:
+		show_pattern_library(msg, sca_patterns_path)
+		sys.exit(0)
+
 	total_args_given = len(args)
 	process_dirs = {} # key = supportconfig directory, value = the supportconfig tarball
 	if total_args_given > 0:
@@ -922,7 +935,7 @@ def main(argv):
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						process_dirs[supportconfig_dir] = ''
 				elif supportconfig_data['type'] == 'file':
-					supportconfig_dir = extracted_supportconfig(msg, supportconfig_data['source'])
+					supportconfig_dir = extract_supportconfig(msg, supportconfig_data['source'])
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						process_dirs[supportconfig_dir] = supportconfig_data['source']
 				else:
@@ -948,14 +961,16 @@ def main(argv):
 			msg.min("Analyze Local Server", "Root user required to run supportconfig")
 
 	else:
-		title()
 		usage()
 		sys.exit(0)
 
 	if len(process_dirs) > 0:
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
-			msg.min("Supportconfig Directory", supportconfig_directory)
+			msg.min("Processing Supportconfig", supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
+			results = sca_data.get_results()
+			for r in results:
+				print(r)
 #			print(sca_data)
 			print()
 			del sca_data
