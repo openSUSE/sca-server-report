@@ -51,7 +51,6 @@ from email.mime.application import MIMEApplication
 width = 0
 description_width = 0
 progress_bar_active = True
-email_addr_list = ''
 remove_archive = False
 analyze_server = False
 config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
@@ -286,6 +285,7 @@ class SupportconfigAnalysis():
 		self.analysis_datetime = datetime.datetime.now()
 		self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
 		self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
+
 		self.results = {}
 		self.runtime_error_list = []
 		self.pattern_stats = {
@@ -737,7 +737,7 @@ Class instance of {}
 				in_product = True
 
 		#get SUSE Manager information
-		# TO DO
+		# email_to DO
 
 		del summary_file
 		self.distro_info['name'] = os.path.basename(self.location)
@@ -928,6 +928,8 @@ class SCAReport():
 		self.report_path = config_entry(config.get("Common", "report_output_path"), '/')
 		self.report_name = ''
 		self.report_file = ''
+		self.email_list = ''
+		self.content = ''
 		self.__validate_report_type()
 
 	def __str__ (self):
@@ -937,8 +939,9 @@ Class instance of {}
   report_path = {}
   report_name = {}
   report_file = {}
+  email_list = {}
 '''
-		return pattern.format(self.__class__.__name__, self.report_type, self.report_path, self.report_name, self.report_file)
+		return pattern.format(self.__class__.__name__, self.report_type, self.report_path, self.report_name, self.report_file, self.email_list)
 
 	def __validate_report_type(self):
 		valid = False
@@ -969,20 +972,36 @@ Class instance of {}
 		self.data = updated_data
 		if len(self.report_path) < 1:
 			self.report_path = self.__normalize_path(self.data['sc_info']['path'])
-		self.report_name = self.data['sc_info']['name']
-		self.report_file = self.report_path + self.report_name + "." + self.report_type
+		self.report_name = self.data['sc_info']['name'] + "." + self.report_type
+		self.report_file = self.report_path + self.report_name
+		self.data['sc_info']['report_type'] = self.report_type
+		self.data['sc_info']['report_file'] = self.report_file
 
 	def __generate_json_report(self):
 		try:
-			with open(self.report_file, "w") as reportfile:
-				json.dump(self.data, reportfile, indent = 4)
+			with open(self.report_file, "w") as f:
+				json.dump(self.data, f, indent = 4)
 		except Exception as e:
 			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
 			self.msg.min()
 			sys.exit(13)
 
-	def __generate_html_report(self):
+	def __build_html_report(self):
+		meta_class_names = []
+		meta_class_names = self.__get_meta_class_names()
+		self.content += self.__get_html_header()
 		pass
+
+	def __generate_html_report(self):
+		self.__build_html_report()
+		try:
+			with open(self.report_file, "w") as f:
+				f.write(self.content)
+		except Exception as e:
+			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
+			self.msg.min()
+			sys.exit(13)
+
 
 	def generate_report(self):
 		self.msg.verbose("Generating {} Report".format(self.report_type), self.report_file)
@@ -993,16 +1012,82 @@ Class instance of {}
 		elif self.report_type == "json":
 			self.__generate_json_report()
 		self.msg.min("SCA Report File", self.report_file)
-		self.msg.min()
+
+	def email_report(self, updated_addrs):
+		self.generate_report()
+		self.email_list = updated_addrs.split(',')
+		self.msg.min("Email Report Recipients", ' '.join(self.email_list))
+
+		email_server = 'localhost'
+		email_to = self.email_list
+		email_from = 'SCA Tool <root>'
+		email_subject = "SCA Report for " + str(self.data['sc_info']['serverName']) + ": " + str(self.data['pattern_stats']['applied']) + "/" + str(self.data['pattern_stats']['applicable']) + ", " + str(self.data['pattern_stats']['critical']) + ":" + str(self.data['pattern_stats']['warning']) + ":" + str(self.data['pattern_stats']['recommend']) + ":" + str(self.data['pattern_stats']['success'])
+		content_type = self.report_type
+
+		# create text email
+		text = "* Supportconfig Analysis Report *\n"
+		text += "Analysis Date:            " + str(self.data['sc_info']['timeAnalysis']) + "\n"
+		text += "Supportconfig Archive:    " + str(self.data['file_data']['embedded_dir']) + "\n"
+		text += "Server Analyzed:          " + str(self.data['sc_info']['serverName']) + "\n"
+		text += "Total Patterns Evaluated: " + str(self.data['pattern_stats']['applicable']) + "\n"
+		text += "Applicable to Server:     " + str(self.data['pattern_stats']['applied']) + "\n"
+		text += "  Critical:               " + str(self.data['pattern_stats']['critical']) + "\n"
+		text += "  Warning:                " + str(self.data['pattern_stats']['warning']) + "\n"
+		text += "  Recommended:            " + str(self.data['pattern_stats']['recommend']) + "\n"
+		text += "  Success:                " + str(self.data['pattern_stats']['success']) + "\n"
+		text += "Source:                   " + str(self.data['file_data']['analyzer']) + "\n"
+
+		# create html email
+		html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
+		html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">\n'
+		html += '<body>\n'
+		html += '<h1>Supportconfig Analysis Report</h1>\n'
+		html += '<table>\n'
+		html += "<tr><td>Analysis Date:</td><td>" + str(self.data['sc_info']['timeAnalysis']) + '</td></tr>\n'
+		html += "<tr><td>Supportconfig Archive:</td><td>" + str(self.data['file_data']['embedded_dir']) + '</td></tr>\n'
+		html += "<tr><td>Server Analyzed:</td><td>" + str(self.data['sc_info']['serverName']) + '</td></tr>\n'
+		html += "<tr><td>Total Patterns Evaluated:</td><td>" + str(self.data['pattern_stats']['applicable']) + '</td></tr>\n'
+		html += "<tr><td>Applicable to Server:</td><td>" + str(self.data['pattern_stats']['applied']) + '</td></tr>\n'
+		html += "<tr><td>&nbsp;&nbsp;Critical:</td><td>" + str(self.data['pattern_stats']['critical']) + '</td></tr>\n'
+		html += "<tr><td>&nbsp;&nbsp;Warning:</td><td>" + str(self.data['pattern_stats']['warning']) + '</td></tr>\n'
+		html += "<tr><td>&nbsp;&nbsp;Recommended:</td><td>" + str(self.data['pattern_stats']['recommend']) + '</td></tr>\n'
+		html += "<tr><td>&nbsp;&nbsp;Success:</td><td>" + str(self.data['pattern_stats']['success']) + '</td></tr>\n'
+		html += "<tr><td>Source:</td><td>" + str(self.data['file_data']['analyzer']) + '</td></tr>\n'
+		html += "</table>\n</body></html>\n\n"
+		email_msg = MIMEMultipart()
+		email_msg['Subject'] = email_subject
+		email_msg['From'] = email_from
+		email_msg['To'] = ', '.join(email_to)
+		email_msg.attach(MIMEText(text,'plain'))
+		email_msg.attach(MIMEText(html,'html'))
+
+		# now attach the file
+		with open(self.report_file, 'rb') as f:
+			email_file_msg = MIMEApplication(f.read(), _subtype=content_type)
+		email_file_msg.add_header('Content-Disposition','attachment;filename=' + self.report_name)
+		email_msg.attach(email_file_msg)
+
+		# send email
+		smtp_server = None
+		try:
+			smtp_server = smtplib.SMTP(email_server, timeout=15)
+			smtp_server.sendmail(email_from,email_to,email_msg.as_string())
+			return True
+		except Exception as error:
+			print("  Error: Unable to send email: '%s'." % str(error), file=sys.stderr)
+			pass
+		finally:
+			if smtp_server:
+				smtp_server.quit()
+		return False
 
 
-##############################################################################
 # Main
 ##############################################################################
 
 def main(argv):
 	"main entry point"
-	global SVER, progress_bar_active, email_addr_list, remove_archive, analyze_server, config_file
+	global SVER, progress_bar_active, remove_archive, analyze_server, config_file
 	global width, description_width
 
 	pattern_library = False
@@ -1015,6 +1100,7 @@ def main(argv):
 		description_width = int(config_entry(config.get("Common", "description_width")))
 		sca_library_path = config_entry(config.get("Common", "sca_library_path"), '/')
 		sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
+		email_addr_str = config_entry(config.get("Common", "report_email_list"))
 		msg.set_width(description_width)
 		config_logging = msg.validate_level(config_entry(config.get("Common", "log_level")))
 		if( config_logging >= msg.LOG_QUIET ):
@@ -1050,7 +1136,7 @@ def main(argv):
 		elif opt in {"-b", "--batch"}:
 			progress_bar_active = False
 		elif opt in {"-e", "--email"}:
-			email_addr_list = arg
+			email_addr_str = arg
 		elif opt in {"-o", "--output"}:
 			sca_report.set_path(arg)
 		elif opt in {"-p", "--summary"}:
@@ -1087,6 +1173,7 @@ def main(argv):
 		for given_source in args:
 			msg.normal("+ Checking", given_source)
 			this_file_data = evaluate_supportconfig_given(msg, given_source)
+			this_file_data['analyzer'] = "scatool v" + str(SVER)	
 			supportconfig_dir = ''
 			if this_file_data['valid']:
 				if this_file_data['type'] == 'dir':
@@ -1114,6 +1201,7 @@ def main(argv):
 		if i_am_root():
 			given_source = get_local_supportconfig(msg, config)
 			this_file_data = evaluate_supportconfig_given(msg, given_source)
+			this_file_data['analyzer'] = "scatool v" + str(SVER)	
 			file_data[this_file_data['source']] = this_file_data
 			if this_file_data['valid']:
 					supportconfig_dir = this_file_data['source']
@@ -1142,10 +1230,12 @@ def main(argv):
 			dict2 = sca_data.get_results()
 			sca_results = {**dict1, **dict2}
 			sca_report.set_data(sca_results)
-			sca_report.generate_report()
+			if len(email_addr_str) > 0:
+				sca_report.email_report(email_addr_str)
+			else:
+				sca_report.generate_report()
 			separator_line('=')
 			msg.min()
-			del sca_data
 		msg.min()
 	elif num_of_supportconfigs > 0:
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
@@ -1155,8 +1245,11 @@ def main(argv):
 			dict2 = sca_data.get_results()
 			sca_results = {**dict1, **dict2}
 			sca_report.set_data(sca_results)
-			sca_report.generate_report()
-			del sca_data
+			if len(email_addr_str) > 0:
+				sca_report.email_report(email_addr_str)
+			else:
+				sca_report.generate_report()
+	msg.min()
 			
 # Entry point
 if __name__ == "__main__":
