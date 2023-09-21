@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev5'
+SVER = '3.0.0_dev6'
 # Revert %%% locations
 
 ##############################################################################
@@ -7,7 +7,7 @@ SVER = '3.0.0_dev5'
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2023 Sep 20
+# Modified:     2023 Sep 21
 #
 ##############################################################################
 #
@@ -51,11 +51,9 @@ from email.mime.application import MIMEApplication
 width = 0
 description_width = 0
 progress_bar_active = True
-report_file_path = ''
 email_addr_list = ''
 remove_archive = False
 analyze_server = False
-output_type = 'html'
 config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
 analysis_datetime = datetime.datetime.now()
 
@@ -69,8 +67,8 @@ def title():
 	print()
 
 def usage():
-	print("Usage: scatool [OPTIONS] [-s]|[archive|server]")
 	display = "  {:33} {}"
+	print("Usage: scatool [OPTIONS] [-s]|[archive|server]")
 	print()
 	print("OPTIONS")
 	print(display.format('-h, --help', "Displays this screen"))
@@ -101,7 +99,6 @@ def config_entry(_entry, trailer = ''):
 		if len(formatted_entry) > 0:
 			if not formatted_entry.endswith(trailer):
 				formatted_entry = formatted_entry + str(trailer)
-#	print("config_entry: Entry={}, Entry Size={}, Trailer={}, formatted_entry={}, formatted_entry size={}".format(_entry, len(_entry), trailer, formatted_entry, len(formatted_entry)))
 	return formatted_entry
 
 class ProgressBar():
@@ -121,7 +118,6 @@ class ProgressBar():
 		else:
 			self.bar_width = self.base_len - self.desc_width - 2
 		self.display = "{:" + str(self.desc_width) + "s}[{}{}] {:3g}% {:3g}/{}"
-#		print("** ProgressBar base_len={}, bar_width={}, desc_width={}, prefix_size={}, display={}".format(self.base_len, self.bar_width, self.desc_width, self.prefix_size, self.display))
 
 	def __str__(self):
 		return 'class %s(\n  prefix=%r \n  bar_width=%r \n  total=%r\n)' % (self.__class__.__name__, self.prefix, self.bar_width, self.total)
@@ -279,7 +275,7 @@ class DisplayMessages():
 
 class SupportconfigAnalysis():
 	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
-	SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
+	SEV_TABLE = {-2: 'temp', -1: 'partial', 0: 'success', 1: 'recommend', 2: 'promotion', 3: 'warning', 4: 'critical', 5: 'error', 6: 'ignore' }
 
 	def __init__(self, msg, config, extracted_path):
 		self.msg = msg
@@ -297,15 +293,15 @@ class SupportconfigAnalysis():
 			'applicable': 0,
 			'applied': 0,
 			'runtime_errors': 0,
-			self.SEV_TABLE['-2']: 0,
-			self.SEV_TABLE['-1']: 0,
-			self.SEV_TABLE['0']: 0,
-			self.SEV_TABLE['1']: 0,
-			self.SEV_TABLE['2']: 0,
-			self.SEV_TABLE['3']: 0,
-			self.SEV_TABLE['4']: 0,
-			self.SEV_TABLE['5']: 0,
-			self.SEV_TABLE['6']: 0,
+			self.SEV_TABLE[-2]: 0,
+			self.SEV_TABLE[-1]: 0,
+			self.SEV_TABLE[0]: 0,
+			self.SEV_TABLE[1]: 0,
+			self.SEV_TABLE[2]: 0,
+			self.SEV_TABLE[3]: 0,
+			self.SEV_TABLE[4]: 0,
+			self.SEV_TABLE[5]: 0,
+			self.SEV_TABLE[6]: 0,
 			'filter': []
 		}
 		self.products_list = self.__get_products_list()
@@ -376,8 +372,10 @@ Class instance of {}
 			for o in pattern_return_list:
 				key, value = o.split("=", 1)
 				output[key] = value
-			self.pattern_stats[self.SEV_TABLE[str(output['OVERALL'])]] += 1
-			if int(output['OVERALL']) >= 0 and int(output['OVERALL']) < 5:
+			output['OVERALL'] = int(output['OVERALL'])
+			output['severity'] = self.SEV_TABLE[output['OVERALL']]
+			self.pattern_stats[self.SEV_TABLE[output['OVERALL']]] += 1
+			if output['OVERALL'] >= 0 and output['OVERALL'] < 5:
 				self.pattern_stats['applied'] += 1
 			self.results[pat] = output
 			return True
@@ -805,19 +803,23 @@ def evaluate_supportconfig_given(msg, given_path):
 		cmd = "ping -c1 -w1 " + given_path
 		msg.verbose("Pinging", given_path)
 		msg.debug("Process Command", cmd)
+		type_found['type'] = 'remote'
+		type_found['source'] = given_path
 		ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		stdout, stderr = ping_server.communicate()
 		if ping_server.returncode == 0:
 			type_found['valid'] = True
-			type_found['type'] = 'remote'
-			type_found['source'] = given_path
+			type_found['ping'] = True
+		else:
+			type_found['valid'] = False
+			type_found['ping'] = False
 
 	msg.debug("Supportconfig Evaluation", type_found)
 	return type_found
 
 def extract_supportconfig(msg, tarball):
 	path_in_tarball = ''
-	msg.normal("Extracting File", tarball)
+	msg.verbose("Extracting File", tarball)
 	cmd = "file --brief --mime-type " + tarball
 	msg.debug('Process Command', cmd)
 	process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
@@ -851,7 +853,7 @@ def valid_supportconfig_dir(msg, check_dir):
 			msg.min("Error: Invalid supportconfig archive - missing " + file_path)
 			return False
 
-	msg.verbose("Valid Supportconfig", check_dir)
+	msg.normal("Valid Supportconfig", check_dir)
 	return True
 
 def i_am_root():
@@ -971,18 +973,27 @@ Class instance of {}
 		self.report_file = self.report_path + self.report_name + "." + self.report_type
 
 	def __generate_json_report(self):
-		with open(self.report_file, "w") as reportfile:
-			json.dump(self.data, reportfile, ensure_asscii=False, indent=4)
-			#%%% fails to write, no errors
+		try:
+			with open(self.report_file, "w") as reportfile:
+				json.dump(self.data, reportfile, indent = 4)
+		except Exception as e:
+			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
+			self.msg.min()
+			sys.exit(13)
 
 	def __generate_html_report(self):
 		pass
 
 	def generate_report(self):
+		self.msg.verbose("Generating {} Report".format(self.report_type), self.report_file)
+		if self.data['pattern_stats']['runtime_errors'] > 0:
+		    separator_line('-')
 		if self.report_type == "html":
-			self.__generate_html_report(self)
-		elif self.report_type == "html":
-			self.__generate_json_report(self)
+			self.__generate_html_report()
+		elif self.report_type == "json":
+			self.__generate_json_report()
+		self.msg.min("SCA Report File", self.report_file)
+		self.msg.min()
 
 
 ##############################################################################
@@ -995,6 +1006,8 @@ def main(argv):
 	global width, description_width
 
 	pattern_library = False
+	this_file_data = {}
+	file_data = {}
 
 	if( os.path.exists(config_file) ):
 		config.read(config_file)
@@ -1069,35 +1082,44 @@ def main(argv):
 	total_args_given = len(args)
 	process_dirs = {} # key = supportconfig directory, value = the supportconfig tarball
 	if total_args_given > 0:
+		if total_args_given > 1:
+			msg.min("Number of supportconfigs", total_args_given)
 		for given_source in args:
-			supportconfig_data = evaluate_supportconfig_given(msg, given_source)
+			msg.normal("+ Checking", given_source)
+			this_file_data = evaluate_supportconfig_given(msg, given_source)
 			supportconfig_dir = ''
-			if supportconfig_data['valid']:
-				if supportconfig_data['type'] == 'dir':
-					supportconfig_dir = supportconfig_data['source']
+			if this_file_data['valid']:
+				if this_file_data['type'] == 'dir':
+					supportconfig_dir = this_file_data['source']
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						process_dirs[supportconfig_dir] = ''
-				elif supportconfig_data['type'] == 'file':
-					supportconfig_dir = extract_supportconfig(msg, supportconfig_data['source'])
+						file_data[supportconfig_dir] = this_file_data
+				elif this_file_data['type'] == 'file':
+					supportconfig_dir = extract_supportconfig(msg, this_file_data['source'])
 					if valid_supportconfig_dir(msg, supportconfig_dir):
-						process_dirs[supportconfig_dir] = supportconfig_data['source']
+						this_file_data['embedded_dir'] = supportconfig_dir
+						process_dirs[supportconfig_dir] = this_file_data['source']
+						file_data[supportconfig_dir] = this_file_data
 				else:
 					if i_am_root():
 						print("Get remote supportconfig -- PENDING")
 						print("Extract supportconfig")
 						print("Create a supportconfig instance")
 					else:
-						msg.min("Evaluating Server", "Root user required for " + supportconfig_data['source'])
+						msg.normal("Evaluating Server", "Root user required for " + this_file_data['source'])
 			else:
 				msg.min("Error: Invalid supportconfig source - " + given_source)
+		msg.normal()
 	elif analyze_server:
 		if i_am_root():
 			given_source = get_local_supportconfig(msg, config)
-			supportconfig_data = evaluate_supportconfig_given(msg, given_source)
-			if supportconfig_data['valid']:
-					supportconfig_dir = supportconfig_data['source']
+			this_file_data = evaluate_supportconfig_given(msg, given_source)
+			file_data[this_file_data['source']] = this_file_data
+			if this_file_data['valid']:
+					supportconfig_dir = this_file_data['source']
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						process_dirs[supportconfig_dir] = ''
+						file_data[supportconfig_dir] = this_file_data
 			else:
 				msg.min("Error: Invalid supportconfig source - " + given_source)
 		else:
@@ -1107,13 +1129,20 @@ def main(argv):
 		usage()
 		sys.exit(0)
 
+	dict1 = {}
+	dict2 = {}
 	num_of_supportconfigs = len(process_dirs)
 	if num_of_supportconfigs > 1:
+		count = 0
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
-			msg.min("Processing Supportconfig", supportconfig_directory)
+			count += 1
+			msg.min("Processing [{}/{}]".format(count, num_of_supportconfigs), supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
-			sca_results = sca_data.get_results()
+			dict1['file_data'] = file_data[supportconfig_directory]
+			dict2 = sca_data.get_results()
+			sca_results = {**dict1, **dict2}
 			sca_report.set_data(sca_results)
+			sca_report.generate_report()
 			separator_line('=')
 			msg.min()
 			del sca_data
@@ -1122,12 +1151,11 @@ def main(argv):
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
 			msg.min("Processing Supportconfig", supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
-			sca_results = sca_data.get_results()
+			dict1['file_data'] = file_data[supportconfig_directory]
+			dict2 = sca_data.get_results()
+			sca_results = {**dict1, **dict2}
 			sca_report.set_data(sca_results)
-			print(sca_report)
-			sys.exit(1)
-			json_obj = json.dumps(sca_results, indent = 4)
-			print(json_obj)
+			sca_report.generate_report()
 			del sca_data
 			
 # Entry point
