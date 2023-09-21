@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev4'
+SVER = '3.0.0_dev5'
 # Revert %%% locations
 
 ##############################################################################
@@ -80,7 +80,7 @@ def usage():
 	print(display.format('-p, --summary', "Print a pattern summary"))
 	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the SCA Report file"))
 	print(display.format('-s, --server', "Analyze the local server"))
-	print(display.format('-t, --output_type', "SCA Report file output type, options: html. Default: html"))
+	print(display.format('-t, --type', "SCA Report file output type, options: json, html. Default: html"))
 	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
 	print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
 	print()
@@ -98,8 +98,10 @@ def signal_handler(sig, frame):
 def config_entry(_entry, trailer = ''):
 	formatted_entry = _entry.strip('\"\'')
 	if( len(trailer) > 0 ):
-		if not formatted_entry.endswith(trailer):
-			formatted_entry = formatted_entry + str(trailer)
+		if len(formatted_entry) > 0:
+			if not formatted_entry.endswith(trailer):
+				formatted_entry = formatted_entry + str(trailer)
+#	print("config_entry: Entry={}, Entry Size={}, Trailer={}, formatted_entry={}, formatted_entry size={}".format(_entry, len(_entry), trailer, formatted_entry, len(formatted_entry)))
 	return formatted_entry
 
 class ProgressBar():
@@ -740,8 +742,10 @@ Class instance of {}
 		# TO DO
 
 		del summary_file
-
-		self.json_data['distro_info'] = self.distro_info
+		self.distro_info['name'] = os.path.basename(self.location)
+		self.distro_info['path'] = os.path.dirname(self.location)
+		self.json_data['sc_info'] = self.distro_info
+		self.json_data['prod_info'] = products_found
 		if( self.msg.get_level() >= self.msg.LOG_DEBUG ):
 			print()
 			print("Distro Info: {}\n".format(self.distro_info))
@@ -908,6 +912,78 @@ def get_local_supportconfig(msg, config):
 	
 	return supportconfig_path
 
+class SCAReport():
+	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+	SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
+	VALID_REPORT_TYPES = ['html', 'json']
+	default_report_type = 'html'
+
+	def __init__(self, msg, config):
+		self.msg = msg
+		self.config = config
+		self.data = {}
+		self.report_type = config_entry(config.get("Common", "report_output_type")).lower()
+		self.report_path = config_entry(config.get("Common", "report_output_path"), '/')
+		self.report_name = ''
+		self.report_file = ''
+		self.__validate_report_type()
+
+	def __str__ (self):
+		pattern = '''
+Class instance of {}
+  report_type = {}
+  report_path = {}
+  report_name = {}
+  report_file = {}
+'''
+		return pattern.format(self.__class__.__name__, self.report_type, self.report_path, self.report_name, self.report_file)
+
+	def __validate_report_type(self):
+		valid = False
+		for checking_type in self.VALID_REPORT_TYPES:
+			if self.report_type == checking_type:
+				valid = True
+		if not valid:
+			msg.min("\nWarning: Invalid report type - {}, using instance default ({})".format(self.report_type,self.default_report_type))
+			self.report_type = self.default_report_type
+
+	def __normalize_path(self, check_path):
+		if check_path.endswith("/"):
+			return check_path
+		else:
+			return check_path + "/"
+
+	def set_type(self, updated_type):
+		self.report_type = updated_type.lower()
+		self.__validate_report_type()
+
+	def set_path(self, updated_path):
+		if os.path.exists(updated_path):
+			self.report_path = self.__normalize_path(updated_path)
+		else:
+			msg.min("\nError: Path not found - {}, using default path".format(updated_path))
+
+	def set_data(self, updated_data):
+		self.data = updated_data
+		if len(self.report_path) < 1:
+			self.report_path = self.__normalize_path(self.data['sc_info']['path'])
+		self.report_name = self.data['sc_info']['name']
+		self.report_file = self.report_path + self.report_name + "." + self.report_type
+
+	def __generate_json_report(self):
+		with open(self.report_file, "w") as reportfile:
+			json.dump(self.data, reportfile, ensure_asscii=False, indent=4)
+			#%%% fails to write, no errors
+
+	def __generate_html_report(self):
+		pass
+
+	def generate_report(self):
+		if self.report_type == "html":
+			self.__generate_html_report(self)
+		elif self.report_type == "html":
+			self.__generate_json_report(self)
+
 
 ##############################################################################
 # Main
@@ -915,7 +991,7 @@ def get_local_supportconfig(msg, config):
 
 def main(argv):
 	"main entry point"
-	global SVER, progress_bar_active, report_file_path, email_addr_list, remove_archive, analyze_server, output_type, config_file
+	global SVER, progress_bar_active, email_addr_list, remove_archive, analyze_server, config_file
 	global width, description_width
 
 	pattern_library = False
@@ -932,6 +1008,8 @@ def main(argv):
 			msg.set_level(config_logging)
 		else:
 			msg.verbose("Warning: Invalid log level in config file, using instance default")
+		sca_report = SCAReport(msg, config)
+
 ##################
 #%%%
 # Not setting environment variables here. 
@@ -946,7 +1024,7 @@ def main(argv):
 		sys.exit(1)
 
 	try:
-		(optlist, args) = getopt.gnu_getopt(argv[1:], "hbe:o:pl:qrsv", ["help", "batch", "email=", "output=", "summary", "log_level=", "quiet", "remove", "server", "verbose"])
+		(optlist, args) = getopt.gnu_getopt(argv[1:], "hbe:o:pl:qrst:v", ["help", "batch", "email=", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose"])
 	except getopt.GetoptError as exc:
 		title()
 		print("Error:", exc, file=sys.stderr)
@@ -961,13 +1039,15 @@ def main(argv):
 		elif opt in {"-e", "--email"}:
 			email_addr_list = arg
 		elif opt in {"-o", "--output"}:
-			report_file_path = arg
+			sca_report.set_path(arg)
 		elif opt in {"-p", "--summary"}:
 			pattern_library = True
 		elif opt in {"-r", "--remove"}:
 			remove_archive = True
 		elif opt in {"-s", "--server"}:
 			analyze_server = True
+		elif opt in {"-t", "--type"}:
+			sca_report.set_type(arg)
 		elif opt in {"-q", "--quiet"}:
 			msg.set_level(msg.LOG_QUIET)
 		elif opt in {"-v", "--verbose"}:
@@ -1033,15 +1113,19 @@ def main(argv):
 			msg.min("Processing Supportconfig", supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
 			sca_results = sca_data.get_results()
-			del sca_data
+			sca_report.set_data(sca_results)
 			separator_line('=')
 			msg.min()
+			del sca_data
 		msg.min()
 	elif num_of_supportconfigs > 0:
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
 			msg.min("Processing Supportconfig", supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
 			sca_results = sca_data.get_results()
+			sca_report.set_data(sca_results)
+			print(sca_report)
+			sys.exit(1)
 			json_obj = json.dumps(sca_results, indent = 4)
 			print(json_obj)
 			del sca_data
