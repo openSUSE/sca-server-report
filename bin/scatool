@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev3'
+SVER = '3.0.0_dev4'
 # Revert %%% locations
 
 ##############################################################################
@@ -32,6 +32,7 @@ import os
 import re
 import sys
 import glob
+import json
 import uuid
 import tarfile
 import signal
@@ -281,29 +282,30 @@ class SupportconfigAnalysis():
 	def __init__(self, msg, config, extracted_path):
 		self.msg = msg
 		self.config = config
+		self.json_data = {}
 		self.sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
 		self.location = extracted_path
 		self.analysis_datetime = datetime.datetime.now()
 		self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
 		self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
-		self.results = []
+		self.results = {}
 		self.runtime_error_list = []
 		self.pattern_stats = {
-	'total': 0,
-	'applicable': 0,
-	'applied': 0,
-	'runtime_errors': 0,
-	self.SEV_TABLE['-2']: 0,
-	self.SEV_TABLE['-1']: 0,
-	self.SEV_TABLE['0']: 0,
-	self.SEV_TABLE['1']: 0,
-	self.SEV_TABLE['2']: 0,
-	self.SEV_TABLE['3']: 0,
-	self.SEV_TABLE['4']: 0,
-	self.SEV_TABLE['5']: 0,
-	self.SEV_TABLE['6']: 0,
-	'filter': []
-}
+			'total': 0,
+			'applicable': 0,
+			'applied': 0,
+			'runtime_errors': 0,
+			self.SEV_TABLE['-2']: 0,
+			self.SEV_TABLE['-1']: 0,
+			self.SEV_TABLE['0']: 0,
+			self.SEV_TABLE['1']: 0,
+			self.SEV_TABLE['2']: 0,
+			self.SEV_TABLE['3']: 0,
+			self.SEV_TABLE['4']: 0,
+			self.SEV_TABLE['5']: 0,
+			self.SEV_TABLE['6']: 0,
+			'filter': []
+		}
 		self.products_list = self.__get_products_list()
 		self.all_patterns = self.__get_available_patterns()
 		self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
@@ -332,36 +334,63 @@ Class instance of {}
 		return pattern.format(self.__class__.__name__, self.sca_patterns_path, self.location, self.distro_info, self.products_list, self.patterns_available, self.pattern_filtered_directories, str(len(self.applicable_patterns)), self.pattern_stats)
 
 	def get_results(self):
-		return self.results
+		return self.json_data
 
 	def __parse_results_output(self, out, error, pat):
+		output = {}
+		error_display = "{} -- {}: {}"
+		output['output_str'] = str(out)
 		if error == "":
-			output = out.strip().split("|")
-			if( len(output) < len(self.RESULT_ELEMENT) ):
-				self.runtime_error_list.append(pat + " -- Insufficient output elements: " + str(len(output)) + " < " + str(len(self.RESULT_ELEMENT)))
+			pattern_return_list = out.strip().split("|")
+
+			if( len(pattern_return_list) < len(self.RESULT_ELEMENT) ):
+				output['valid'] = False
+				output['error_tag'] = 'Insufficient output elements'
+				output['error_str'] = str(error)
+				self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
 				self.pattern_stats['runtime_errors'] += 1
+				self.results[pat] = output
 				return False
 
-			for i in range(0, len(self.RESULT_ELEMENT)):
-				if not self.RESULT_ELEMENT[i] in output[i]:
-					self.runtime_error_list.append(pat + " -- Invalid output element: " + str(self.RESULT_ELEMENT[i]) + " not found in " + str(output[i]))
+			missing_elements = []
+			for output_element in pattern_return_list:
+				found = False
+				for i in range(0, len(self.RESULT_ELEMENT)):
+					if output_element.startswith(self.RESULT_ELEMENT[i]):
+						found = True
+				if not found:
+					output['valid'] = False
+					output['error_tag'] = 'Invalid output element'
+					output['error_str'] = output_element
+					self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
 					self.pattern_stats['runtime_errors'] += 1
+					self.results[pat] = output
 					return False
 
 			#if overall outcome of pattern was valid
-			overall = output[5].split("=")[1]
-			self.pattern_stats[self.SEV_TABLE[str(overall)]] += 1
-			if int(overall) >= 0 and int(overall) < 5:
-				full = [pat] + output # insert the pattern path at the begining of results
-				self.results.append(full)
+			output['valid'] = True
+			output['error_tag'] = 'None'
+			output['error_str'] = 'None'
+			for o in pattern_return_list:
+				key, value = o.split("=", 1)
+				output[key] = value
+			self.pattern_stats[self.SEV_TABLE[str(output['OVERALL'])]] += 1
+			if int(output['OVERALL']) >= 0 and int(output['OVERALL']) < 5:
+				self.pattern_stats['applied'] += 1
+			self.results[pat] = output
 			return True
 		else:
-			self.runtime_error_list.append(pat + " -- Output error: " + str(error))
+			output['valid'] = False
+			output['error_tag'] = 'Output error'
+			output['error_str'] = error
+			self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
 			self.pattern_stats['runtime_errors'] += 1
+			self.results[pat] = output
 			return False
 
 	def __apply_patterns(self):
 		pattern_count = 0
+		output = {}
 		self.pattern_stats['applicable'] = len(self.applicable_patterns)
 		verbose_line = '{0:6} {1:>5} of {2} {3}'
 		pattern_skipped = False
@@ -383,7 +412,8 @@ Class instance of {}
 					pattern_skipped = True
 				else:
 					cmd = test_pattern + " -p " + self.location
-					self.msg.debug('Process Command', cmd)
+					self.msg.debug()
+					self.msg.debug(' Process Command', cmd)
 					p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 					out, error = p.communicate()
 					pattern_is_valid = self.__parse_results_output(out, error, test_pattern)
@@ -395,14 +425,20 @@ Class instance of {}
 						pattern_skipped = False
 					else:
 						if pattern_is_valid:
+							self.msg.debug(" Output", self.results[test_pattern]['output_str'])
 							self.msg.verbose(verbose_line.format('Done:', pattern_count, self.pattern_stats['applicable'], test_pattern))
 						else:
-							self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], test_pattern + " - Output Error"))
+							self.msg.debug(" Output", self.results[test_pattern]['error_str'])
+							self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], test_pattern + " - " + str(self.results[test_pattern]['error_tag'])))
 				elif( msg.get_level() >= msg.LOG_MIN ):
 					if progress_bar_active:
 						ascbar.inc_count()
 						ascbar.update()
 			except Exception as e:
+				output['valid'] = False
+				output['error_tag'] = 'Runtime error'
+				output['error_str'] = str(e)
+				self.results[test_pattern] = output
 				self.runtime_error_list.append(test_pattern + " -- Pattern runtime error: " + str(e))
 				self.pattern_stats['runtime_errors'] += 1
 				self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], self.runtime_error_list[-1]))
@@ -415,19 +451,19 @@ Class instance of {}
 		if( msg.get_level() >= msg.LOG_VERBOSE ):
 			msg.verbose()
 			separator_line('-')
-		self.pattern_stats['applied'] = len(self.results)
 		self.msg.normal('Total Patterns', str(self.pattern_stats['total']))
 		self.msg.normal('Filtered Patterns', str(self.pattern_stats['applicable']))
-		self.msg.min('Applicable Patterns', str(self.pattern_stats['applied']))
 		self.msg.normal('+ Critical', str(self.pattern_stats['critical']))
 		self.msg.normal('+ Warning', str(self.pattern_stats['warning']))
-		self.msg.normal('+ Recommend', str(self.pattern_stats['recommend']))
+		self.msg.normal('+ Recommended', str(self.pattern_stats['recommend']))
 		self.msg.verbose('+ Promotion', str(self.pattern_stats['promotion']))
 		self.msg.normal('+ Success', str(self.pattern_stats['success']))
 		self.msg.verbose('+ Error', str(self.pattern_stats['error']))
 		self.msg.verbose('+ Ignore', str(self.pattern_stats['ignore']))
 		self.msg.verbose('+ Partial', str(self.pattern_stats['partial']))
 		self.msg.verbose('+ Temporary', str(self.pattern_stats['temp']))
+		self.msg.verbose('+ Exec Errors', str(self.pattern_stats['runtime_errors']))
+		self.msg.min('Applicable to Supportconfig', str(self.pattern_stats['applied']))
 
 		self.msg.min()
 		level_now = msg.get_level()
@@ -438,6 +474,8 @@ Class instance of {}
 				for pattern_error_str in self.runtime_error_list:
 					print(pattern_error_str)
 					print()
+		self.json_data['pattern_stats'] = self.pattern_stats
+		self.json_data['results'] = self.results
 
 	def __get_available_patterns(self):
 		file_list = []
@@ -703,6 +741,7 @@ Class instance of {}
 
 		del summary_file
 
+		self.json_data['distro_info'] = self.distro_info
 		if( self.msg.get_level() >= self.msg.LOG_DEBUG ):
 			print()
 			print("Distro Info: {}\n".format(self.distro_info))
@@ -993,7 +1032,7 @@ def main(argv):
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
 			msg.min("Processing Supportconfig", supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
-			results = sca_data.get_results()
+			sca_results = sca_data.get_results()
 			del sca_data
 			separator_line('=')
 			msg.min()
@@ -1002,7 +1041,9 @@ def main(argv):
 		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
 			msg.min("Processing Supportconfig", supportconfig_directory)
 			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
-			results = sca_data.get_results()
+			sca_results = sca_data.get_results()
+			json_obj = json.dumps(sca_results, indent = 4)
+			print(json_obj)
 			del sca_data
 			
 # Entry point
