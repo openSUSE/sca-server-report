@@ -73,7 +73,7 @@ def usage():
 	print(display.format('-h, --help', "Displays this screen"))
 	print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
 	print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
-	print(display.format('-o <path>, --output <path>', "HTML report output directory (OUTPUT_PATH)"))
+	print(display.format('-o <path>, --output <path>', "self.content report output directory (OUTPUT_PATH)"))
 	print(display.format('-p, --summary', "Print a pattern summary"))
 	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the SCA Report file"))
 	print(display.format('-s, --server', "Analyze the local server"))
@@ -275,6 +275,7 @@ class DisplayMessages():
 class SupportconfigAnalysis():
 	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
 	SEV_TABLE = {-2: 'temp', -1: 'partial', 0: 'success', 1: 'recommend', 2: 'promotion', 3: 'warning', 4: 'critical', 5: 'error', 6: 'ignore' }
+	GITHUB_OWNER = 'https://github.com/openSUSE/'
 
 	def __init__(self, msg, config, extracted_path):
 		self.msg = msg
@@ -919,6 +920,8 @@ class SCAReport():
 	SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
 	VALID_REPORT_TYPES = ['html', 'json']
 	default_report_type = 'html'
+	# REMOVE GITHUB_OWNER when source url is added to results.pattern info
+	GITHUB_OWNER = 'https://github.com/openSUSE/'
 
 	def __init__(self, msg, config):
 		self.msg = msg
@@ -929,19 +932,21 @@ class SCAReport():
 		self.report_name = ''
 		self.report_file = ''
 		self.email_list = ''
+		self.meta_class_names = []
 		self.content = ''
 		self.__validate_report_type()
 
 	def __str__ (self):
 		pattern = '''
 Class instance of {}
-  report_type = {}
-  report_path = {}
-  report_name = {}
-  report_file = {}
-  email_list = {}
+  report_type      = {}
+  report_path      = {}
+  report_name      = {}
+  report_file      = {}
+  email_list       = {}
+  meta_class_names = {}
 '''
-		return pattern.format(self.__class__.__name__, self.report_type, self.report_path, self.report_name, self.report_file, self.email_list)
+		return pattern.format(self.__class__.__name__, self.report_type, self.report_path, self.report_name, self.report_file, self.email_list, self.meta_class_names)
 
 	def __validate_report_type(self):
 		valid = False
@@ -986,14 +991,353 @@ Class instance of {}
 			self.msg.min()
 			sys.exit(13)
 
-	def __build_html_report(self):
-		meta_class_names = []
-		meta_class_names = self.__get_meta_class_names()
-		self.content += self.__get_html_header()
-		pass
+	def __get_meta_class_names(self):
+		unique_classes = {}
+		for this_pattern in self.data['results'].keys():
+			if self.data['results'][this_pattern]['valid']:
+				unique_classes[self.data['results'][this_pattern]['META_CLASS']] = True
+		self.meta_class_names = list(unique_classes.keys())
+
+	def __build_html_header(self):
+		#reset variables
+		html_content = ""
+		html_content += "<!DOCTYPE html>\n"
+		html_content += "<HTML>\n"
+		html_content += "<HEAD>\n"
+		html_content += "<TITLE>SCA Report for " + self.data['sc_info']['serverName'] + "</TITLE>\n"
+		html_content += "<STYLE TYPE=\"text/css\">\n"
+		html_content += "  a {text-decoration: none}  /* no underlined links */\n"
+		html_content += "  a:link {color:#0000FF;}  /* unvisited link */\n"
+		html_content += "  a:visited {color:#0000FF;}  /* visited link */\n"
+		html_content += "</STYLE>\n"
+	
+
+		html_script = "<SCRIPT>\n\
+		function toggle(className)\n\
+		{\n\
+		className = className.replace(/ /g,\".\");\n\
+		var elements = document.querySelectorAll(\".\" + className); for(var i=0; i<elements.length; i++)\n\
+		{\n\
+			if( elements[i].style.display=='none' )\n\
+				{\n\
+					elements[i].style.display = '';\n\
+				}\n\
+				else\n\
+				{\n\
+					elements[i].style.display = 'none';\n\
+				}\n\
+		}\n\
+		}\n\n\
+		function showPattern(patternOutput,patternLocation)\n\
+		{\n\
+		alert(patternOutput + \"\\n\\n\" + \"Pattern: \" + patternLocation);\n\
+		}\n\
+		</SCRIPT>"
+
+		html_content += html_script + "\n"
+		html_content += "</HEAD>\n"
+		html_content += "<BODY BGPROPERTIES=FIXED BGCOLOR=\"#FFFFFF\" TEXT=\"#000000\">\n"
+
+		#create HTML from the data we just got
+		html_content += '<H1>Supportconfig Analysis Report</H1>\n'
+		html_content += '<H2><HR />Server Information</H2>\n'
+
+		html_content += '<TABLE CELLPADDING="5">\n'
+		html_content += '<TR><TD><B>Analysis Date:</B></TD><TD>'
+		html_content += self.data['sc_info']['timeAnalysis']
+		html_content += '</TD></TR>\n'
+		html_content += '<TR><TD><B>Supportconfig Run Date:</B></TD><TD>'
+		html_content += self.data['sc_info']['timeArchiveRun']
+		html_content += '</TD></TR>\n'
+		html_content += '<TR><TD><B>Supportconfig File:</B></TD><TD>'
+		html_content += self.data['sc_info']['name']
+		html_content += '</TD></TR>\n'
+		html_content += '</TABLE>\n'
+
+		html_content += '<TABLE CELLPADDING="5">\n'
+		html_content += '<TR><TD>&nbsp;</TD></TR>\n'
+		html_content += '<TR></TR>\n'
+
+		#Server name and hardWare
+		html_content += '<TR><TD><B>Server Name:</B></TD><TD>'
+		html_content += self.data['sc_info']['serverName']
+		html_content += '</TD><TD><B>Hardware:</B></TD><TD>'
+		html_content += self.data['sc_info']['hardWare']
+		html_content += '</TD></TR>\n'
+
+#		#Products included in supportconfig
+#		for PROD in productsList:
+#			html_content += '<TR><TD><B>'
+#			html_content += str(PROD['nameTag'])
+#			html_content += '</B></TD><TD>'
+#			html_content += str(PROD['name'])
+#			html_content += '</TD><TD><B>'
+#			html_content += str(PROD['versionTag'])
+#			html_content += '</B></TD><TD>'
+#			html_content += str(PROD['version'])
+#			html_content += '</TD></TR>\n'
+
+#		if distroInfo['virtualization'] != "None" and distroInfo['virtualization'] != "":
+#			#hypervisor stuff
+#			html_content += '<TR><TD><B>Hypervisor:</B></TD><TD>'
+#			html_content += distroInfo['virtualization'] self.data['sc_info']['timeArchiveRun']
+#			html_content += '</TD><TD><B>Identity:</B></TD><TD>'
+#			html_content += distroInfo['vmIdentity'] self.data['sc_info']['timeArchiveRun']
+#			html_content += '</TD></TR>\n'
+
+		#kernel Version and Supportconfig version
+		html_content += '<TR><TD><B>Kernel Version:</B></TD><TD>'
+		html_content += self.data['sc_info']['kernelVersion']
+		html_content += '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
+		html_content += self.data['sc_info']['supportconfigVersion']
+		html_content += '</TD></TR>\n'
+		html_content += '</TABLE>\n'
+		html_content += '<HR />\n'
+		return html_content
+
+	def __build_html_table(self, given_severity):
+		#reset number of hits. ( a hit in this case is a result that matches "given_severity")
+		num_hits = 0
+		severity_count = 0
+		table_content = ""
+		tmpReturn = ""
+		#set the color.
+		if severity == 4:
+			#red (critical)
+			severity_tag = "Critical "
+			severity_idx = 'Crit'
+			color = "FF0000"
+		elif severity == 3:
+			#yellow (warning)
+			severity_tag = "Warning "
+			severity_idx = 'Warn'
+			color = "FFFF00"
+		elif severity == 1:
+			#blue.. ish (recommended)
+			severity_tag = "Recommended "
+			severity_idx = 'Recc'
+			color = "1975FF"
+		elif severity == 0:
+			#green (success)
+			severity_tag = "Success "
+			severity_idx = 'Succ'
+			color ="00FF00"
+		else:
+			#fallback (gray)
+			severity_tag = ""
+			color = "222222"
+		 
+
+		IDX_KEY = 0
+		IDX_VALUE = 1
+		IDX_RESULTS_PATTERN_PATH = 0
+		IDX_RESULTS_CLASS = 1
+		IDX_RESULTS_CATEGORY = 2
+		IDX_RESULTS_COMPONENT = 3
+		IDX_RESULTS_PATTERN_ID = 4
+		IDX_RESULTS_PRIMARY_LINK = 5
+		IDX_RESULTS_OVERALL = 6
+		IDX_RESULTS_OVERALL_INFO = 7
+
+
+		for meta_class in self.meta_class_names:
+			num_hits = 0
+			for this_pattern in self.data['results'].keys():
+				if self.data['results'][this_pattern]['valid']:
+					if self.data['results'][this_pattern]['META_CLASS'] == meta_class and self.data['results'][this_pattern]['OVERALL'] == given_severity:
+						num_hits += 1
+						severity_count += 1
+						primary_link_tag = self.data['results'][this_pattern]['PRIMARY_LINK']
+						primary_link_url = self.data['results'][this_pattern][primary_link_tag]
+					for key, value in self.data['results'][this_pattern].items():
+						if key.startswith('META_LINK_'):
+							link_tag = key.split("_")[-1] # Get the last part of META_LINK_ for the tag ID
+							link_url = value
+# <TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal">
+# <TD BGCOLOR="#00FF00" WIDTH="2%">&nbsp;</TD>
+# <TD BGCOLOR="#FFCC99" WIDTH="6%"><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle('Basic Health');return false;">Basic Health</A></TD>
+# <TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD><TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>
+# <TD><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle('Basic Health');return false;">10 Success Basic Health Message(s)</A></TD>
+# <TD WIDTH="8%">&nbsp;</TD><TD BGCOLOR="#00FF00" WIDTH="2%">&nbsp;</TD>
+# </TR>
+
+							links = links + '<A HREF="' + linkUrl + '" TARGET="_blank">' + linkName + " " + '</A>'
+						tmpReturn = tmpReturn + ('<TR STYLE="border:1px solid black; background: #FFFFFF; display:none;" CLASS="'\
+							+ meta_class + \
+								'"><TD BGCOLOR="#'\
+							+ color +\
+								'" WIDTH="2%">&nbsp;</TD><TD BGCOLOR="#EEEEEE" WIDTH="6%">'\
+							+ results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE] + \
+							'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
+							+ results[i][IDX_RESULTS_CATEGORY].split("=")[IDX_VALUE] + \
+							'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
+							+ results[i][IDX_RESULTS_COMPONENT].split("=")[IDX_VALUE] +\
+							'</TD><TD><A HREF="'\
+							+ Main_Link + \
+							'" TARGET="_blank">'\
+							+ overallInfo +\
+							'</A>&nbsp;&nbsp;<A ID="PatternLocation" HREF="' + patternSourceURL + '" TARGET="_blank">&nbsp;</A>'\
+							+ '</TD><TD WIDTH="8%">'\
+							+ links +\
+									 '&nbsp;&nbsp;</TD><TD BGCOLOR="#'\
+							+ color + \
+									 '" WIDTH="2%">&nbsp;</TD></TR>' + "\n")
+
+
+		#sort by known classes
+		for meta_class in self.meta_class_names:
+			numHits = 0
+			tmpReturn = ""
+			#for all results
+			for i in range(len(results)):
+				#for results of a pattern
+				if results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE] == meta_class and int(results[i][IDX_RESULTS_OVERALL].split("=")[IDX_VALUE]) == val:
+					num_hits += 1
+					severity_count += 1
+					#find main link
+					Main_Link = ""
+					for j in range(len(results[i])):
+						#if main link
+						if results[i][j].split('=')[IDX_KEY] == results[i][IDX_RESULTS_PRIMARY_LINK].split("=")[IDX_VALUE]:
+							
+							#remove the stuff before the first "="
+							tmp = results[i][j].split('=')
+							del tmp[0]
+							for LinkPart in tmp:
+								Main_Link = Main_Link + "=" + LinkPart
+							Main_Link = Main_Link.strip("=")
+							#clean up the "=" leftover
+							link_id = results[i][j].split('=')[0]
+							
+					#find the rest of the links:
+					links = ""
+					linkUrl = ""
+					#for all links
+					for link in range(IDX_RESULTS_OVERALL_INFO+1, len(results[i])):
+						linkUrl = ""
+						#remove the stuff before the first "="
+						tmp2 = results[i][link].split("=")
+						linkName = tmp2[0].split("_")[-1]
+						del tmp2[0]
+						for LinkPart in tmp2:
+							linkUrl = linkUrl + "=" + LinkPart
+						#clean up the "=" leftover
+						linkUrl = linkUrl.strip("=")
+						tmp3 = results[i][IDX_RESULTS_OVERALL_INFO].split("=")
+						del tmp3[0]
+						overallInfo = "=".join(tmp3)
+
+#						pattern_source_url = self.data['results'][this_pattern]['source']
+						pattern_source_url = self.GITHUB_OWNER
+						
+						#put it in html form
+						links = links + '<A HREF="' + linkUrl + '" TARGET="_blank">' + linkName + " " + '</A>'
+					tmpReturn = tmpReturn + ('<TR STYLE="border:1px solid black; background: #FFFFFF; display:none;" CLASS="'\
+						+ meta_class + \
+							'"><TD BGCOLOR="#'\
+						+ color +\
+							'" WIDTH="2%">&nbsp;</TD><TD BGCOLOR="#EEEEEE" WIDTH="6%">'\
+						+ results[i][IDX_RESULTS_CLASS].split("=")[IDX_VALUE] + \
+						'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
+						+ results[i][IDX_RESULTS_CATEGORY].split("=")[IDX_VALUE] + \
+						'</TD><TD BGCOLOR="#EEEEEE" WIDTH="5%">'\
+						+ results[i][IDX_RESULTS_COMPONENT].split("=")[IDX_VALUE] +\
+						'</TD><TD><A HREF="'\
+						+ Main_Link + \
+						'" TARGET="_blank">'\
+						+ overallInfo +\
+						'</A>&nbsp;&nbsp;<A ID="PatternLocation" HREF="' + patternSourceURL + '" TARGET="_blank">&nbsp;</A>'\
+						+ '</TD><TD WIDTH="8%">'\
+						+ links +\
+								 '&nbsp;&nbsp;</TD><TD BGCOLOR="#'\
+						+ color + \
+								 '" WIDTH="2%">&nbsp;</TD></TR>' + "\n")
+
+			#collapse tags
+			if numHits > 0:
+				tmpReturn = ('<TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal"><TD BGCOLOR="#'\
+				+ color +\
+				'" WIDTH="2%">&nbsp;</TD><TD BGCOLOR="#FFCC99" WIDTH="6%"><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\''\
+				+ meta_class +\
+				'\');return false;">'\
+				+ meta_class +\
+				'</A></TD><TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD><TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD><TD><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\''\
+				+ meta_class +\
+				'\');return false;">'\
+				+ str(numHits) + " " + severity_tag + meta_class + " Message(s)" +\
+				'</A></TD><TD WIDTH="8%">&nbsp;</TD><TD BGCOLOR="#'\
+				+ color +\
+				'" WIDTH="2%">&nbsp;</TD></TR>'\
+				+ "\n" +tmpReturn)
+				table_content = table_content + tmpReturn
+
+		if severity_count > 0:
+			if severity_count > 1:
+				conditionStr = "Conditions "
+			else:
+				conditionStr = "Condition "
+			tmpReturn = ('<TR STYLE="border:1px solid black;color: #000000; background: #FFCC99; font-size:80%; font-weight:normal"><TD BGCOLOR="#'\
+			+ color +\
+			'" WIDTH="2%">&nbsp;</TD><TD BGCOLOR="#FFCC99" WIDTH="6%">TOTAL</TD><TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD><TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD><TD>'\
+			+ str(severity_count) +\
+			" "\
+			+ severity_tag +\
+			' '\
+			+ conditionStr +\
+			'Found</TD><TD WIDTH="8%">&nbsp;</TD><TD BGCOLOR="#'\
+			+ color +\
+			'" WIDTH="2%">&nbsp;</TD></TR>'\
+			+ "\n")
+			table_content = table_content + tmpReturn
+
+		patternStats[severity_idx] = severity_count
+
+		#well that was fun... return
+		return(table_content)
+
+	def __build_html_footer(self):
+		footer_content = '\n\n<HR />\n\n<TABLE WIDTH="100%">\n<TR>'\
+			'<TD ALIGN="left" WIDTH="30%">Client: ' + self.data['file_data']['analyzer'] + ' (Report Generated by: SCA Tool)</TD>'\
+			'<TD ALIGN="center">Patterns Evaluated: ' + str(self.data['pattern_stats']['applicable']) + ', Appliable to Server: ' + str(self.data['pattern_stats']['applied']) + '</TD>'\
+			'<TD ALIGN="right" WIDTH="30%"><A HREF="https://www.suse.com/support/" ALT="SUSE Technical Support" TARGET="_blank">SUSE Technical Support</A></TD>'\
+			'</TR>\n</TABLE>\n'
+
+		return footer_content
 
 	def __generate_html_report(self):
-		self.__build_html_report()
+		self.__get_meta_class_names()
+		self.content += self.__build_html_header()
+
+		#Critical table
+		self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
+		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FF0000"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FF0000"></TH></TR>' + "\n"
+		self.content += self.__build_html_table(4)
+		self.content += "</TABLE>" + "\n"
+
+		#Warning table
+		self.content += '<H2>Conditions Evaluated as Warning<A NAME="Warning"></A></H2>' + "\n"
+		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FFFF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FFFF00"></TH></TR>' + "\n"
+		self.content += self.__build_html_table(3)
+		self.content += "</TABLE>" + "\n"
+
+		#Recommended table
+		self.content += '<H2>Conditions Evaluated as Recommended<A NAME="Recommended"></A></H2>' + "\n"
+		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#1975FF"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#1975FF"></TH></TR>' + "\n"
+		self.content += self.__build_html_table(1)
+		self.content += "</TABLE>" + "\n"
+
+		#Success table
+		self.content += '<H2>Conditions Evaluated as Success<A NAME="Success"></A></H2>' + "\n"
+		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#00FF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#00FF00"></TH></TR>' + "\n"
+		self.content += self.__build_html_table(0)
+		self.content += "</TABLE>" + "\n"
+
+		self.content += self.__build_html_footer()
+
 		try:
 			with open(self.report_file, "w") as f:
 				f.write(self.content)
@@ -1038,7 +1382,7 @@ Class instance of {}
 		text += "Source:                   " + str(self.data['file_data']['analyzer']) + "\n"
 
 		# create html email
-		html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
+		html = '<!DOCTYPE html PUBLIC "-//W3C//DTD Xself.content 1.0 Transitional//EN" '
 		html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">\n'
 		html += '<body>\n'
 		html += '<h1>Supportconfig Analysis Report</h1>\n'
