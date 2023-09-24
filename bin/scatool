@@ -281,7 +281,9 @@ class SupportconfigAnalysis():
 		self.msg = msg
 		self.config = config
 		self.json_data = {}
+		self.sca_library_path = config_entry(config.get("Common", "sca_library_path"), '/')
 		self.sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
+		self.github_base = config_entry(config.get("Supportconfig", "github_base"), '/')
 		self.location = extracted_path
 		self.analysis_datetime = datetime.datetime.now()
 		self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
@@ -334,6 +336,28 @@ Class instance of {}
 
 	def get_results(self):
 		return self.json_data
+
+	def __get_pattern_source_url(self, pat):
+		# relative_pattern_path should start with 'patterns/'
+		relative_pattern_path = pat.replace(self.sca_library_path, '')
+		github_repo_name = ''
+		if 'SLE' in relative_pattern_path:
+			if 'sle15' in relative_pattern_path:
+				github_repo_name = 'sca-patterns-sle15'
+			elif 'sle12' in relative_pattern_path:
+				github_repo_name = 'sca-patterns-sle12'
+			elif 'sle11' in relative_pattern_path:
+				github_repo_name = 'sca-patterns-sle11'
+			elif 'sle10' in relative_pattern_path:
+				github_repo_name = 'sca-patterns-sle10'
+			elif 'sle9' in relative_pattern_path:
+				github_repo_name = 'sca-patterns-sle09'
+		elif 'HAE' in relative_pattern_path:
+			github_repo_name = 'sca-patterns-hae'
+		pattern_source_url = self.github_base  + github_repo_name + '/blob/master/' + relative_pattern_path
+
+		return pattern_source_url
+		
 
 	def __parse_results_output(self, out, error, pat):
 		output = {}
@@ -418,6 +442,7 @@ Class instance of {}
 					p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 					out, error = p.communicate()
 					pattern_is_valid = self.__parse_results_output(out, error, test_pattern)
+					self.results[test_pattern]['source'] = self.__get_pattern_source_url(test_pattern)
 
 				#call parseOutput to see if output was expected
 				if( msg.get_level() >= msg.LOG_VERBOSE ):
@@ -440,6 +465,7 @@ Class instance of {}
 				output['error_tag'] = 'Runtime error'
 				output['error_str'] = str(e)
 				self.results[test_pattern] = output
+				self.results[test_pattern]['source'] = self.__get_pattern_source_url(test_pattern)
 				self.runtime_error_list.append(test_pattern + " -- Pattern runtime error: " + str(e))
 				self.pattern_stats['runtime_errors'] += 1
 				self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], self.runtime_error_list[-1]))
@@ -1143,8 +1169,7 @@ Class instance of {}
 					if self.data['results'][this_pattern]['META_CLASS'] == meta_class and self.data['results'][this_pattern]['OVERALL'] == given_severity:
 						primary_link_id = self.data['results'][this_pattern]['PRIMARY_LINK']
 						primary_link_url = self.data['results'][this_pattern][primary_link_id]
-#						pattern_source_url = self.data['results'][this_pattern]['source']
-						pattern_source_url = self.GITHUB_OWNER
+						pattern_source_url = self.data['results'][this_pattern]['source']
 
 						# get all the solutions tags and URL links for this pattern
 						for key, value in self.data['results'][this_pattern].items():
@@ -1163,7 +1188,6 @@ Class instance of {}
 							'<TD WIDTH="8%">' + solution_links + '&nbsp;&nbsp;</TD>'\
 							'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
 
-# dies before here
 			patterns_in_class_and_severity = len(expandable_class_entries)
 			if patterns_in_class_and_severity > 0:
 				class_entries_header = '<TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal">'\
