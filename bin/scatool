@@ -1096,28 +1096,31 @@ Class instance of {}
 		return html_content
 
 	def __build_severity_table(self, given_severity):
+		pattern_source_url = ""
+		primary_link_url = ""
 		severity_table = ""
+		solution_links = ""
 		class_entries = ""
 		class_entries_header = ""
 		class_entries_footer = ""
 
 		#set the color.
-		if severity == 4:
+		if given_severity == 4:
 			#red (critical)
 			severity_tag = "Critical "
 			stats_tag = 'critical'
 			color = "FF0000"
-		elif severity == 3:
+		elif given_severity == 3:
 			#yellow (warning)
 			severity_tag = "Warning "
 			stats_tag = 'warning'
 			color = "FFFF00"
-		elif severity == 1:
+		elif given_severity == 1:
 			#blue.. ish (recommended)
 			severity_tag = "Recommended "
 			stats_tag = 'recommend'
 			color = "1975FF"
-		elif severity == 0:
+		elif given_severity == 0:
 			#green (success)
 			severity_tag = "Success "
 			stats_tag = 'success'
@@ -1126,66 +1129,68 @@ Class instance of {}
 			#fallback (gray)
 			severity_tag = ""
 			color = "222222"
-		 
+
 		# for each meta_class found in all the applied patterns
 		for meta_class in self.meta_class_names:
-			expandable_class_entries = ""
+			expandable_class_entries = []
 			class_entries_header = ""
 			class_entries_footer = ""
 			patterns_in_class_and_severity = 0
 			# for each valid pattern that matches this meta_class and the given_severity
 			for this_pattern in self.data['results'].keys():
+				solution_links = ""
 				if self.data['results'][this_pattern]['valid']:
 					if self.data['results'][this_pattern]['META_CLASS'] == meta_class and self.data['results'][this_pattern]['OVERALL'] == given_severity:
 						primary_link_id = self.data['results'][this_pattern]['PRIMARY_LINK']
 						primary_link_url = self.data['results'][this_pattern][primary_link_id]
 #						pattern_source_url = self.data['results'][this_pattern]['source']
 						pattern_source_url = self.GITHUB_OWNER
-						solution_links = ""
-					# get all the solutions tags and URL links for this pattern
-					for key, value in self.data['results'][this_pattern].items():
-						if key.startswith('META_LINK_'):
-							link_tag = key.split("_")[-1] # Get the last part of META_LINK_ for the tag ID
-							link_url = value
-							solution_links += solution_links + '<A HREF="{}" TARGET="_blank">{}&nbsp;</A>'.format(link_url, link_tag)
 
-					expandable_class_entries += expandable_class_entries + ('<TR STYLE="border:1px solid black; background: #FFFFFF; display:none;" CLASS="' + meta_class + '">'\
-						'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
-						'<TD BGCOLOR="#EEEEEE" WIDTH="6%">' + self.data['results'][this_pattern]['META_CLASS'] + '</TD>'\
-						'<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_CATEGORY'] + '</TD>'\
-						'<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_COMPONENT'] + '</TD>'\
-						'<TD><A HREF="' + primary_link_url + '" TARGET="_blank">' + self.data['results'][this_pattern]['OVERALL_INFO'] + '</A>&nbsp;&nbsp;'\
-						'<A ID="PatternLocation" HREF="' + pattern_source_url + '" TARGET="_blank">&nbsp;</A></TD>'\
-						'<TD WIDTH="8%">' + solution_links links + '&nbsp;&nbsp;</TD>'\
-						'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
+						# get all the solutions tags and URL links for this pattern
+						for key, value in self.data['results'][this_pattern].items():
+							if key.startswith('META_LINK_'):
+								link_tag = key.split("_")[-1] # Get the last part of META_LINK_ for the tag ID
+								link_url = value
+								solution_links += '<A HREF="{}" TARGET="_blank">{}&nbsp;</A>'.format(link_url, link_tag)
 
+						expandable_class_entries.append('<TR STYLE="border:1px solid black; background: #FFFFFF; display:none;" CLASS="' + meta_class + '">'\
+							'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
+							'<TD BGCOLOR="#EEEEEE" WIDTH="6%">' + self.data['results'][this_pattern]['META_CLASS'] + '</TD>'\
+							'<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_CATEGORY'] + '</TD>'\
+							'<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_COMPONENT'] + '</TD>'\
+							'<TD><A HREF="' + primary_link_url + '" TARGET="_blank">' + self.data['results'][this_pattern]['OVERALL_INFO'] + '</A>&nbsp;&nbsp;'\
+							'<A ID="PatternLocation" HREF="' + pattern_source_url + '" TARGET="_blank">&nbsp;</A></TD>'\
+							'<TD WIDTH="8%">' + solution_links + '&nbsp;&nbsp;</TD>'\
+							'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
+
+# dies before here
 			patterns_in_class_and_severity = len(expandable_class_entries)
 			if patterns_in_class_and_severity > 0:
-				class_entries_header = ('<TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal">'\
+				class_entries_header = '<TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal">'\
 				'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
 				'<TD BGCOLOR="#FFCC99" WIDTH="6%"><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\''+ meta_class + '\');return false;">' + meta_class + '</A></TD>'\
 				'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
 				'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
 				'<TD><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\'' + meta_class + '\');return false;">' + str(patterns_in_class_and_severity) + " " + severity_tag + meta_class + " Message(s)" + '</A></TD>'\
 				'<TD WIDTH="8%">&nbsp;</TD>'\
-				'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
+				'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
 
 		if self.data['pattern_stats'][stats_tag] > 0:
 			if self.data['pattern_stats'][stats_tag] > 1:
 				footer_msg = "{} {} Conditions Found".format(self.data['pattern_stats'][stats_tag], severity_tag)
 			else:
 				footer_msg = "{} {} Condition Found".format(self.data['pattern_stats'][stats_tag], severity_tag)
-			class_entries_footer = ('<TR STYLE="border:1px solid black;color: #000000; background: #FFCC99; font-size:80%; font-weight:normal">'\
+			class_entries_footer = '<TR STYLE="border:1px solid black;color: #000000; background: #FFCC99; font-size:80%; font-weight:normal">'\
 			'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
 			'<TD BGCOLOR="#FFCC99" WIDTH="6%">TOTAL</TD>'\
 			'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
 			'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
 			'<TD>' + footer_msg + '</TD>'\
 			'<TD WIDTH="8%">&nbsp;</TD>'\
-			'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
+			'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
 
 		severity_table += class_entries_header
-		severity_table += expandable_class_entries
+		severity_table += ''.join(expandable_class_entries)
 		severity_table += class_entries_footer
 
 		return(severity_table)
@@ -1197,27 +1202,11 @@ Class instance of {}
 			'<TD ALIGN="right" WIDTH="30%"><A HREF="https://www.suse.com/support/" ALT="SUSE Technical Support" TARGET="_blank">SUSE Technical Support</A></TD>'\
 			'</TR>\n</TABLE>\n'
 
-		footer_content = '\n\n<HR />\n\n<TABLE WIDTH="100%">\n<TR>'\
-			'<TD ALIGN="left" WIDTH="30%">Client: {} (Report Generated by: SCA Tool)</TD>'\
-			'<TD ALIGN="center">Patterns Evaluated: {}, Appliable to Server: {}</TD>'\
-			'<TD ALIGN="right" WIDTH="30%"><A HREF="https://www.suse.com/support/" ALT="SUSE Technical Support" TARGET="_blank">SUSE Technical Support</A></TD>'\
-			'</TR>\n</TABLE>\n'.format(self.data['file_data']['analyzer'], self.data['pattern_stats']['applicable'], self.data['pattern_stats']['applied'])
-
 		return footer_content
 
 	def __generate_html_report(self):
 		self.__get_meta_class_names()
 		self.content += self.__build_html_header()
-		self.content += self.__build_html_footer()
-
-		try:
-			with open(self.report_file, "w") as f:
-				f.write(self.content)
-		except Exception as e:
-			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
-			self.msg.min()
-		sys.exit(13)
-#%%%% First test output
 
 		#Critical table
 		self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
