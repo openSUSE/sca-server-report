@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev6'
+SVER = '3.0.0_dev8'
 # Revert %%% locations
 
 ##############################################################################
@@ -7,7 +7,7 @@ SVER = '3.0.0_dev6'
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2023 Sep 21
+# Modified:     2023 Sep 24
 #
 ##############################################################################
 #
@@ -1009,6 +1009,7 @@ Class instance of {}
 		self.data['sc_info']['report_file'] = self.report_file
 
 	def __generate_json_report(self):
+		self.msg.verbose("+ Building JSON report", "Saving File")
 		try:
 			with open(self.report_file, "w") as f:
 				json.dump(self.data, f, indent = 4)
@@ -1091,25 +1092,25 @@ Class instance of {}
 		html_content += self.data['sc_info']['hardWare']
 		html_content += '</TD></TR>\n'
 
-#		#Products included in supportconfig
-#		for PROD in productsList:
-#			html_content += '<TR><TD><B>'
-#			html_content += str(PROD['nameTag'])
-#			html_content += '</B></TD><TD>'
-#			html_content += str(PROD['name'])
-#			html_content += '</TD><TD><B>'
-#			html_content += str(PROD['versionTag'])
-#			html_content += '</B></TD><TD>'
-#			html_content += str(PROD['version'])
-#			html_content += '</TD></TR>\n'
+		#Products included in supportconfig
+		for product in self.data['prod_info']:
+			html_content += '<TR><TD><B>'
+			html_content += str(product['nameTag'])
+			html_content += '</B></TD><TD>'
+			html_content += str(product['name'])
+			html_content += '</TD><TD><B>'
+			html_content += str(product['versionTag'])
+			html_content += '</B></TD><TD>'
+			html_content += str(product['version'])
+			html_content += '</TD></TR>\n'
 
-#		if distroInfo['virtualization'] != "None" and distroInfo['virtualization'] != "":
-#			#hypervisor stuff
-#			html_content += '<TR><TD><B>Hypervisor:</B></TD><TD>'
-#			html_content += distroInfo['virtualization'] self.data['sc_info']['timeArchiveRun']
-#			html_content += '</TD><TD><B>Identity:</B></TD><TD>'
-#			html_content += distroInfo['vmIdentity'] self.data['sc_info']['timeArchiveRun']
-#			html_content += '</TD></TR>\n'
+		if self.data['sc_info']['virtualization'] != "None" and self.data['sc_info']['virtualization'] != "":
+			#hypervisor stuff
+			html_content += '<TR><TD><B>Hypervisor:</B></TD><TD>'
+			html_content += self.data['sc_info']['virtualization']
+			html_content += '</TD><TD><B>Identity:</B></TD><TD>'
+			html_content += self.data['sc_info']['vmIdentity']
+			html_content += '</TD></TR>\n'
 
 		#kernel Version and Supportconfig version
 		html_content += '<TR><TD><B>Kernel Version:</B></TD><TD>'
@@ -1230,9 +1231,11 @@ Class instance of {}
 		return footer_content
 
 	def __generate_html_report(self):
+		self.msg.verbose("+ Building HTML report", "Header")
 		self.__get_meta_class_names()
 		self.content += self.__build_html_header()
 
+		self.msg.verbose("+ Building HTML report", "Body")
 		#Critical table
 		self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
 		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
@@ -1261,8 +1264,10 @@ Class instance of {}
 		self.content += self.__build_severity_table(0)
 		self.content += "</TABLE>" + "\n"
 
+		self.msg.verbose("+ Building HTML report", "Footer")
 		self.content += self.__build_html_footer()
 
+		self.msg.verbose("+ Building HTML report", "Saving File")
 		try:
 			with open(self.report_file, "w") as f:
 				f.write(self.content)
@@ -1273,15 +1278,16 @@ Class instance of {}
 
 
 	def generate_report(self):
-		self.msg.verbose("Generating {} Report".format(self.report_type), self.report_file)
 		if self.data['pattern_stats']['runtime_errors'] > 0:
 		    separator_line('-')
 
+		self.msg.normal("SCA Report Type", self.report_type)
 		if self.report_type == "html":
 			self.__generate_html_report()
+			self.msg.min("SCA Report File", self.report_file)
 		elif self.report_type == "json":
 			self.__generate_json_report()
-		self.msg.min("SCA Report File", self.report_file)
+			self.msg.min("SCA Report File", self.report_file)
 
 	def email_report(self, updated_addrs):
 		self.generate_report()
