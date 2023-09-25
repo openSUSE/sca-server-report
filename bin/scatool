@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev8'
+SVER = '3.0.0_dev9'
 # Revert %%% locations
 
 ##############################################################################
@@ -7,7 +7,7 @@ SVER = '3.0.0_dev8'
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2023 Sep 24
+# Modified:     2023 Sep 25
 #
 ##############################################################################
 #
@@ -341,7 +341,10 @@ Class instance of {}
 		# relative_pattern_path should start with 'patterns/'
 		relative_pattern_path = pat.replace(self.sca_library_path, '')
 		github_repo_name = ''
-		if 'SLE' in relative_pattern_path:
+		if '/ALP/' in relative_pattern_path:
+			if 'alp1' in relative_pattern_path:
+				github_repo_name = 'sca-patterns-alp1'
+		elif '/SLE/' in relative_pattern_path:
 			if 'sle15' in relative_pattern_path:
 				github_repo_name = 'sca-patterns-sle15'
 			elif 'sle12' in relative_pattern_path:
@@ -352,9 +355,13 @@ Class instance of {}
 				github_repo_name = 'sca-patterns-sle10'
 			elif 'sle9' in relative_pattern_path:
 				github_repo_name = 'sca-patterns-sle09'
-		elif 'HAE' in relative_pattern_path:
+		elif '/HAE/' in relative_pattern_path:
 			github_repo_name = 'sca-patterns-hae'
-		pattern_source_url = self.github_base  + github_repo_name + '/blob/master/' + relative_pattern_path
+
+		if len(github_repo_name) > 0:
+			pattern_source_url = self.github_base  + github_repo_name + '/blob/master/' + relative_pattern_path
+		else:
+			pattern_source_url = self.github_base
 
 		return pattern_source_url
 		
@@ -628,11 +635,14 @@ Class instance of {}
 				else:
 					if line.lower().startswith("pretty_name"):
 						self.distro_info['Summary'] = line.split('=')[-1].replace('"', '').strip()
+						if " ALP " in line:
+							product_info['tag'] = 'alp'
+							product_info['patternTag'] = 'ALP'
 					elif line.lower().startswith("version_id"):
-						VERSION_ID_summary_info = line.replace('"', "").strip().split('=')[1].split('.')
-						product_info['vermajor'] = str(VERSION_ID_summary_info[0])
-						if( len(VERSION_ID_summary_info) > 1 ):
-							product_info['verminor'] = str(VERSION_ID_summary_info[1])
+						version_id = line.replace('"', "").strip().split('=')[1].split('.')
+						product_info['vermajor'] = str(version_id[0])
+						if( len(version_id) > 1 ):
+							product_info['verminor'] = str(version_id[1])
 						else:
 							product_info['verminor'] = "0"
 						product_info['version'] = product_info['verminor']
