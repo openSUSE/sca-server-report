@@ -308,6 +308,7 @@ class SupportconfigAnalysis():
 			'filter': []
 		}
 		self.products_list = self.__get_products_list()
+		print("self.products_list = \n{}".format(self.products_list))
 		self.all_patterns = self.__get_available_patterns()
 		self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
 		self.applicable_patterns = self.__get_applicable_patterns()
@@ -561,7 +562,7 @@ Class instance of {}
 		except:
 			basic_env_file = []
 
-		product_info = {'tag': 'sle', 'patternTag': 'SLE', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
+		product_info = {'tag': 'Unknown', 'patternTag': 'Unknown', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
 
 		#read basic-environment line by line to pull out data.
 		in_date = False
@@ -589,9 +590,9 @@ Class instance of {}
 				else:
 					dateLine = line
 					dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
-					tmp = dateLine.split() # split into list based on a space
-					if( len(tmp) >= 4 ):
-						tmpMonth = tmp[1].strip()
+					tmp_date = dateLine.split() # split into list based on a space
+					if( len(tmp_date) >= 4 ):
+						tmpMonth = tmp_date[1].strip()
 						if "Jan" in tmpMonth:
 							tmpMonth = "01"
 						elif "Feb" in tmpMonth:
@@ -616,17 +617,18 @@ Class instance of {}
 							tmpMonth = "11"
 						elif "Dec" in tmpMonth:
 							tmpMonth = "12"
-						self.distro_info['timeArchiveRun'] = tmp[-1].strip() + "-" + tmpMonth + "-" + tmp[2].strip().zfill(2) + " " + tmp[3].strip()
+						self.distro_info['timeArchiveRun'] = tmp_date[-1].strip() + "-" + tmpMonth + "-" + tmp_date[2].strip().zfill(2) + " " + tmp_date[3].strip()
 						in_date = False
 			elif( in_uname ):
 				if "#==[" in line:
 					in_uname = False
 				else:
-					tmp = line.split()
-					if( len(tmp) >= 3 ):
-						self.distro_info['kernelVersion'] = tmp[2].strip()
-						self.distro_info['serverName'] = tmp[1].strip()
-						self.distro_info['osArch'] = tmp[-2].strip()
+					tmp_uname = line.split()
+					print("! in_uname = {}".format(tmp_uname))
+					if( len(tmp_uname) >= 3 ):
+						self.distro_info['kernelVersion'] = tmp_uname[2].strip()
+						self.distro_info['serverName'] = tmp_uname[1].strip()
+						self.distro_info['osArch'] = tmp_uname[-2].strip()
 						in_uname = False
 			elif( in_os_release ):
 				if "#==[" in line:
@@ -635,9 +637,16 @@ Class instance of {}
 				else:
 					if line.lower().startswith("pretty_name"):
 						self.distro_info['Summary'] = line.split('=')[-1].replace('"', '').strip()
-						if " ALP " in line:
+						tmp_pretty_name = line.lower()
+						if "suse alp" in tmp_pretty_name:
 							product_info['tag'] = 'alp'
 							product_info['patternTag'] = 'ALP'
+						elif "suse linux enterprise" in tmp_pretty_name:
+							product_info['tag'] = 'sle'
+							product_info['patternTag'] = 'SLE'
+						elif "opensuse leap" in tmp_pretty_name:
+							product_info['tag'] = 'sle'
+							product_info['patternTag'] = 'SLE'
 					elif line.lower().startswith("version_id"):
 						version_id = line.replace('"', "").strip().split('=')[1].split('.')
 						product_info['vermajor'] = str(version_id[0])
