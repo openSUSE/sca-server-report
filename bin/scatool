@@ -1126,7 +1126,7 @@ Class instance of {}
 		primary_link_url = ""
 		severity_table = ""
 		solution_links = ""
-		class_entries = ""
+		expandable_class_entries = []
 		class_entries_header = ""
 		class_entries_footer = ""
 
@@ -1199,6 +1199,9 @@ Class instance of {}
 				'<TD WIDTH="8%">&nbsp;</TD>'\
 				'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
 
+				severity_table += class_entries_header
+				severity_table += ''.join(expandable_class_entries)
+
 		if self.data['pattern_stats'][stats_tag] > 0:
 			if self.data['pattern_stats'][stats_tag] > 1:
 				footer_msg = "{} {} Conditions Found".format(self.data['pattern_stats'][stats_tag], severity_tag)
@@ -1213,8 +1216,6 @@ Class instance of {}
 			'<TD WIDTH="8%">&nbsp;</TD>'\
 			'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
 
-		severity_table += class_entries_header
-		severity_table += ''.join(expandable_class_entries)
 		severity_table += class_entries_footer
 
 		return(severity_table)
