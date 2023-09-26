@@ -1,7 +1,6 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev11'
+SVER = '3.0.0_dev12'
 # To do list: %%%
-#%%% To do: Remove archives as directed
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
@@ -1454,19 +1453,14 @@ def main(argv):
 		else:
 			msg.verbose("Warning: Invalid log level in config file, using instance default")
 		sca_report = SCAReport(msg, config)
-
-##################
-#%%% Environment variables
-# Not setting environment variables here. 
-# Work around: set the environment variables in bash terminal
-	#	sys.path.append(os.path.abspath(sca_library_path + 'python'))
-	#	os.environ['PYTHONPATH'] = os.path.abspath(sca_library_path + 'python')
-	#	os.environ['PERL5LIB'] = os.path.abspath(sca_library_path + 'perl')
-	#	os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
 	else:
 		title()
 		print("Error: File not found - " + config_file + "\n")
 		sys.exit(1)
+
+	os.environ['PYTHONPATH'] = os.path.abspath(sca_library_path + 'python')
+	os.environ['PERL5LIB'] = os.path.abspath(sca_library_path + 'perl')
+	os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
 
 	try:
 		(optlist, args) = getopt.gnu_getopt(argv[1:], "hbe:o:pl:qrst:v", ["help", "batch", "email=", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose"])
