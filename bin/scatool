@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev12'
+SVER = '3.0.0_dev13'
 # To do list: %%%
 
 ##############################################################################
@@ -31,15 +31,11 @@ SVER = '3.0.0_dev12'
 import os
 import re
 import sys
-import glob
 import json
-import uuid
-import tarfile
 import signal
 import shutil
 import datetime
 import socket
-import time
 import getopt
 import smtplib
 import subprocess
@@ -48,15 +44,12 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
-width = 0
-description_width = 0
-progress_bar_active = True
-remove_archive = False
-analyze_server = False
 #%%% Change to correct path
 #config_file = '/etc/scatool.conf'
 config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
-analysis_datetime = datetime.datetime.now()
+width = 0
+description_width = 0
+progress_bar_active = True
 
 def separator_line(use_char = '#'):
 	print("{}".format(use_char*width))
@@ -169,7 +162,6 @@ class DisplayMessages():
 		self.desc_width = 30 # instance default
 		self.msg_display = "{:" + str(self.desc_width) + "}"
 		self.msg_display_pair = self.msg_display + " = {}"
-#		print("** DisplayMessages desc_width={}, msg_display={}, msg_display_pair={}".format(self.desc_width, self.msg_display, self.msg_display_pair))
 
 	def __str__ (self):
 		return "class %s(level=%r)" % (self.__class__.__name__,self.level)
@@ -1431,13 +1423,15 @@ def get_local_supportconfig(msg, config):
 
 def main(argv):
 	'''main entry point'''
-	global SVER, progress_bar_active, remove_archive, analyze_server, config_file
+	global SVER, progress_bar_active, config_file
 	global width, description_width
 
-	pattern_library = False
 	this_file_data = {}
 	file_data = {}
 	supportconfig_received = ''
+	remove_archive = False
+	analyze_server = False
+	pattern_library = False
 
 	if( os.path.exists(config_file) ):
 		config.read(config_file)
