@@ -1,12 +1,13 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev9'
-# Revert %%% locations
+SVER = '3.0.0_dev10'
+# To do list: %%%
+#%%% To do: Remove archives as directed
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2023 SUSE LLC
 #
-# Description:  Runs and analyzes local or remote supportconfigs
+# Description:  Analyzes supportconfig archives for known issues
 # Modified:     2023 Sep 25
 #
 ##############################################################################
@@ -67,16 +68,16 @@ def title():
 
 def usage():
 	display = "  {:33} {}"
-	print("Usage: scatool [OPTIONS] [-s]|[archive|server]")
+	print("Usage: scatool [OPTIONS] [-s]|[archive]")
 	print()
 	print("OPTIONS")
 	print(display.format('-h, --help', "Displays this screen"))
 	print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
 	print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
-	print(display.format('-o <path>, --output <path>', "self.content report output directory (OUTPUT_PATH)"))
+	print(display.format('-o <path>, --output <path>', "SCA Report file output directory"))
 	print(display.format('-p, --summary', "Print a pattern summary"))
 	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the SCA Report file"))
-	print(display.format('-s, --server', "Analyze the local server"))
+	print(display.format('-s, --server', "Analyze the local server. Root access needed."))
 	print(display.format('-t, --type', "SCA Report file output type, options: json, html. Default: html"))
 	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
 	print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
@@ -308,7 +309,6 @@ class SupportconfigAnalysis():
 			'filter': []
 		}
 		self.products_list = self.__get_products_list()
-		print("self.products_list = \n{}".format(self.products_list))
 		self.all_patterns = self.__get_available_patterns()
 		self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
 		self.applicable_patterns = self.__get_applicable_patterns()
@@ -624,7 +624,6 @@ Class instance of {}
 					in_uname = False
 				else:
 					tmp_uname = line.split()
-					print("! in_uname = {}".format(tmp_uname))
 					if( len(tmp_uname) >= 3 ):
 						self.distro_info['kernelVersion'] = tmp_uname[2].strip()
 						self.distro_info['serverName'] = tmp_uname[1].strip()
@@ -835,7 +834,7 @@ def show_pattern_library(msg, location):
 	msg.min()
 
 def evaluate_supportconfig_given(msg, given_path):
-	type_found = {'valid': False, 'type': '', 'source': ''}
+	type_found = {'valid': False, 'type': 'Unknown', 'source': ''}
 	msg.debug("Evaluating", given_path)
 	if os.path.exists(given_path):
 		if os.path.isfile(given_path):
@@ -845,22 +844,41 @@ def evaluate_supportconfig_given(msg, given_path):
 			type_found['valid'] = True
 			type_found['type'] = 'dir'
 		type_found['source'] = os.path.abspath(given_path)
-	else:
-		cmd = "ping -c1 -w1 " + given_path
-		msg.verbose("Pinging", given_path)
-		msg.debug("Process Command", cmd)
-		type_found['type'] = 'remote'
-		type_found['source'] = given_path
-		ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		stdout, stderr = ping_server.communicate()
-		if ping_server.returncode == 0:
-			type_found['valid'] = True
-			type_found['ping'] = True
-		else:
-			type_found['valid'] = False
-			type_found['ping'] = False
 
 	msg.debug("Supportconfig Evaluation", type_found)
+	return type_found
+
+def evaluate_remote_server(msg, given_hostname):
+	type_found = {'server_valid': False, 'given_hostname': given_hostname}
+	msg.debug("Evaluating Server", given_hostname)
+	cmd = "ping -c1 -w1 " + given_hostname
+	msg.verbose("Pinging", given_hostname)
+	msg.debug("Process Command", cmd)
+	ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	stdout, stderr = ping_server.communicate()
+	if ping_server.returncode == 0:
+		type_found['server_valid'] = True
+		type_found['ping'] = True
+		try:
+			socket.inet_aton(given_hostname)
+			type_found['connection_id'] = given_hostname
+			type_found['found_remote_server'] = True
+		except socket.error:
+			try:
+				type_found['connection_id'] = socket.gethostbyname(given_hostname.strip("\n"))
+				type_found['found_remote_server'] = True
+			except:
+				if type_found['found_remote_server']:
+					type_found['server_valid'] = False
+					type_found['error_str'] = "Error: Unable to connect to " + given_hostname
+	else:
+		type_found['server_valid'] = False
+		type_found['ping'] = False
+		type_found['found_remote_server'] = False
+		type_found['error_str'] = "Error: Cannot ping " + given_hostname
+
+
+	msg.debug("Remote Server Evaluation", type_found)
 	return type_found
 
 def extract_supportconfig(msg, tarball):
@@ -906,59 +924,6 @@ def i_am_root():
 	if not os.environ.get("SUDO_UID") and os.geteuid() != 0:
 		return False
 	return True
-
-def get_local_supportconfig(msg, config):
-	local_hostname = str(os.uname()[1])
-	msg.min('Running Supportconfig On', local_hostname)
-	analysis_datetime = datetime.datetime.now()
-	date_stamp = analysis_datetime.strftime("%y%m%d")
-	time_stamp = str(analysis_datetime.hour).zfill(2) + str(analysis_datetime.minute).zfill(2) + str(analysis_datetime.second).zfill(2)
-	supportconfig_output_lines = config_entry(config.get("Supportconfig", "output_lines"))
-	supportconfig_filename_prefix = config_entry(config.get("Supportconfig", "filename_prefix"))
-	local_supportconfig_path = config_entry(config.get("Supportconfig", "path_local"), '/')
-	local_supportconfig_name = local_hostname + "_" + str(date_stamp) + "_" + str(time_stamp)
-	supportconfig_path = local_supportconfig_path + supportconfig_filename_prefix + local_supportconfig_name
-
-	try:
-		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
-		msg.debug('Process Command', cmd)
-		p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-	#if we cannot run supportconfig
-	except Exception:
-		print("Error: Cannot run supportconfig\n", file=sys.stderr)
-		return
-	condition = True
-
-	if( msg.get_level() == msg.LOG_MIN ):
-		if progress_bar_active:
-			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
-
-	if( msg.get_level() >= msg.LOG_VERBOSE ):
-		msg.verbose('Gathering Supportconfig', 'In Progress')
-	elif( msg.get_level() >= msg.LOG_MIN ):
-		if progress_bar_active:
-			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
-		else:
-			msg.min('Gathering Supportconfig', 'In Progress')
-
-	while condition:
-		out = p.stdout.read(1)
-		if out != '':
-			if( msg.get_level() >= msg.LOG_VERBOSE ):
-				sys.stdout.write(out)
-				sys.stdout.flush()
-			elif( msg.get_level() >= msg.LOG_MIN ):
-				if out == "\n":
-					if progress_bar_active:
-						scbar.inc_count()
-						scbar.update()
-		condition = not bool(out == "" and p.poll() != None)
-
-	if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
-		if progress_bar_active:
-			scbar.finish()
-	
-	return supportconfig_path
 
 class SCAReport():
 	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
@@ -1376,7 +1341,61 @@ Class instance of {}
 				smtp_server.quit()
 		return False
 
+def get_local_supportconfig(msg, config):
+	local_hostname = str(os.uname()[1])
+	msg.min('Running Supportconfig On', local_hostname)
+	analysis_datetime = datetime.datetime.now()
+	date_stamp = analysis_datetime.strftime("%y%m%d")
+	time_stamp = str(analysis_datetime.hour).zfill(2) + str(analysis_datetime.minute).zfill(2) + str(analysis_datetime.second).zfill(2)
+	supportconfig_output_lines = config_entry(config.get("Supportconfig", "output_lines"))
+	supportconfig_filename_prefix = config_entry(config.get("Supportconfig", "filename_prefix"))
+	local_supportconfig_path = config_entry(config.get("Supportconfig", "path_local"), '/')
+	local_supportconfig_name = local_hostname + "_" + str(date_stamp) + "_" + str(time_stamp)
+	supportconfig_path = local_supportconfig_path + supportconfig_filename_prefix + local_supportconfig_name
 
+	try:
+		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
+		msg.debug('Process Command', cmd)
+		p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+	#if we cannot run supportconfig
+	except Exception:
+		print("Error: Cannot run supportconfig\n", file=sys.stderr)
+		return
+	condition = True
+
+	if( msg.get_level() == msg.LOG_MIN ):
+		if progress_bar_active:
+			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
+
+	if( msg.get_level() >= msg.LOG_VERBOSE ):
+		msg.verbose('Gathering Supportconfig', 'In Progress')
+	elif( msg.get_level() >= msg.LOG_MIN ):
+		if progress_bar_active:
+			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
+		else:
+			msg.min('Gathering Supportconfig', 'In Progress')
+
+	while condition:
+		out = p.stdout.read(1)
+		if out != '':
+			if( msg.get_level() >= msg.LOG_VERBOSE ):
+				sys.stdout.write(out)
+				sys.stdout.flush()
+			elif( msg.get_level() >= msg.LOG_MIN ):
+				if out == "\n":
+					if progress_bar_active:
+						scbar.inc_count()
+						scbar.update()
+		condition = not bool(out == "" and p.poll() != None)
+
+	if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
+		if progress_bar_active:
+			scbar.finish()
+	
+	return supportconfig_path
+
+
+##############################################################################
 # Main
 ##############################################################################
 
@@ -1388,6 +1407,7 @@ def main(argv):
 	pattern_library = False
 	this_file_data = {}
 	file_data = {}
+	supportconfig_received = ''
 
 	if( os.path.exists(config_file) ):
 		config.read(config_file)
@@ -1405,7 +1425,7 @@ def main(argv):
 		sca_report = SCAReport(msg, config)
 
 ##################
-#%%%
+#%%% Environment variables
 # Not setting environment variables here. 
 # Work around: set the environment variables in bash terminal
 	#	sys.path.append(os.path.abspath(sca_library_path + 'python'))
@@ -1422,6 +1442,8 @@ def main(argv):
 	except getopt.GetoptError as exc:
 		title()
 		print("Error:", exc, file=sys.stderr)
+		print()
+		usage()
 		sys.exit(2)
 	for opt, arg in optlist:
 		if opt in {"-h", "--help"}:
@@ -1480,17 +1502,10 @@ def main(argv):
 					supportconfig_dir = extract_supportconfig(msg, this_file_data['source'])
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						this_file_data['embedded_dir'] = supportconfig_dir
-						process_dirs[supportconfig_dir] = this_file_data['source']
+						process_dirs[supportconfig_dir] = this_file_data['embedded_dir']
 						file_data[supportconfig_dir] = this_file_data
-				else:
-					if i_am_root():
-						print("Get remote supportconfig -- PENDING")
-						print("Extract supportconfig")
-						print("Create a supportconfig instance")
-					else:
-						msg.normal("Evaluating Server", "Root user required for " + this_file_data['source'])
 			else:
-				msg.min("Error: Invalid supportconfig source - " + given_source)
+				msg.min("Error: Supportconfig file or directory not found - " + given_source)
 		msg.normal()
 	elif analyze_server:
 		if i_am_root():
@@ -1506,8 +1521,7 @@ def main(argv):
 			else:
 				msg.min("Error: Invalid supportconfig source - " + given_source)
 		else:
-			msg.min("Analyze Local Server", "Root user required to run supportconfig")
-
+			msg.min("Analyze Local Server", "Root access required to run supportconfig")
 	else:
 		usage()
 		sys.exit(0)
