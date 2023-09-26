@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev10'
+SVER = '3.0.0_dev11'
 # To do list: %%%
 #%%% To do: Remove archives as directed
 
@@ -8,7 +8,7 @@ SVER = '3.0.0_dev10'
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2023 Sep 25
+# Modified:     2023 Sep 26
 #
 ##############################################################################
 #
@@ -54,6 +54,8 @@ description_width = 0
 progress_bar_active = True
 remove_archive = False
 analyze_server = False
+#%%% Change to correct path
+#config_file = '/etc/scatool.conf'
 config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
 analysis_datetime = datetime.datetime.now()
 
@@ -76,7 +78,7 @@ def usage():
 	print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
 	print(display.format('-o <path>, --output <path>', "SCA Report file output directory"))
 	print(display.format('-p, --summary', "Print a pattern summary"))
-	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the SCA Report file"))
+	print(display.format('-r, --remove', "Remove archive files leaving only the SCA Report file. Ignored in debug mode."))
 	print(display.format('-s, --server', "Analyze the local server. Root access needed."))
 	print(display.format('-t, --type', "SCA Report file output type, options: json, html, all. Default: html"))
 	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
@@ -991,7 +993,7 @@ Class instance of {}
 
 	def __set_report_type(self, this_type):
 		self.report_type = this_type
-		self.report_name = self.data['sc_info']['name'] + "." + self.report_type
+		self.report_name = self.data['sc_info']['name'] + "_report." + self.report_type
 		self.report_file = self.report_path + self.report_name
 		self.data['sc_info']['report_type'] = self.report_type
 		self.data['sc_info']['report_file'] = self.report_file
@@ -1356,6 +1358,19 @@ Class instance of {}
 				smtp_server.quit()
 		return False
 
+	def clean_up(self):
+		if self.data['file_data']['type'] == 'dir':
+			if self.data['file_data']['remove_directory']:
+				self.msg.verbose("+ Removing Directory", self.data['file_data']['source'])
+				shutil.rmtree(self.data['file_data']['source'])
+		elif self.data['file_data']['type'] == 'file':
+			if self.data['file_data']['remove_directory']:
+				self.msg.verbose("+ Removing Directory", self.data['file_data']['embedded_dir'])
+				shutil.rmtree(self.data['file_data']['embedded_dir'])
+			if self.data['file_data']['remove_tarball']:
+				self.msg.verbose("+ Removing File", self.data['file_data']['source'])
+				os.remove(self.data['file_data']['source'])
+
 def get_local_supportconfig(msg, config):
 	'''Run supportconfig on the local server if root access available'''
 	local_hostname = str(os.uname()[1])
@@ -1504,17 +1519,24 @@ def main(argv):
 		if total_args_given > 1:
 			msg.min("Number of supportconfigs", total_args_given)
 		for given_source in args:
-			msg.normal("+ Checking", given_source)
+			msg.normal("Checking", given_source)
 			this_file_data = evaluate_supportconfig_given(msg, given_source)
-			this_file_data['analyzer'] = "scatool v" + str(SVER)	
+			this_file_data['analyzer'] = "scatool v" + str(SVER)
+			this_file_data['remove_tarball'] = False
+			this_file_data['remove_directory'] = False
 			supportconfig_dir = ''
 			if this_file_data['valid']:
 				if this_file_data['type'] == 'dir':
+					if remove_archive:
+						this_file_data['remove_directory'] = True
 					supportconfig_dir = this_file_data['source']
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						process_dirs[supportconfig_dir] = ''
 						file_data[supportconfig_dir] = this_file_data
 				elif this_file_data['type'] == 'file':
+					if remove_archive:
+						this_file_data['remove_tarball'] = True
+					this_file_data['remove_directory'] = True
 					supportconfig_dir = extract_supportconfig(msg, this_file_data['source'])
 					if valid_supportconfig_dir(msg, supportconfig_dir):
 						this_file_data['embedded_dir'] = supportconfig_dir
@@ -1528,6 +1550,8 @@ def main(argv):
 			given_source = get_local_supportconfig(msg, config)
 			this_file_data = evaluate_supportconfig_given(msg, given_source)
 			this_file_data['analyzer'] = "scatool v" + str(SVER)	
+			this_file_data['remove_tarball'] = False
+			this_file_data['remove_directory'] = True
 			file_data[this_file_data['source']] = this_file_data
 			if this_file_data['valid']:
 					supportconfig_dir = this_file_data['source']
@@ -1559,6 +1583,8 @@ def main(argv):
 				sca_report.email_report(email_addr_str)
 			else:
 				sca_report.generate_report()
+			if( msg.get_level() < msg.LOG_DEBUG ):
+				sca_report.clean_up()
 			separator_line('=')
 			msg.min()
 		msg.min()
@@ -1574,6 +1600,8 @@ def main(argv):
 				sca_report.email_report(email_addr_str)
 			else:
 				sca_report.generate_report()
+			if( msg.get_level() < msg.LOG_DEBUG ):
+				sca_report.clean_up()
 	msg.min()
 			
 # Entry point
