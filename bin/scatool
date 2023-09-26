@@ -78,7 +78,7 @@ def usage():
 	print(display.format('-p, --summary', "Print a pattern summary"))
 	print(display.format('-r, --remove', "Remove archive files (REMOVE_ARCHIVE) leaving only the SCA Report file"))
 	print(display.format('-s, --server', "Analyze the local server. Root access needed."))
-	print(display.format('-t, --type', "SCA Report file output type, options: json, html. Default: html"))
+	print(display.format('-t, --type', "SCA Report file output type, options: json, html, all. Default: html"))
 	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
 	print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
 	print()
@@ -928,7 +928,7 @@ def i_am_root():
 class SCAReport():
 	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
 	SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
-	VALID_REPORT_TYPES = ['html', 'json']
+	VALID_REPORT_TYPES = ['html', 'json', 'all']
 	default_report_type = 'html'
 	# REMOVE GITHUB_OWNER when source url is added to results.pattern info
 	GITHUB_OWNER = 'https://github.com/openSUSE/'
@@ -987,6 +987,10 @@ Class instance of {}
 		self.data = updated_data
 		if len(self.report_path) < 1:
 			self.report_path = self.__normalize_path(self.data['sc_info']['path'])
+		self.__set_report_type(self.report_type)
+
+	def __set_report_type(self, this_type):
+		self.report_type = this_type
 		self.report_name = self.data['sc_info']['name'] + "." + self.report_type
 		self.report_file = self.report_path + self.report_name
 		self.data['sc_info']['report_type'] = self.report_type
@@ -1001,6 +1005,7 @@ Class instance of {}
 			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
 			self.msg.min()
 			sys.exit(13)
+		self.msg.min("SCA Report File", self.report_file)
 
 	def __get_meta_class_names(self):
 		'''Gathers all the unique META_CLASS names used in all the applied results'''
@@ -1264,7 +1269,7 @@ Class instance of {}
 			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
 			self.msg.min()
 			sys.exit(13)
-
+		self.msg.min("SCA Report File", self.report_file)
 
 	def generate_report(self):
 		'''Generate an HTML SCA Report'''
@@ -1274,10 +1279,13 @@ Class instance of {}
 		self.msg.normal("SCA Report Type", self.report_type)
 		if self.report_type == "html":
 			self.__generate_html_report()
-			self.msg.min("SCA Report File", self.report_file)
 		elif self.report_type == "json":
 			self.__generate_json_report()
-			self.msg.min("SCA Report File", self.report_file)
+		elif self.report_type == "all":
+			self.__set_report_type('html')
+			self.__generate_html_report()
+			self.__set_report_type('json')
+			self.__generate_json_report()
 
 	def email_report(self, updated_addrs):
 		'''Email the SCA Report to the list of recipients'''
