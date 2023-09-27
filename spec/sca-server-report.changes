@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Sep 27 17:02:55 UTC 2023 - jason.record@suse.com
+
+- Changes to version 1.0.3
+  + Fixed failed supportconfig extractions (bsc#1213851)
+  + Removed unused module imports
+
+-------------------------------------------------------------------
 Mon Oct  4 17:56:01 UTC 2021 - Jason Record <jason.record@suse.com>
 
 - Changes and additions to version 1.0.2

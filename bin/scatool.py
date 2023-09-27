@@ -1,9 +1,9 @@
 ##############################################################################
 # scatool.py - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2014-2021 SUSE LLC
+# Copyright (c) 2014-2023 SUSE LLC
 #
 # Description:  Runs and analyzes local or remote supportconfigs
-# Modified:     2021 May 25
+# Modified:     2023 Sep 27
 
 ##############################################################################
 #command
@@ -24,7 +24,7 @@
 #     David Hamner <ke7oxh@gmail.com>
 #
 ##############################################################################
-SVER = '1.0.9-11'
+SVER = '1.0.9-12'
 
 ##########################################################################################
 # Python Imports
@@ -32,13 +32,9 @@ SVER = '1.0.9-11'
 import subprocess
 import os
 import sys
-import glob
-import uuid
-import tarfile
 import shutil
 import datetime
 import socket
-import time
 import getopt
 import re
 import smtplib
