@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev13'
+SVER = '3.0.0_dev14'
 # To do list: %%%
 
 ##############################################################################
@@ -62,7 +62,7 @@ def title():
 
 def usage():
 	display = "  {:33} {}"
-	print("Usage: scatool [OPTIONS] [-s]|[archive]")
+	print("Usage: scatool [OPTIONS] [/path/to/supportconfig]")
 	print()
 	print("OPTIONS")
 	print(display.format('-h, --help', "Displays this screen"))
@@ -267,7 +267,7 @@ class DisplayMessages():
 				print()
 
 class SupportconfigAnalysis():
-	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+	REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
 	SEV_TABLE = {-2: 'temp', -1: 'partial', 0: 'success', 1: 'recommend', 2: 'promotion', 3: 'warning', 4: 'critical', 5: 'error', 6: 'ignore' }
 	GITHUB_OWNER = 'https://github.com/openSUSE/'
 
@@ -283,6 +283,7 @@ class SupportconfigAnalysis():
 		self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
 		self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
 
+		self.required_element_count = len(self.REQUIRED_ELEMENTS)
 		self.results = {}
 		self.runtime_error_list = []
 		self.pattern_stats = {
@@ -367,10 +368,10 @@ Class instance of {}
 		if error == "":
 			pattern_return_list = out.strip().split("|")
 
-			if( len(pattern_return_list) < len(self.RESULT_ELEMENT) ):
+			if( len(pattern_return_list) < self.required_element_count ):
 				output['valid'] = False
 				output['error_tag'] = 'Insufficient output elements'
-				output['error_str'] = str(error)
+				output['error_str'] = "{} or more needed".format(self.required_element_count)
 				self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
 				self.pattern_stats['runtime_errors'] += 1
 				self.results[pat] = output
@@ -379,8 +380,8 @@ Class instance of {}
 			missing_elements = []
 			for output_element in pattern_return_list:
 				found = False
-				for i in range(0, len(self.RESULT_ELEMENT)):
-					if output_element.startswith(self.RESULT_ELEMENT[i]):
+				for i in range(0, self.required_element_count):
+					if output_element.startswith(self.REQUIRED_ELEMENTS[i]):
 						found = True
 				if not found:
 					output['valid'] = False
@@ -919,7 +920,7 @@ def i_am_root():
 	return True
 
 class SCAReport():
-	RESULT_ELEMENT = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+	REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
 	SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
 	VALID_REPORT_TYPES = ['html', 'json', 'all']
 	default_report_type = 'html'
