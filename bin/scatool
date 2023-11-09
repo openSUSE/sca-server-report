@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev14'
+SVER = '3.0.0_dev16'
 # To do list: %%%
 
 ##############################################################################
@@ -7,7 +7,7 @@ SVER = '3.0.0_dev14'
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2023 Sep 26
+# Modified:     2023 Nov 09
 #
 ##############################################################################
 #
@@ -24,7 +24,7 @@ SVER = '3.0.0_dev14'
 #  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 #  Authors/Contributors:
-#	Jason Record <jason.record@suse.com>
+#    Jason Record <jason.record@suse.com>
 #
 ##############################################################################
 
@@ -45,278 +45,288 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
 #%%% Change to correct path
-#config_file = '/etc/scatool.conf'
+#config_file = '/etc/sca/scatool.conf'
 config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
 width = 0
 description_width = 0
 progress_bar_active = True
 
 def separator_line(use_char = '#'):
-	print("{}".format(use_char*width))
+    print("{}".format(use_char*width))
 
 def title():
-	separator_line()
-	print("#   SCA Tool v" + SVER)
-	separator_line()
-	print()
+    separator_line()
+    print("#   SCA Tool v" + SVER)
+    separator_line()
+    print()
 
 def usage():
-	display = "  {:33} {}"
-	print("Usage: scatool [OPTIONS] [/path/to/supportconfig]")
-	print()
-	print("OPTIONS")
-	print(display.format('-h, --help', "Displays this screen"))
-	print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
-	print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
-	print(display.format('-o <path>, --output <path>', "SCA Report file output directory"))
-	print(display.format('-p, --summary', "Print a pattern summary"))
-	print(display.format('-r, --remove', "Remove archive files leaving only the SCA Report file. Ignored in debug mode."))
-	print(display.format('-s, --server', "Analyze the local server. Root access needed."))
-	print(display.format('-t, --type', "SCA Report file output type, options: json, html, all. Default: html"))
-	print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
-	print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
-	print()
+    display = "  {:33} {}"
+    print("Usage: scatool [OPTIONS] [/path/to/supportconfig]")
+    print()
+    print("OPTIONS")
+    print(display.format('-h, --help', "Displays this screen"))
+    print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
+    print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
+    print(display.format('-o <path>, --output <path>', "SCA Report file output directory"))
+    print(display.format('-p, --summary', "Print a pattern summary"))
+    print(display.format('-r, --remove', "Remove archive files leaving only the SCA Report file. Ignored in debug mode."))
+    print(display.format('-s, --server', "Analyze the local server. Root access needed."))
+    print(display.format('-t, --type', "SCA Report file output type, options: json, html, all. Default: html"))
+    print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
+    print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
+    print()
 
 def option_error(msg):
-	print(msg)
-	print()
-	usage()
-	sys.exit(1)
+    print(msg)
+    print()
+    usage()
+    sys.exit(1)
 
 def signal_handler(sig, frame):
-	print("\n\nAborting...\n")
-	sys.exit(1)
+    print("\n\nAborting...\n")
+    sys.exit(1)
 
 def config_entry(_entry, trailer = ''):
-	formatted_entry = _entry.strip('\"\'')
-	if( len(trailer) > 0 ):
-		if len(formatted_entry) > 0:
-			if not formatted_entry.endswith(trailer):
-				formatted_entry = formatted_entry + str(trailer)
-	return formatted_entry
+    formatted_entry = _entry.strip('\"\'')
+    if( len(trailer) > 0 ):
+        if len(formatted_entry) > 0:
+            if not formatted_entry.endswith(trailer):
+                formatted_entry = formatted_entry + str(trailer)
+    return formatted_entry
 
 class ProgressBar():
-	"""Initialize and update progress bar class"""
+    """Initialize and update progress bar class"""
 
-	def __init__(self, prefix, total):
-		self.base_len = int(width)
-		self.desc_width = int(description_width) + 1
-		self.bar_width = self.base_len
-		self.prefix = prefix
-		self.prefix_size = len(self.prefix)
-		self.total = int(total)
-		self.count = 0
-		self.out = sys.stdout
-		if self.prefix_size > self.desc_width:
-			self.bar_width = self.base_len - self.prefix_size - 2
-		else:
-			self.bar_width = self.base_len - self.desc_width - 2
-		self.display = "{:" + str(self.desc_width) + "s}[{}{}] {:3g}% {:3g}/{}"
+    def __init__(self, prefix, total):
+        self.base_len = int(width)
+        self.desc_width = int(description_width) + 1
+        self.bar_width = self.base_len
+        self.prefix = prefix
+        self.prefix_size = len(self.prefix)
+        self.total = int(total)
+        self.count = 0
+        self.out = sys.stdout
+        if self.prefix_size > self.desc_width:
+            self.bar_width = self.base_len - self.prefix_size - 2
+        else:
+            self.bar_width = self.base_len - self.desc_width - 2
+        self.display = "{:" + str(self.desc_width) + "s}[{}{}] {:3g}% {:3g}/{}"
 
-	def __str__(self):
-		return 'class %s(\n  prefix=%r \n  bar_width=%r \n  total=%r\n)' % (self.__class__.__name__, self.prefix, self.bar_width, self.total)
+    def __str__(self):
+        return 'class %s(\n  prefix=%r \n  bar_width=%r \n  total=%r\n)' % (self.__class__.__name__, self.prefix, self.bar_width, self.total)
 
-	def set_prefix(self, _prefix):
-		self.prefix = _prefix
-		if ( self.bar_width_orig == self.base_len ):
-			self.bar_width = self.base_len - self.prefix_size - 2
-		else:
-			self.bar_width = self.bar_width_orig
+    def set_prefix(self, _prefix):
+        self.prefix = _prefix
+        if ( self.bar_width_orig == self.base_len ):
+            self.bar_width = self.base_len - self.prefix_size - 2
+        else:
+            self.bar_width = self.bar_width_orig
 
-	def set_total(self, _new_total):
-		self.total = _new_total
+    def set_total(self, _new_total):
+        self.total = _new_total
 
-	def inc_count(self, increment = 1):
-		"""Increments one by default"""
-		if self.count < self.total:
-			self.count += increment
+    def inc_count(self, increment = 1):
+        """Increments one by default"""
+        if self.count < self.total:
+            self.count += increment
 
-	def get_total(self):
-		return self.total
+    def get_total(self):
+        return self.total
 
-	def get_count(self):
-		return self.count
+    def get_count(self):
+        return self.count
 
-	def update(self):
-		percent_complete = int(100*self.count/self.total)
-		current_progress = int(self.bar_width*self.count/self.total)
-		print(self.display.format(self.prefix, "#"*current_progress, "."*(self.bar_width-current_progress), percent_complete, self.count, self.total), end='\r', file=self.out, flush=True)
+    def update(self):
+        percent_complete = int(100*self.count/self.total)
+        current_progress = int(self.bar_width*self.count/self.total)
+        print(self.display.format(self.prefix, "#"*current_progress, "."*(self.bar_width-current_progress), percent_complete, self.count, self.total), end='\r', file=self.out, flush=True)
 
-	def finish(self):
-		if self.count != self.total:
-			self.count = self.total
-			self.update()
-		print("", flush=True, file=self.out)
+    def finish(self):
+        if self.count != self.total:
+            self.count = self.total
+            self.update()
+        print("", flush=True, file=self.out)
 
 class DisplayMessages():
-	"Display message string for a given log level"
-	LOG_QUIET = 0	# turns off messages
-	LOG_MIN = 1	# minimal messages
-	LOG_NORMAL = 2	# normal, but significant, messages
-	LOG_VERBOSE = 3	# detailed messages
-	LOG_DEBUG = 4	# debug-level messages
-	LOG_LEVELS = {0: "Quiet", 1: "Minimal", 2: "Normal", 3: "Verbose", 4: "Debug" }
+    "Display message string for a given log level"
+    LOG_QUIET = 0    # turns off messages
+    LOG_MIN = 1    # minimal messages
+    LOG_NORMAL = 2    # normal, but significant, messages
+    LOG_VERBOSE = 3    # detailed messages
+    LOG_DEBUG = 4    # debug-level messages
+    LOG_LEVELS = {0: "Quiet", 1: "Minimal", 2: "Normal", 3: "Verbose", 4: "Debug" }
 
-	def __init__(self):
-		self.level = self.LOG_MIN # instance default
-		self.desc_width = 30 # instance default
-		self.msg_display = "{:" + str(self.desc_width) + "}"
-		self.msg_display_pair = self.msg_display + " = {}"
+    def __init__(self):
+        self.level = self.LOG_MIN # instance default
+        self.desc_width = 30 # instance default
+        self.msg_display = "{:" + str(self.desc_width) + "}"
+        self.msg_display_pair = self.msg_display + " = {}"
 
-	def __str__ (self):
-		return "class %s(level=%r)" % (self.__class__.__name__,self.level)
+    def __str__ (self):
+        return "class %s(level=%r)" % (self.__class__.__name__,self.level)
 
-	def set_width(self, width_value):
-		self.desc_width = width_value
-		self.msg_display = "{:" + str(self.desc_width) + "}"
-		self.msg_display_pair = self.msg_display + " = {}"
+    def set_width(self, width_value):
+        self.desc_width = width_value
+        self.msg_display = "{:" + str(self.desc_width) + "}"
+        self.msg_display_pair = self.msg_display + " = {}"
 
-	def get_level(self):
-		return self.level
+    def get_level(self):
+        return self.level
 
-	def get_level_str(self):
-		return self.LOG_LEVELS[self.level]
+    def get_level_str(self):
+        return self.LOG_LEVELS[self.level]
 
-	def set_level(self, level):
-		if( level >= self.LOG_DEBUG ):
-			self.level = self.LOG_DEBUG
-		else:
-			self.level = level
+    def set_level(self, level):
+        if( level >= self.LOG_DEBUG ):
+            self.level = self.LOG_DEBUG
+        else:
+            self.level = level
 
-	def validate_level(self, level):
-		validated_level = -1
-		if( level.isdigit() ):
-			validated_level = int(level)
-		else:
-			argstr = level.lower()
-			if( argstr.startswith("qui") ):
-				validated_level = self.LOG_QUIET
-			elif( argstr.startswith("min") ):
-				validated_level = self.LOG_MIN
-			elif( argstr.startswith("norm") ):
-				validated_level = self.LOG_NORMAL
-			elif( argstr.startswith("verb") ):
-				validated_level = self.LOG_VERBOSE
-			elif( argstr.startswith("debug") ):
-				validated_level = self.LOG_DEBUG
+    def validate_level(self, level):
+        validated_level = -1
+        if( level.isdigit() ):
+            validated_level = int(level)
+        else:
+            argstr = level.lower()
+            if( argstr.startswith("qui") ):
+                validated_level = self.LOG_QUIET
+            elif( argstr.startswith("min") ):
+                validated_level = self.LOG_MIN
+            elif( argstr.startswith("norm") ):
+                validated_level = self.LOG_NORMAL
+            elif( argstr.startswith("verb") ):
+                validated_level = self.LOG_VERBOSE
+            elif( argstr.startswith("debug") ):
+                validated_level = self.LOG_DEBUG
 
-		return validated_level
+        return validated_level
 
 
-	def __write_paired_msg(self, level, msgtag, msgstr):
-		if( level <= self.level ):
-			print(self.msg_display_pair.format(msgtag, msgstr))
+    def __write_paired_msg(self, level, msgtag, msgstr):
+        if( level <= self.level ):
+            print(self.msg_display_pair.format(msgtag, msgstr))
 
-	def __write_msg(self, level, msgtag):
-		if( level <= self.level ):
-			print(self.msg_display.format(msgtag))
+    def __write_msg(self, level, msgtag):
+        if( level <= self.level ):
+            print(self.msg_display.format(msgtag))
 
-	def quiet(self, msgtag = None, msgstr = None):
-		"Write messages even if quiet is set"
-		if msgtag:
-			if msgstr:
-				self.__write_paired_msg(self.LOG_QUIET, msgtag, msgstr)
-			else:
-				self.__write_msg(self.LOG_QUIET, msgtag)
-		else:
-			if( self.level >= self.LOG_QUIET ):
-				print()
+    def quiet(self, msgtag = None, msgstr = None):
+        "Write messages even if quiet is set"
+        if msgtag:
+            if msgstr:
+                self.__write_paired_msg(self.LOG_QUIET, msgtag, msgstr)
+            else:
+                self.__write_msg(self.LOG_QUIET, msgtag)
+        else:
+            if( self.level >= self.LOG_QUIET ):
+                print()
 
-	def min(self, msgtag = None, msgstr = None):
-		"Write the minium amount of messages"
-		if msgtag:
-			if msgstr:
-				self.__write_paired_msg(self.LOG_MIN, msgtag, msgstr)
-			else:
-				self.__write_msg(self.LOG_MIN, msgtag)
-		else:
-			if( self.level >= self.LOG_MIN ):
-				print()
+    def min(self, msgtag = None, msgstr = None):
+        "Write the minium amount of messages"
+        if msgtag:
+            if msgstr:
+                self.__write_paired_msg(self.LOG_MIN, msgtag, msgstr)
+            else:
+                self.__write_msg(self.LOG_MIN, msgtag)
+        else:
+            if( self.level >= self.LOG_MIN ):
+                print()
 
-	def normal(self, msgtag = None, msgstr = None):
-		"Write normal, but significant, messages"
-		if msgtag:
-			if msgstr:
-				self.__write_paired_msg(self.LOG_NORMAL, msgtag, msgstr)
-			else:
-				self.__write_msg(self.LOG_NORMAL, msgtag)
-		else:
-			if( self.level >= self.LOG_NORMAL ):
-				print()
+    def normal(self, msgtag = None, msgstr = None):
+        "Write normal, but significant, messages"
+        if msgtag:
+            if msgstr:
+                self.__write_paired_msg(self.LOG_NORMAL, msgtag, msgstr)
+            else:
+                self.__write_msg(self.LOG_NORMAL, msgtag)
+        else:
+            if( self.level >= self.LOG_NORMAL ):
+                print()
 
-	def verbose(self, msgtag = None, msgstr = None):
-		"Write more verbose informational messages"
-		if msgtag:
-			if msgstr:
-				self.__write_paired_msg(self.LOG_VERBOSE, msgtag, msgstr)
-			else:
-				self.__write_msg(self.LOG_VERBOSE, msgtag)
-		else:
-			if( self.level >= self.LOG_VERBOSE ):
-				print()
+    def verbose(self, msgtag = None, msgstr = None):
+        "Write more verbose informational messages"
+        if msgtag:
+            if msgstr:
+                self.__write_paired_msg(self.LOG_VERBOSE, msgtag, msgstr)
+            else:
+                self.__write_msg(self.LOG_VERBOSE, msgtag)
+        else:
+            if( self.level >= self.LOG_VERBOSE ):
+                print()
 
-	def debug(self, msgtag = None, msgstr = None):
-		"Write all messages, including debug level"
-		if msgtag:
-			if msgstr:
-				self.__write_paired_msg(self.LOG_DEBUG, msgtag, msgstr)
-			else:
-				self.__write_msg(self.LOG_DEBUG, msgtag)
-		else:
-			if( self.level >= self.LOG_DEBUG ):
-				print()
+    def debug(self, msgtag = None, msgstr = None):
+        "Write all messages, including debug level"
+        if msgtag:
+            if msgstr:
+                self.__write_paired_msg(self.LOG_DEBUG, msgtag, msgstr)
+            else:
+                self.__write_msg(self.LOG_DEBUG, msgtag)
+        else:
+            if( self.level >= self.LOG_DEBUG ):
+                print()
 
 class SupportconfigAnalysis():
-	REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
-	SEV_TABLE = {-2: 'temp', -1: 'partial', 0: 'success', 1: 'recommend', 2: 'promotion', 3: 'warning', 4: 'critical', 5: 'error', 6: 'ignore' }
-	GITHUB_OWNER = 'https://github.com/openSUSE/'
+    REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+    REQUIRED_JSON_KEYS = ['generation', 'class', 'category', 'component', 'id', 'primary_solution', 'severity', 'description']
+    REQUIRED_ELEMENT_CONV = {
+    'META_CLASS': 'class', 
+    'META_CATEGORY': 'category', 
+    'META_COMPONENT': 'component', 
+    'PATTERN_ID': 'id', 
+    'PRIMARY_LINK': 'primary_solution', 
+    'OVERALL': 'severity', 
+    'OVERALL_INFO': 'description'
+    }
+    SEV_TABLE = {-2: 'temp', -1: 'partial', 0: 'success', 1: 'recommend', 2: 'promotion', 3: 'warning', 4: 'critical', 5: 'error', 6: 'ignore' }
+    GITHUB_OWNER = 'https://github.com/openSUSE/'
 
-	def __init__(self, msg, config, extracted_path):
-		self.msg = msg
-		self.config = config
-		self.json_data = {}
-		self.sca_library_path = config_entry(config.get("Common", "sca_library_path"), '/')
-		self.sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
-		self.github_base = config_entry(config.get("Supportconfig", "github_base"), '/')
-		self.location = extracted_path
-		self.analysis_datetime = datetime.datetime.now()
-		self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
-		self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
+    def __init__(self, msg, config, extracted_path):
+        self.msg = msg
+        self.config = config
+        self.json_data = {}
+        self.sca_library_path = config_entry(config.get("Common", "sca_library_path"), '/')
+        self.sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
+        self.github_base = config_entry(config.get("Supportconfig", "github_base"), '/')
+        self.location = extracted_path
+        self.analysis_datetime = datetime.datetime.now()
+        self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
+        self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
 
-		self.required_element_count = len(self.REQUIRED_ELEMENTS)
-		self.results = {}
-		self.runtime_error_list = []
-		self.pattern_stats = {
-			'total': 0,
-			'applicable': 0,
-			'applied': 0,
-			'runtime_errors': 0,
-			self.SEV_TABLE[-2]: 0,
-			self.SEV_TABLE[-1]: 0,
-			self.SEV_TABLE[0]: 0,
-			self.SEV_TABLE[1]: 0,
-			self.SEV_TABLE[2]: 0,
-			self.SEV_TABLE[3]: 0,
-			self.SEV_TABLE[4]: 0,
-			self.SEV_TABLE[5]: 0,
-			self.SEV_TABLE[6]: 0,
-			'filter': []
-		}
-		self.products_list = self.__get_products_list()
-		self.all_patterns = self.__get_available_patterns()
-		self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
-		self.applicable_patterns = self.__get_applicable_patterns()
-		self.__apply_patterns()
+        self.required_element_count = len(self.REQUIRED_ELEMENTS)
+        self.results = {}
+        self.runtime_error_list = []
+        self.pattern_stats = {
+            'total': 0,
+            'applicable': 0,
+            'applied': 0,
+            'runtime_errors': 0,
+            self.SEV_TABLE[-2]: 0,
+            self.SEV_TABLE[-1]: 0,
+            self.SEV_TABLE[0]: 0,
+            self.SEV_TABLE[1]: 0,
+            self.SEV_TABLE[2]: 0,
+            self.SEV_TABLE[3]: 0,
+            self.SEV_TABLE[4]: 0,
+            self.SEV_TABLE[5]: 0,
+            self.SEV_TABLE[6]: 0,
+            'filter': []
+        }
+        self.products_list = self.__get_products_list()
+        self.all_patterns = self.__get_available_patterns()
+        self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
+        self.applicable_patterns = self.__get_applicable_patterns()
+        self.__apply_patterns()
 
-	# runpats gets the pattern results. runpats calls patternPreProcessor
-	# getHtml(htmlOutputFile, self.location, supportconfigPath.split("/")[-1])
-	# getHtml calls getClasses
-	# email the report file
-	# delete the archive and directory as needed
+    # runpats gets the pattern results. runpats calls patternPreProcessor
+    # getHtml(htmlOutputFile, self.location, supportconfigPath.split("/")[-1])
+    # getHtml calls getClasses
+    # email the report file
+    # delete the archive and directory as needed
 
 
-	def __str__ (self):
-		pattern = '''
+    def __str__ (self):
+        pattern = '''
 Class instance of {}
   sca_patterns_path = {}
   location = {}
@@ -327,621 +337,673 @@ Class instance of {}
   applicable_patterns = {}
   pattern_stats = {}
 '''
-		return pattern.format(self.__class__.__name__, self.sca_patterns_path, self.location, self.distro_info, self.products_list, self.patterns_available, self.pattern_filtered_directories, str(len(self.applicable_patterns)), self.pattern_stats)
+        return pattern.format(self.__class__.__name__, self.sca_patterns_path, self.location, self.distro_info, self.products_list, self.patterns_available, self.pattern_filtered_directories, str(len(self.applicable_patterns)), self.pattern_stats)
 
-	def get_results(self):
-		return self.json_data
+    def get_results(self):
+        return self.json_data
 
-	def __get_pattern_source_url(self, pat):
-		# relative_pattern_path should start with 'patterns/'
-		relative_pattern_path = pat.replace(self.sca_library_path, '')
-		github_repo_name = ''
-		if '/ALP/' in relative_pattern_path:
-			if 'alp1' in relative_pattern_path:
-				github_repo_name = 'sca-patterns-alp1'
-		elif '/SLE/' in relative_pattern_path:
-			if 'sle15' in relative_pattern_path:
-				github_repo_name = 'sca-patterns-sle15'
-			elif 'sle12' in relative_pattern_path:
-				github_repo_name = 'sca-patterns-sle12'
-			elif 'sle11' in relative_pattern_path:
-				github_repo_name = 'sca-patterns-sle11'
-			elif 'sle10' in relative_pattern_path:
-				github_repo_name = 'sca-patterns-sle10'
-			elif 'sle9' in relative_pattern_path:
-				github_repo_name = 'sca-patterns-sle09'
-		elif '/HAE/' in relative_pattern_path:
-			github_repo_name = 'sca-patterns-hae'
+    def __get_pattern_source_url(self, pat):
+        # relative_pattern_path should start with 'patterns/'
+        relative_pattern_path = pat.replace(self.sca_library_path, '')
+        github_repo_name = ''
+        if '/ALP/' in relative_pattern_path:
+            if 'alp1' in relative_pattern_path:
+                github_repo_name = 'sca-patterns-alp1'
+        elif '/SLE/' in relative_pattern_path:
+            if 'sle15' in relative_pattern_path:
+                github_repo_name = 'sca-patterns-sle15'
+            elif 'sle12' in relative_pattern_path:
+                github_repo_name = 'sca-patterns-sle12'
+            elif 'sle11' in relative_pattern_path:
+                github_repo_name = 'sca-patterns-sle11'
+            elif 'sle10' in relative_pattern_path:
+                github_repo_name = 'sca-patterns-sle10'
+            elif 'sle9' in relative_pattern_path:
+                github_repo_name = 'sca-patterns-sle09'
+        elif '/HAE/' in relative_pattern_path:
+            github_repo_name = 'sca-patterns-hae'
 
-		if len(github_repo_name) > 0:
-			pattern_source_url = self.github_base  + github_repo_name + '/blob/master/' + relative_pattern_path
-		else:
-			pattern_source_url = self.github_base
+        if len(github_repo_name) > 0:
+            pattern_source_url = self.github_base  + github_repo_name + '/blob/master/' + relative_pattern_path
+        else:
+            pattern_source_url = self.github_base
 
-		return pattern_source_url
-		
+        return pattern_source_url
+        
 
-	def __parse_results_output(self, out, error, pat):
-		output = {}
-		error_display = "{} -- {}: {}"
-		output['output_str'] = str(out)
-		if error == "":
-			pattern_return_list = out.strip().split("|")
+    def __parse_results_output(self, out, error, pat):
+        output = {}
+        output['valid'] = True
+        output['error_tag'] = 'None'
+        output['error_str'] = 'None'
+        output['output_str'] = str(out)
+        json_data = True
 
-			if( len(pattern_return_list) < self.required_element_count ):
-				output['valid'] = False
-				output['error_tag'] = 'Insufficient output elements'
-				output['error_str'] = "{} or more needed".format(self.required_element_count)
-				self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
-				self.pattern_stats['runtime_errors'] += 1
-				self.results[pat] = output
-				return False
+        try:
+            json_object = json.loads(out)
+        except ValueError as e:
+            json_data = False
 
-			missing_elements = []
-			for output_element in pattern_return_list:
-				found = False
-				for i in range(0, self.required_element_count):
-					if output_element.startswith(self.REQUIRED_ELEMENTS[i]):
-						found = True
-				if not found:
-					output['valid'] = False
-					output['error_tag'] = 'Invalid output element'
-					output['error_str'] = output_element
-					self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
-					self.pattern_stats['runtime_errors'] += 1
-					self.results[pat] = output
-					return False
+        missing_json_keys = []
+        if json_data:
+            for key in self.REQUIRED_JSON_KEYS:
+                if not key in json_object:
+                    missing_json_keys.append(key)
+            if len(missing_json_keys) > 0:
+                pass
+            else:
+                dict1 = output
+                output = {**dict1, **json_object}
+                output['severity_str'] = self.SEV_TABLE[output['severity']]
+                self.pattern_stats[self.SEV_TABLE[output['severity']]] += 1
+                if output['severity'] >= 0 and output['severity'] < 5:
+                    self.pattern_stats['applied'] += 1
+                self.results[pat] = output
+        else:
+            output['generation'] = 1
+            output['solution_links'] = {}
+            error_display = "{} -- {}: {}"
+            if error == "":
+                pattern_return_list = out.strip().split("|")
 
-			#if overall outcome of pattern was valid
-			output['valid'] = True
-			output['error_tag'] = 'None'
-			output['error_str'] = 'None'
-			for o in pattern_return_list:
-				key, value = o.split("=", 1)
-				output[key] = value
-			output['OVERALL'] = int(output['OVERALL'])
-			output['severity'] = self.SEV_TABLE[output['OVERALL']]
-			self.pattern_stats[self.SEV_TABLE[output['OVERALL']]] += 1
-			if output['OVERALL'] >= 0 and output['OVERALL'] < 5:
-				self.pattern_stats['applied'] += 1
-			self.results[pat] = output
-			return True
-		else:
-			output['valid'] = False
-			output['error_tag'] = 'Output error'
-			output['error_str'] = error
-			self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
-			self.pattern_stats['runtime_errors'] += 1
-			self.results[pat] = output
-			return False
+                if( len(pattern_return_list) < self.required_element_count ):
+                    output['valid'] = False
+                    output['error_tag'] = 'Insufficient output elements'
+                    output['error_str'] = "{} or more needed".format(self.required_element_count)
+                    self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
+                    self.pattern_stats['runtime_errors'] += 1
+                    self.results[pat] = output
+                    return False
 
-	def __apply_patterns(self):
-		pattern_count = 0
-		output = {}
-		self.pattern_stats['applicable'] = len(self.applicable_patterns)
-		verbose_line = '{0:6} {1:>5} of {2} {3}'
-		pattern_skipped = False
+                missing_elements = []
+                for output_element in pattern_return_list:
+                    found = False
+                    for i in range(0, self.required_element_count):
+                        if output_element.startswith(self.REQUIRED_ELEMENTS[i]):
+                            found = True
+                    if not found:
+                        output['valid'] = False
+                        output['error_tag'] = 'Invalid output element'
+                        output['error_str'] = output_element
+                        self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
+                        self.pattern_stats['runtime_errors'] += 1
+                        self.results[pat] = output
+                        return False
 
-		self.msg.min('Pattern Filter', ' '.join(self.pattern_stats['filter']))
+                for o in pattern_return_list:
+                    key, value = o.split("=", 1)
+                    if key.startswith('META_LINK_'):
+                        tag = key.replace('META_LINK_', '')
+                        output['solution_links'][tag] = value
+                    else:
+                        output[self.REQUIRED_ELEMENT_CONV[key]] = value
+                output['severity'] = int(output['severity'])
+                output['severity_str'] = self.SEV_TABLE[output['severity']]
+                output['primary_solution'] = output['primary_solution'].replace('META_LINK_', '')
+                self.pattern_stats[self.SEV_TABLE[output['severity']]] += 1
+                if output['severity'] >= 0 and output['severity'] < 5:
+                    self.pattern_stats['applied'] += 1
+                self.results[pat] = output
+                return True
+            else:
+                output['valid'] = False
+                output['error_tag'] = 'Output error'
+                output['error_str'] = error
+                self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
+                self.pattern_stats['runtime_errors'] += 1
+                self.results[pat] = output
+                return False
 
-		if( msg.get_level() >= msg.LOG_VERBOSE ):
-			msg.verbose('Analyzing Supportconfig', 'In Progress')
-		elif( msg.get_level() >= msg.LOG_MIN ):
-			if progress_bar_active:
-				ascbar = ProgressBar("Analyzing Supportconfig:", self.pattern_stats['applicable'])
-			else:
-				msg.min('Analyzing Supportconfig', 'In Progress')
+    def __apply_patterns(self):
+        pattern_count = 0
+        output = {}
+        self.pattern_stats['applicable'] = len(self.applicable_patterns)
+        verbose_line = '{0:6} {1:>5} of {2} {3}'
+        pattern_skipped = False
 
-		for test_pattern in self.applicable_patterns:
-			pattern_count += 1
-			try:
-				if test_pattern.endswith("README"):
-					pattern_skipped = True
-				else:
-					cmd = test_pattern + " -p " + self.location
-					self.msg.debug()
-					self.msg.debug(' Process Command', cmd)
-					p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-					out, error = p.communicate()
-					pattern_is_valid = self.__parse_results_output(out, error, test_pattern)
-					self.results[test_pattern]['source'] = self.__get_pattern_source_url(test_pattern)
+        self.msg.min('Pattern Filter', ' '.join(self.pattern_stats['filter']))
 
-				#call parseOutput to see if output was expected
-				if( msg.get_level() >= msg.LOG_VERBOSE ):
-					if pattern_skipped:
-						self.msg.verbose(verbose_line.format('Skip:', pattern_count, self.pattern_stats['total'], test_pattern))
-						pattern_skipped = False
-					else:
-						if pattern_is_valid:
-							self.msg.debug(" Output", self.results[test_pattern]['output_str'])
-							self.msg.verbose(verbose_line.format('Done:', pattern_count, self.pattern_stats['applicable'], test_pattern))
-						else:
-							self.msg.debug(" Output", self.results[test_pattern]['error_str'])
-							self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], test_pattern + " - " + str(self.results[test_pattern]['error_tag'])))
-				elif( msg.get_level() >= msg.LOG_MIN ):
-					if progress_bar_active:
-						ascbar.inc_count()
-						ascbar.update()
-			except Exception as e:
-				output['valid'] = False
-				output['error_tag'] = 'Runtime error'
-				output['error_str'] = str(e)
-				self.results[test_pattern] = output
-				self.results[test_pattern]['source'] = self.__get_pattern_source_url(test_pattern)
-				self.runtime_error_list.append(test_pattern + " -- Pattern runtime error: " + str(e))
-				self.pattern_stats['runtime_errors'] += 1
-				self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], self.runtime_error_list[-1]))
+        if( msg.get_level() >= msg.LOG_VERBOSE ):
+            msg.verbose('Analyzing Supportconfig', 'In Progress')
+        elif( msg.get_level() >= msg.LOG_MIN ):
+            if progress_bar_active:
+                ascbar = ProgressBar("Analyzing Supportconfig:", self.pattern_stats['applicable'])
+            else:
+                msg.min('Analyzing Supportconfig', 'In Progress')
 
-		#make output look nice
-		if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
-			if progress_bar_active:
-				ascbar.finish()
+        for test_pattern, generational_value in self.applicable_patterns.items():
+            pattern_count += 1
+            try:
+                if test_pattern.endswith("README"):
+                    pattern_skipped = True
+                else:
+                    if generational_value > 1:
+                        cmd = [test_pattern, self.location]
+                    elif generational_value == 1:
+                        cmd = [test_pattern, "-p", self.location]
+                    else:
+                        output['valid'] = False
+                        output['error_tag'] = 'Pattern error'
+                        output['error_str'] = 'Invalid pattern generational value: {}'.format(generational_value)
+                        self.results[test_pattern] = output
+                        self.results[test_pattern]['source'] = self.__get_pattern_source_url(test_pattern)
+                        self.runtime_error_list.append(test_pattern + "{0} -- {1}: {2}".format(test_pattern, output['error_tag'], output['error_str']))
+                        self.pattern_stats['runtime_errors'] += 1
+                        self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], self.runtime_error_list[-1]))
+                        continue
 
-		if( msg.get_level() >= msg.LOG_VERBOSE ):
-			msg.verbose()
-			separator_line('-')
-		self.msg.normal('Total Patterns', str(self.pattern_stats['total']))
-		self.msg.normal('Patterns Evaluated', str(self.pattern_stats['applicable']))
-		self.msg.normal('+ Critical', str(self.pattern_stats['critical']))
-		self.msg.normal('+ Warning', str(self.pattern_stats['warning']))
-		self.msg.normal('+ Recommended', str(self.pattern_stats['recommend']))
-		self.msg.verbose('+ Promotion', str(self.pattern_stats['promotion']))
-		self.msg.normal('+ Success', str(self.pattern_stats['success']))
-		self.msg.verbose('+ Error', str(self.pattern_stats['error']))
-		self.msg.verbose('+ Ignore', str(self.pattern_stats['ignore']))
-		self.msg.verbose('+ Partial', str(self.pattern_stats['partial']))
-		self.msg.verbose('+ Temporary', str(self.pattern_stats['temp']))
-		self.msg.verbose('+ Exec Errors', str(self.pattern_stats['runtime_errors']))
-		self.msg.min('Applicable to Server', str(self.pattern_stats['applied']))
+                    self.msg.debug()
+                    self.msg.debug(' Process Command', ' '.join(cmd))
+                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                    out, error = p.communicate()
+                    pattern_is_valid = self.__parse_results_output(out, error, test_pattern)
+                    self.results[test_pattern]['source'] = self.__get_pattern_source_url(test_pattern)
 
-		self.msg.min()
-		level_now = msg.get_level()
-		if( level_now >= msg.LOG_MIN ):
-			if self.pattern_stats['runtime_errors'] > 0:
-				self.msg.min('Pattern Execution Errors:', str(self.pattern_stats['runtime_errors']))
-				separator_line('-')
-				for pattern_error_str in self.runtime_error_list:
-					print(pattern_error_str)
-					print()
-		self.json_data['pattern_stats'] = self.pattern_stats
-		self.json_data['results'] = self.results
+                #call parseOutput to see if output was expected
+                if( msg.get_level() >= msg.LOG_VERBOSE ):
+                    if pattern_skipped:
+                        self.msg.verbose(verbose_line.format('Skip:', pattern_count, self.pattern_stats['total'], test_pattern))
+                        pattern_skipped = False
+                    else:
+                        if pattern_is_valid:
+                            self.msg.debug(" Output", self.results[test_pattern]['output_str'])
+                            self.msg.verbose(verbose_line.format('Done:', pattern_count, self.pattern_stats['applicable'], test_pattern))
+                        else:
+                            self.msg.debug(" Output", self.results[test_pattern]['error_str'])
+                            self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], test_pattern + " - " + str(self.results[test_pattern]['error_tag'])))
+                elif( msg.get_level() >= msg.LOG_MIN ):
+                    if progress_bar_active:
+                        ascbar.inc_count()
+                        ascbar.update()
+            except Exception as e:
+                output['valid'] = False
+                output['error_tag'] = 'Runtime error'
+                output['error_str'] = str(e)
+                self.results[test_pattern] = output
+                self.results[test_pattern]['source'] = self.__get_pattern_source_url(test_pattern)
+                self.runtime_error_list.append(test_pattern + "{0} -- {1}: {2}".format(test_pattern, output['error_tag'], output['error_str']))
+                self.pattern_stats['runtime_errors'] += 1
+                self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], self.runtime_error_list[-1]))
 
-	def __get_available_patterns(self):
-		file_list = []
-		for root, dirs, files in os.walk(self.sca_patterns_path):
-			for name in files:
-				if "README" in name:
-					continue
-				else:
-					file_list.append(os.path.join(root, name))
-		file_list.sort()
-		self.pattern_stats['total'] = len(file_list)
-		return file_list
+        #make output look nice
+        if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
+            if progress_bar_active:
+                ascbar.finish()
 
-	def __get_pattern_filtered_directories(self):
-		pattern_directories = [self.sca_patterns_path + 'local/']
-		for product_included in self.products_list:
-			base_pattern_path = str(self.sca_patterns_path) + str(product_included['patternTag']) + "/"
-			pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "all/"
-			if os.path.isdir(pattern_filter_path):
-				pattern_directories.append(pattern_filter_path)
-			pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "sp" + str(product_included['verminor']) + "/"
-			if os.path.isdir(pattern_filter_path):
-				pattern_directories.append(pattern_filter_path)
+        if( msg.get_level() >= msg.LOG_VERBOSE ):
+            msg.verbose()
+            separator_line('-')
+        self.msg.normal('Total Patterns', str(self.pattern_stats['total']))
+        self.msg.normal('Patterns Evaluated', str(self.pattern_stats['applicable']))
+        self.msg.normal('+ Critical', str(self.pattern_stats['critical']))
+        self.msg.normal('+ Warning', str(self.pattern_stats['warning']))
+        self.msg.normal('+ Recommended', str(self.pattern_stats['recommend']))
+        self.msg.verbose('+ Promotion', str(self.pattern_stats['promotion']))
+        self.msg.normal('+ Success', str(self.pattern_stats['success']))
+        self.msg.verbose('+ Error', str(self.pattern_stats['error']))
+        self.msg.verbose('+ Ignore', str(self.pattern_stats['ignore']))
+        self.msg.verbose('+ Partial', str(self.pattern_stats['partial']))
+        self.msg.verbose('+ Temporary', str(self.pattern_stats['temp']))
+        self.msg.verbose('+ Exec Errors', str(self.pattern_stats['runtime_errors']))
+        self.msg.min('Applicable to Server', str(self.pattern_stats['applied']))
 
-		pattern_directories = list(set(pattern_directories)) #create a unique sorted list
-		self.msg.debug('Pattern Filtered Directories', ' '.join(pattern_directories))
-		pattern_definition_filter = []
-		for test_directory in pattern_directories:
-			pattern_definition_filter.append(test_directory.split("/")[-2])
-		self.pattern_stats['filter'] = sorted(pattern_definition_filter)
+        self.msg.min()
+        level_now = msg.get_level()
+        if( level_now >= msg.LOG_MIN ):
+            if self.pattern_stats['runtime_errors'] > 0:
+                self.msg.min('Pattern Execution Errors:', str(self.pattern_stats['runtime_errors']))
+                separator_line('-')
+                for pattern_error_str in self.runtime_error_list:
+                    print(pattern_error_str)
+                    print()
+        self.json_data['pattern_stats'] = self.pattern_stats
+        self.json_data['results'] = self.results
 
-		return pattern_directories
+    def __get_available_patterns(self):
+        file_list = []
+        for root, dirs, files in os.walk(self.sca_patterns_path):
+            for name in files:
+                if "README" in name:
+                    continue
+                else:
+                    file_list.append(os.path.join(root, name))
+        file_list.sort()
+        self.pattern_stats['total'] = len(file_list)
+        return file_list
 
-	def __get_applicable_patterns(self):
-		pattern_file_list = []
-		for check_pattern in self.all_patterns:
-			for filtered_directory in self.pattern_filtered_directories:
-				if filtered_directory in check_pattern:
-					pattern_file_list.append(check_pattern)
-		return pattern_file_list
+    def __get_pattern_filtered_directories(self):
+        pattern_directories = [self.sca_patterns_path + 'local/']
+        for product_included in self.products_list:
+            base_pattern_path = str(self.sca_patterns_path) + str(product_included['patternTag']) + "/"
+            pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "all/"
+            if os.path.isdir(pattern_filter_path):
+                pattern_directories.append(pattern_filter_path)
+            pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "sp" + str(product_included['verminor']) + "/"
+            if os.path.isdir(pattern_filter_path):
+                pattern_directories.append(pattern_filter_path)
 
-	def __get_products_list(self):
-		products_found = []
-		#load basic-environment.txt
-		try:
-			with open(self.location + "/basic-environment.txt") as f:
-				basic_env_file = f.read().splitlines()
-				f.close()
-		except:
-			basic_env_file = []
+        pattern_directories = list(set(pattern_directories)) #create a unique sorted list
+        self.msg.debug('Pattern Filtered Directories', ' '.join(pattern_directories))
+        pattern_definition_filter = []
+        for test_directory in pattern_directories:
+            pattern_definition_filter.append(test_directory.split("/")[-2])
+        self.pattern_stats['filter'] = sorted(pattern_definition_filter)
 
-		product_info = {'tag': 'Unknown', 'patternTag': 'Unknown', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
+        return pattern_directories
 
-		#read basic-environment line by line to pull out data.
-		in_date = False
-		in_uname = False
-		in_os_release = False
-		in_suse_release = False
-		for line in basic_env_file:
-			if "Script Version:" in line:
-				self.distro_info['supportconfigVersion'] = line.split(':')[-1].strip()
-			elif line.startswith("Hardware:"):
-				self.distro_info['hardWare'] = line.split(":")[1].strip()
-			elif line.startswith("Hypervisor:"):
-				self.distro_info['virtualization'] = line.split(":")[1].strip()
-			elif line.startswith("Identity:"):
-				self.distro_info['vmIdentity'] = line.split(":")[1].strip()
-			elif "/bin/date" in line:
-				in_date = True
-			elif "/bin/uname -a" in line:
-				in_uname = True
-			elif "/etc/os-release" in line:
-				in_os_release = True
-			elif( in_date ):
-				if "#==[" in line:
-					in_date = False
-				else:
-					dateLine = line
-					dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
-					tmp_date = dateLine.split() # split into list based on a space
-					if( len(tmp_date) >= 4 ):
-						tmpMonth = tmp_date[1].strip()
-						if "Jan" in tmpMonth:
-							tmpMonth = "01"
-						elif "Feb" in tmpMonth:
-							tmpMonth = "02"
-						elif "Mar" in tmpMonth:
-							tmpMonth = "03"
-						elif "Apr" in tmpMonth:
-							tmpMonth = "04"
-						elif "May" in tmpMonth:
-							tmpMonth = "05"
-						elif "Jun" in tmpMonth:
-							tmpMonth = "06"
-						elif "Jul" in tmpMonth:
-							tmpMonth = "07"
-						elif "Aug" in tmpMonth:
-							tmpMonth = "08"
-						elif "Sep" in tmpMonth:
-							tmpMonth = "09"
-						elif "Oct" in tmpMonth:
-							tmpMonth = "10"
-						elif "Nov" in tmpMonth:
-							tmpMonth = "11"
-						elif "Dec" in tmpMonth:
-							tmpMonth = "12"
-						self.distro_info['timeArchiveRun'] = tmp_date[-1].strip() + "-" + tmpMonth + "-" + tmp_date[2].strip().zfill(2) + " " + tmp_date[3].strip()
-						in_date = False
-			elif( in_uname ):
-				if "#==[" in line:
-					in_uname = False
-				else:
-					tmp_uname = line.split()
-					if( len(tmp_uname) >= 3 ):
-						self.distro_info['kernelVersion'] = tmp_uname[2].strip()
-						self.distro_info['serverName'] = tmp_uname[1].strip()
-						self.distro_info['osArch'] = tmp_uname[-2].strip()
-						in_uname = False
-			elif( in_os_release ):
-				if "#==[" in line:
-					in_os_release = False
-					product_info['name'] = str(self.distro_info['Summary']) + " (" + self.distro_info['osArch'] + ")"
-				else:
-					if line.lower().startswith("pretty_name"):
-						self.distro_info['Summary'] = line.split('=')[-1].replace('"', '').strip()
-						tmp_pretty_name = line.lower()
-						if "suse alp" in tmp_pretty_name:
-							product_info['tag'] = 'alp'
-							product_info['patternTag'] = 'ALP'
-						elif "suse linux enterprise" in tmp_pretty_name:
-							product_info['tag'] = 'sle'
-							product_info['patternTag'] = 'SLE'
-						elif "opensuse leap" in tmp_pretty_name:
-							product_info['tag'] = 'sle'
-							product_info['patternTag'] = 'SLE'
-					elif line.lower().startswith("version_id"):
-						version_id = line.replace('"', "").strip().split('=')[1].split('.')
-						product_info['vermajor'] = str(version_id[0])
-						if( len(version_id) > 1 ):
-							product_info['verminor'] = str(version_id[1])
-						else:
-							product_info['verminor'] = "0"
-						product_info['version'] = product_info['verminor']
+    def __get_applicable_patterns(self):
+        pattern_file_dict = {}
+        scapattern_gen1 = re.compile('^Core.init\(META_CLASS|^\@PATTERN_RESULTS = \(', re.IGNORECASE)
+        scapattern_gen2 = re.compile('SCAPatternGen2\(')
+        for check_pattern in self.all_patterns:
+            for filtered_directory in self.pattern_filtered_directories:
+                if filtered_directory in check_pattern:
+                    generational_value = -1
+                    with open(check_pattern) as f:
+                        for line in f:
+                            if scapattern_gen2.search(line):
+                                generational_value = 2
+                            elif scapattern_gen1.search(line):
+                                generational_value = 1
+                    pattern_file_dict[check_pattern] = generational_value
+        return pattern_file_dict
 
-		# Look for SUSE release as a last resort
-		if( len(self.distro_info['Summary']) == 0 ):
-			for line in basic_env_file:
-				if "/etc/SuSE-release" in line:
-					in_suse_release = True
-				elif( in_suse_release ):
-					if "#==[" in line:
-						in_suse_release = False
-						product_info['name'] = str(self.distro_info['Summary'])
-					else:
-						if( len(self.distro_info['Summary']) > 0 ):
-							if line.lower().startswith("version"):
-								product_info['vermajor'] = line.split('=')[-1].replace('"', '').strip()
-							elif line.lower().startswith("patchlevel"):
-								product_info['verminor'] = line.split('=')[-1].replace('"', '').strip()
-							product_info['version'] = product_info['verminor']
-						else:
-							self.distro_info['Summary'] = line.strip()
+    def __get_products_list(self):
+        products_found = []
+        #load basic-environment.txt
+        try:
+            with open(self.location + "/basic-environment.txt") as f:
+                basic_env_file = f.read().splitlines()
+                f.close()
+        except:
+            basic_env_file = []
 
-		products_found.append(product_info)
+        product_info = {'tag': 'Unknown', 'patternTag': 'Unknown', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
 
-		del basic_env_file
+        #read basic-environment line by line to pull out data.
+        in_date = False
+        in_uname = False
+        in_os_release = False
+        in_suse_release = False
+        for line in basic_env_file:
+            if "Script Version:" in line:
+                self.distro_info['supportconfigVersion'] = line.split(':')[-1].strip()
+            elif line.startswith("Hardware:"):
+                self.distro_info['hardWare'] = line.split(":")[1].strip()
+            elif line.startswith("Hypervisor:"):
+                self.distro_info['virtualization'] = line.split(":")[1].strip()
+            elif line.startswith("Identity:"):
+                self.distro_info['vmIdentity'] = line.split(":")[1].strip()
+            elif "/bin/date" in line:
+                in_date = True
+            elif "/bin/uname -a" in line:
+                in_uname = True
+            elif "/etc/os-release" in line:
+                in_os_release = True
+            elif( in_date ):
+                if "#==[" in line:
+                    in_date = False
+                else:
+                    dateLine = line
+                    dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
+                    tmp_date = dateLine.split() # split into list based on a space
+                    if( len(tmp_date) >= 4 ):
+                        tmpMonth = tmp_date[1].strip()
+                        if "Jan" in tmpMonth:
+                            tmpMonth = "01"
+                        elif "Feb" in tmpMonth:
+                            tmpMonth = "02"
+                        elif "Mar" in tmpMonth:
+                            tmpMonth = "03"
+                        elif "Apr" in tmpMonth:
+                            tmpMonth = "04"
+                        elif "May" in tmpMonth:
+                            tmpMonth = "05"
+                        elif "Jun" in tmpMonth:
+                            tmpMonth = "06"
+                        elif "Jul" in tmpMonth:
+                            tmpMonth = "07"
+                        elif "Aug" in tmpMonth:
+                            tmpMonth = "08"
+                        elif "Sep" in tmpMonth:
+                            tmpMonth = "09"
+                        elif "Oct" in tmpMonth:
+                            tmpMonth = "10"
+                        elif "Nov" in tmpMonth:
+                            tmpMonth = "11"
+                        elif "Dec" in tmpMonth:
+                            tmpMonth = "12"
+                        self.distro_info['timeArchiveRun'] = tmp_date[-1].strip() + "-" + tmpMonth + "-" + tmp_date[2].strip().zfill(2) + " " + tmp_date[3].strip()
+                        in_date = False
+            elif( in_uname ):
+                if "#==[" in line:
+                    in_uname = False
+                else:
+                    tmp_uname = line.split()
+                    if( len(tmp_uname) >= 3 ):
+                        self.distro_info['kernelVersion'] = tmp_uname[2].strip()
+                        self.distro_info['serverName'] = tmp_uname[1].strip()
+                        self.distro_info['osArch'] = tmp_uname[-2].strip()
+                        in_uname = False
+            elif( in_os_release ):
+                if "#==[" in line:
+                    in_os_release = False
+                    product_info['name'] = str(self.distro_info['Summary']) + " (" + self.distro_info['osArch'] + ")"
+                else:
+                    if line.lower().startswith("pretty_name"):
+                        self.distro_info['Summary'] = line.split('=')[-1].replace('"', '').strip()
+                        tmp_pretty_name = line.lower()
+                        if "suse alp" in tmp_pretty_name:
+                            product_info['tag'] = 'alp'
+                            product_info['patternTag'] = 'ALP'
+                        elif "suse linux enterprise" in tmp_pretty_name:
+                            product_info['tag'] = 'sle'
+                            product_info['patternTag'] = 'SLE'
+                        elif "opensuse leap" in tmp_pretty_name:
+                            product_info['tag'] = 'sle'
+                            product_info['patternTag'] = 'SLE'
+                    elif line.lower().startswith("version_id"):
+                        version_id = line.replace('"', "").strip().split('=')[1].split('.')
+                        product_info['vermajor'] = str(version_id[0])
+                        if( len(version_id) > 1 ):
+                            product_info['verminor'] = str(version_id[1])
+                        else:
+                            product_info['verminor'] = "0"
+                        product_info['version'] = product_info['verminor']
+
+        # Look for SUSE release as a last resort
+        if( len(self.distro_info['Summary']) == 0 ):
+            for line in basic_env_file:
+                if "/etc/SuSE-release" in line:
+                    in_suse_release = True
+                elif( in_suse_release ):
+                    if "#==[" in line:
+                        in_suse_release = False
+                        product_info['name'] = str(self.distro_info['Summary'])
+                    else:
+                        if( len(self.distro_info['Summary']) > 0 ):
+                            if line.lower().startswith("version"):
+                                product_info['vermajor'] = line.split('=')[-1].replace('"', '').strip()
+                            elif line.lower().startswith("patchlevel"):
+                                product_info['verminor'] = line.split('=')[-1].replace('"', '').strip()
+                            product_info['version'] = product_info['verminor']
+                        else:
+                            self.distro_info['Summary'] = line.strip()
+
+        products_found.append(product_info)
+
+        del basic_env_file
 
 
-		#load summary.xml
-		try:
-			with open(self.location + "/summary.xml") as f:
-				summary_file = f.read().splitlines()
-				f.close()
-		except:
-			summary_file = []
+        #load summary.xml
+        try:
+            with open(self.location + "/summary.xml") as f:
+                summary_file = f.read().splitlines()
+                f.close()
+        except:
+            summary_file = []
 
-		product_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
-		product_end = re.compile(r'</product>', re.IGNORECASE)
-		in_product = False
+        product_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
+        product_end = re.compile(r'</product>', re.IGNORECASE)
+        in_product = False
 
-		#detect SLE for VMWARE
-		product_name = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
-		product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-		summary_info = {'tag': 'vmw', 'patternTag': 'VMware', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
-		for line in summary_file:
-			if( in_product ):
-				if product_end.search(line):
-					in_product = False
-				elif product_name.search(line):
-					try:
-						summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
-					except:
-						True
-				elif product_version.search(line):
-					try:
-						summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
-						if( "." in summary_info['version'] ):
-							(summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
-						else:
-							summary_info['vermajor'] = summary_info['version']
-							summary_info['verminor'] = "0"
-					except:
-						True
-				if( summary_info['name'] and summary_info['version'] ):
-					in_product = False
-					products_found.append(summary_info)
-					break
-			elif product_start.search(line):
-				in_product = True
+        #detect SLE for VMWARE
+        product_name = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
+        product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+        summary_info = {'tag': 'vmw', 'patternTag': 'VMware', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        for line in summary_file:
+            if( in_product ):
+                if product_end.search(line):
+                    in_product = False
+                elif product_name.search(line):
+                    try:
+                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+                    except:
+                        True
+                elif product_version.search(line):
+                    try:
+                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+                        if( "." in summary_info['version'] ):
+                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+                        else:
+                            summary_info['vermajor'] = summary_info['version']
+                            summary_info['verminor'] = "0"
+                    except:
+                        True
+                if( summary_info['name'] and summary_info['version'] ):
+                    in_product = False
+                    products_found.append(summary_info)
+                    break
+            elif product_start.search(line):
+                in_product = True
 
-		#detect SLE for SAP
-		product_name = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
-		product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-		summary_info = {'tag': 'sap', 'patternTag': 'SAP', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
-		for line in summary_file:
-			if( in_product ):
-				if product_end.search(line):
-					in_product = False
-				elif product_name.search(line):
-					try:
-						summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
-					except:
-						True
-				elif product_version.search(line):
-					try:
-						summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
-						if( "." in summary_info['version'] ):
-							(summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
-						else:
-							summary_info['vermajor'] = summary_info['version']
-							summary_info['verminor'] = "0"
-					except:
-						True
-				if( summary_info['name'] and summary_info['version'] ):
-					in_product = False
-					products_found.append(summary_info)
-					break
-			elif product_start.search(line):
-				in_product = True
+        #detect SLE for SAP
+        product_name = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
+        product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+        summary_info = {'tag': 'sap', 'patternTag': 'SAP', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        for line in summary_file:
+            if( in_product ):
+                if product_end.search(line):
+                    in_product = False
+                elif product_name.search(line):
+                    try:
+                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+                    except:
+                        True
+                elif product_version.search(line):
+                    try:
+                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+                        if( "." in summary_info['version'] ):
+                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+                        else:
+                            summary_info['vermajor'] = summary_info['version']
+                            summary_info['verminor'] = "0"
+                    except:
+                        True
+                if( summary_info['name'] and summary_info['version'] ):
+                    in_product = False
+                    products_found.append(summary_info)
+                    break
+            elif product_start.search(line):
+                in_product = True
 
-		#get HAE information
-		product_name = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
-		product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-		summary_info = {'tag': 'hae', 'patternTag': 'HAE', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
-		for line in summary_file:
-			if( in_product ):
-				if product_end.search(line):
-					in_product = False
-				elif product_name.search(line):
-					try:
-						summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
-					except:
-						True
-				elif product_version.search(line):
-					try:
-						summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
-						if( "." in summary_info['version'] ):
-							(summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
-						else:
-							summary_info['vermajor'] = summary_info['version']
-							summary_info['verminor'] = "0"
-					except:
-						True
-				if( summary_info['name'] and summary_info['version'] ):
-					in_product = False
-					products_found.append(summary_info)
-					break
-			elif product_start.search(line):
-				in_product = True
+        #get HAE information
+        product_name = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
+        product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+        summary_info = {'tag': 'hae', 'patternTag': 'HAE', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        for line in summary_file:
+            if( in_product ):
+                if product_end.search(line):
+                    in_product = False
+                elif product_name.search(line):
+                    try:
+                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+                    except:
+                        True
+                elif product_version.search(line):
+                    try:
+                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+                        if( "." in summary_info['version'] ):
+                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+                        else:
+                            summary_info['vermajor'] = summary_info['version']
+                            summary_info['verminor'] = "0"
+                    except:
+                        True
+                if( summary_info['name'] and summary_info['version'] ):
+                    in_product = False
+                    products_found.append(summary_info)
+                    break
+            elif product_start.search(line):
+                in_product = True
 
-		#get SUSE Manager information
-		# email_to DO
+        #get SUSE Manager information
+        # email_to DO
 
-		del summary_file
-		self.distro_info['name'] = os.path.basename(self.location)
-		self.distro_info['path'] = os.path.dirname(self.location)
-		self.json_data['sc_info'] = self.distro_info
-		self.json_data['prod_info'] = products_found
-		if( self.msg.get_level() >= self.msg.LOG_DEBUG ):
-			print()
-			print("Distro Info: {}\n".format(self.distro_info))
-			print("Products List")
-			print("[")
-			for summary_info in products_found:
-				print(str(summary_info))
-			print("]")
-#			sys.exit()
+        del summary_file
+        self.distro_info['name'] = os.path.basename(self.location)
+        self.distro_info['path'] = os.path.dirname(self.location)
+        self.json_data['sc_info'] = self.distro_info
+        self.json_data['prod_info'] = products_found
+        if( self.msg.get_level() >= self.msg.LOG_DEBUG ):
+            print()
+            print("Distro Info: {}\n".format(self.distro_info))
+            print("Products List")
+            print("[")
+            for summary_info in products_found:
+                print(str(summary_info))
+            print("]")
+#            sys.exit()
 
-		return products_found
+        return products_found
 
 def show_pattern_library(msg, location):
-	total_count=0
-	directory = {}
-	file_list = []
-	display = '{0:>17} : {1}'
-	msg.min("Pattern Library Summary\n")
-	msg.min(display.format('Pattern Directory', 'Count'))
-	msg.min(display.format('=================', '====='))
-	for root, dirs, files in os.walk(location):
-		file_list = []
-		for name in files:
-			if "README" in name:
-				continue
-			else:
-				file_list.append(os.path.join(root, name))
-		if len(file_list) > 0:
-			file_list.sort()
-			directory[root] = file_list
-			total_count += len(file_list)
+    total_count=0
+    directory = {}
+    file_list = []
+    display = '{0:>17} : {1}'
+    msg.min("Pattern Library Summary\n")
+    msg.min(display.format('Pattern Directory', 'Count'))
+    msg.min(display.format('=================', '====='))
+    for root, dirs, files in os.walk(location):
+        file_list = []
+        for name in files:
+            if "README" in name:
+                continue
+            else:
+                file_list.append(os.path.join(root, name))
+        if len(file_list) > 0:
+            file_list.sort()
+            directory[root] = file_list
+            total_count += len(file_list)
 
-	for _dir, _list in sorted(directory.items()):
-		if( msg.get_level() >= msg.LOG_NORMAL ):
-			msg.min(display.format(_dir, len(_list)))
-			for _pat in _list:
-				msg.normal(_pat)
-		elif( msg.get_level() >= msg.LOG_MIN ):
-			msg.min(display.format(os.path.basename(_dir), len(_list)))
-		msg.normal()
+    for _dir, _list in sorted(directory.items()):
+        if( msg.get_level() >= msg.LOG_NORMAL ):
+            msg.min(display.format(_dir, len(_list)))
+            for _pat in _list:
+                msg.normal(_pat)
+        elif( msg.get_level() >= msg.LOG_MIN ):
+            msg.min(display.format(os.path.basename(_dir), len(_list)))
+        msg.normal()
 
-	msg.quiet(display.format(total_count, 'Total Available Patterns'))
-	msg.min()
+    msg.quiet(display.format(total_count, 'Total Available Patterns'))
+    msg.min()
 
 def evaluate_supportconfig_given(msg, given_path):
-	type_found = {'valid': False, 'type': 'Unknown', 'source': ''}
-	msg.debug("Evaluating", given_path)
-	if os.path.exists(given_path):
-		if os.path.isfile(given_path):
-			type_found['valid'] = True
-			type_found['type'] = 'file'
-		elif os.path.isdir(given_path):
-			type_found['valid'] = True
-			type_found['type'] = 'dir'
-		type_found['source'] = os.path.abspath(given_path)
+    type_found = {'valid': False, 'type': 'Unknown', 'source': ''}
+    msg.debug("Evaluating", given_path)
+    if os.path.exists(given_path):
+        if os.path.isfile(given_path):
+            type_found['valid'] = True
+            type_found['type'] = 'file'
+        elif os.path.isdir(given_path):
+            type_found['valid'] = True
+            type_found['type'] = 'dir'
+        type_found['source'] = os.path.abspath(given_path)
 
-	msg.debug("Supportconfig Evaluation", type_found)
-	return type_found
+    msg.debug("Supportconfig Evaluation", type_found)
+    return type_found
 
 def evaluate_remote_server(msg, given_hostname):
-	type_found = {'server_valid': False, 'given_hostname': given_hostname}
-	msg.debug("Evaluating Server", given_hostname)
-	cmd = "ping -c1 -w1 " + given_hostname
-	msg.verbose("Pinging", given_hostname)
-	msg.debug("Process Command", cmd)
-	ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	stdout, stderr = ping_server.communicate()
-	if ping_server.returncode == 0:
-		type_found['server_valid'] = True
-		type_found['ping'] = True
-		try:
-			socket.inet_aton(given_hostname)
-			type_found['connection_id'] = given_hostname
-			type_found['found_remote_server'] = True
-		except socket.error:
-			try:
-				type_found['connection_id'] = socket.gethostbyname(given_hostname.strip("\n"))
-				type_found['found_remote_server'] = True
-			except:
-				if type_found['found_remote_server']:
-					type_found['server_valid'] = False
-					type_found['error_str'] = "Error: Unable to connect to " + given_hostname
-	else:
-		type_found['server_valid'] = False
-		type_found['ping'] = False
-		type_found['found_remote_server'] = False
-		type_found['error_str'] = "Error: Cannot ping " + given_hostname
+    type_found = {'server_valid': False, 'given_hostname': given_hostname}
+    msg.debug("Evaluating Server", given_hostname)
+    cmd = "ping -c1 -w1 " + given_hostname
+    msg.verbose("Pinging", given_hostname)
+    msg.debug("Process Command", cmd)
+    ping_server = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = ping_server.communicate()
+    if ping_server.returncode == 0:
+        type_found['server_valid'] = True
+        type_found['ping'] = True
+        try:
+            socket.inet_aton(given_hostname)
+            type_found['connection_id'] = given_hostname
+            type_found['found_remote_server'] = True
+        except socket.error:
+            try:
+                type_found['connection_id'] = socket.gethostbyname(given_hostname.strip("\n"))
+                type_found['found_remote_server'] = True
+            except:
+                if type_found['found_remote_server']:
+                    type_found['server_valid'] = False
+                    type_found['error_str'] = "Error: Unable to connect to " + given_hostname
+    else:
+        type_found['server_valid'] = False
+        type_found['ping'] = False
+        type_found['found_remote_server'] = False
+        type_found['error_str'] = "Error: Cannot ping " + given_hostname
 
 
-	msg.debug("Remote Server Evaluation", type_found)
-	return type_found
+    msg.debug("Remote Server Evaluation", type_found)
+    return type_found
 
 def extract_supportconfig(msg, tarball):
-	path_in_tarball = ''
-	msg.verbose("Extracting File", tarball)
-	cmd = "file --brief --mime-type " + tarball
-	msg.debug('Process Command', cmd)
-	process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-	stdout, stderr = process.communicate()
-	file_type = stdout.strip()
-	msg.debug('File Type', file_type)
-	archdir = os.path.dirname(tarball)
-	cmd = "tar -xvf "  + tarball + " -C " + archdir
-	msg.debug('Process Command', cmd)
-	process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-	stdout, stderr = process.communicate()
-	outfile = stdout.splitlines()[0]
-	rc = process.returncode
-	if( rc > 0 ):
-		print("+ Error: Cannot extract tar file", file=sys.stderr)
-		print(stderr, file=sys.stderr)
-		print(file=sys.stderr)
-		sys.exit(7)
-	else:
-		path_in_tarball = archdir + '/' + os.path.dirname(outfile)
-		msg.verbose('Embedded Directory', path_in_tarball)
+    path_in_tarball = ''
+    msg.verbose("Extracting File", tarball)
+    cmd = "file --brief --mime-type " + tarball
+    msg.debug('Process Command', cmd)
+    process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    stdout, stderr = process.communicate()
+    file_type = stdout.strip()
+    msg.debug('File Type', file_type)
+    archdir = os.path.dirname(tarball)
+    cmd = "tar -xvf "  + tarball + " -C " + archdir
+    msg.debug('Process Command', cmd)
+    process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    stdout, stderr = process.communicate()
+    outfile = stdout.splitlines()[0]
+    rc = process.returncode
+    if( rc > 0 ):
+        print("+ Error: Cannot extract tar file", file=sys.stderr)
+        print(stderr, file=sys.stderr)
+        print(file=sys.stderr)
+        sys.exit(7)
+    else:
+        path_in_tarball = archdir + '/' + os.path.dirname(outfile)
+        msg.verbose('Embedded Directory', path_in_tarball)
 
-	return path_in_tarball
+    return path_in_tarball
 
 def valid_supportconfig_dir(msg, check_dir):
-	test_files = ['basic-environment.txt', 'rpm.txt']
-	for test_file in test_files:
-		file_path = check_dir + '/' + test_file
-		if not os.path.isfile(file_path):
-			#not a supportconfig. quit out
-			msg.min("Error: Invalid supportconfig archive - missing " + file_path)
-			return False
+    test_files = ['basic-environment.txt', 'rpm.txt']
+    for test_file in test_files:
+        file_path = check_dir + '/' + test_file
+        if not os.path.isfile(file_path):
+            #not a supportconfig. quit out
+            msg.min("Error: Invalid supportconfig archive - missing " + file_path)
+            return False
 
-	msg.normal("Valid Supportconfig", check_dir)
-	return True
+    msg.normal("Valid Supportconfig", check_dir)
+    return True
 
 def i_am_root():
-	if not os.environ.get("SUDO_UID") and os.geteuid() != 0:
-		return False
-	return True
+    if not os.environ.get("SUDO_UID") and os.geteuid() != 0:
+        return False
+    return True
 
 class SCAReport():
-	REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
-	SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
-	VALID_REPORT_TYPES = ['html', 'json', 'all']
-	default_report_type = 'html'
-	# REMOVE GITHUB_OWNER when source url is added to results.pattern info
-	GITHUB_OWNER = 'https://github.com/openSUSE/'
+    REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
+    SEV_TABLE = {'-2': 'temp', '-1': 'partial', '0': 'success', '1': 'recommend', '2': 'promotion', '3': 'warning', '4': 'critical', '5': 'error', '6': 'ignore' }
+    VALID_REPORT_TYPES = ['html', 'json', 'all']
+    default_report_type = 'html'
+    # REMOVE GITHUB_OWNER when source url is added to results.pattern info
+    GITHUB_OWNER = 'https://github.com/openSUSE/'
 
-	def __init__(self, msg, config):
-		self.msg = msg
-		self.config = config
-		self.data = {}
-		self.report_type = config_entry(config.get("Common", "report_output_type")).lower()
-		self.report_path = config_entry(config.get("Common", "report_output_path"), '/')
-		self.report_name = ''
-		self.report_file = ''
-		self.email_list = ''
-		self.meta_class_names = []
-		self.content = ''
-		self.__validate_report_type()
+    def __init__(self, msg, config):
+        self.msg = msg
+        self.config = config
+        self.data = {}
+        self.report_type = config_entry(config.get("Common", "report_output_type")).lower()
+        self.report_path = config_entry(config.get("Common", "report_output_path"), '/')
+        self.report_name = ''
+        self.report_file = ''
+        self.email_list = ''
+        self.meta_class_names = []
+        self.content = ''
+        self.__validate_report_type()
 
-	def __str__ (self):
-		pattern = '''
+    def __str__ (self):
+        pattern = '''
 Class instance of {}
   report_type      = {}
   report_path      = {}
@@ -950,472 +1012,472 @@ Class instance of {}
   email_list       = {}
   meta_class_names = {}
 '''
-		return pattern.format(self.__class__.__name__, self.report_type, self.report_path, self.report_name, self.report_file, self.email_list, self.meta_class_names)
+        return pattern.format(self.__class__.__name__, self.report_type, self.report_path, self.report_name, self.report_file, self.email_list, self.meta_class_names)
 
-	def __validate_report_type(self):
-		valid = False
-		for checking_type in self.VALID_REPORT_TYPES:
-			if self.report_type == checking_type:
-				valid = True
-		if not valid:
-			msg.min("\nWarning: Invalid report type - {}, using instance default ({})".format(self.report_type,self.default_report_type))
-			self.report_type = self.default_report_type
+    def __validate_report_type(self):
+        valid = False
+        for checking_type in self.VALID_REPORT_TYPES:
+            if self.report_type == checking_type:
+                valid = True
+        if not valid:
+            msg.min("\nWarning: Invalid report type - {}, using instance default ({})".format(self.report_type,self.default_report_type))
+            self.report_type = self.default_report_type
 
-	def __normalize_path(self, check_path):
-		if check_path.endswith("/"):
-			return check_path
-		else:
-			return check_path + "/"
+    def __normalize_path(self, check_path):
+        if check_path.endswith("/"):
+            return check_path
+        else:
+            return check_path + "/"
 
-	def set_type(self, updated_type):
-		self.report_type = updated_type.lower()
-		self.__validate_report_type()
+    def set_type(self, updated_type):
+        self.report_type = updated_type.lower()
+        self.__validate_report_type()
 
-	def set_path(self, updated_path):
-		if os.path.exists(updated_path):
-			self.report_path = self.__normalize_path(updated_path)
-		else:
-			msg.min("\nError: Path not found - {}, using default path".format(updated_path))
+    def set_path(self, updated_path):
+        if os.path.exists(updated_path):
+            self.report_path = self.__normalize_path(updated_path)
+        else:
+            msg.min("\nError: Path not found - {}, using default path".format(updated_path))
 
-	def set_data(self, updated_data):
-		self.data = updated_data
-		if len(self.report_path) < 1:
-			self.report_path = self.__normalize_path(self.data['sc_info']['path'])
-		self.__set_report_type(self.report_type)
+    def set_data(self, updated_data):
+        self.data = updated_data
+        if len(self.report_path) < 1:
+            self.report_path = self.__normalize_path(self.data['sc_info']['path'])
+        self.__set_report_type(self.report_type)
 
-	def __set_report_type(self, this_type):
-		self.report_type = this_type
-		self.report_name = self.data['sc_info']['name'] + "_report." + self.report_type
-		self.report_file = self.report_path + self.report_name
-		self.data['sc_info']['report_type'] = self.report_type
-		self.data['sc_info']['report_file'] = self.report_file
+    def __set_report_type(self, this_type):
+        self.report_type = this_type
+        self.report_name = self.data['sc_info']['name'] + "_report." + self.report_type
+        self.report_file = self.report_path + self.report_name
+        self.data['sc_info']['report_type'] = self.report_type
+        self.data['sc_info']['report_file'] = self.report_file
 
-	def __generate_json_report(self):
-		self.msg.verbose("+ Building JSON report", "Saving File")
-		try:
-			with open(self.report_file, "w") as f:
-				json.dump(self.data, f, indent = 4)
-		except Exception as e:
-			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
-			self.msg.min()
-			sys.exit(13)
-		self.msg.min("SCA Report File", self.report_file)
+    def __generate_json_report(self):
+        self.msg.verbose("+ Building JSON report", "Saving File")
+        try:
+            with open(self.report_file, "w") as f:
+                json.dump(self.data, f, indent = 4)
+        except Exception as e:
+            self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
+            self.msg.min()
+            sys.exit(13)
+        self.msg.min("SCA Report File", self.report_file)
 
-	def __get_meta_class_names(self):
-		'''Gathers all the unique META_CLASS names used in all the applied results'''
-		unique_classes = {}
-		for this_pattern in self.data['results'].keys():
-			if self.data['results'][this_pattern]['valid']:
-				unique_classes[self.data['results'][this_pattern]['META_CLASS']] = True
-		self.meta_class_names = list(unique_classes.keys())
+    def __get_meta_class_names(self):
+        '''Gathers all the unique META_CLASS names used in all the applied results'''
+        unique_classes = {}
+        for this_pattern in self.data['results'].keys():
+            if self.data['results'][this_pattern]['valid']:
+                unique_classes[self.data['results'][this_pattern]['META_CLASS']] = True
+        self.meta_class_names = list(unique_classes.keys())
 
-	def __build_html_header(self):
-		'''Build the HTML report header'''
-		#reset variables
-		html_content = ""
-		html_content += "<!DOCTYPE html>\n"
-		html_content += "<HTML>\n"
-		html_content += "<HEAD>\n"
-		html_content += "<TITLE>SCA Report for " + self.data['sc_info']['serverName'] + "</TITLE>\n"
-		html_content += "<STYLE TYPE=\"text/css\">\n"
-		html_content += "  a {text-decoration: none}  /* no underlined links */\n"
-		html_content += "  a:link {color:#0000FF;}  /* unvisited link */\n"
-		html_content += "  a:visited {color:#0000FF;}  /* visited link */\n"
-		html_content += "</STYLE>\n"
-	
+    def __build_html_header(self):
+        '''Build the HTML report header'''
+        #reset variables
+        html_content = ""
+        html_content += "<!DOCTYPE html>\n"
+        html_content += "<HTML>\n"
+        html_content += "<HEAD>\n"
+        html_content += "<TITLE>SCA Report for " + self.data['sc_info']['serverName'] + "</TITLE>\n"
+        html_content += "<STYLE TYPE=\"text/css\">\n"
+        html_content += "  a {text-decoration: none}  /* no underlined links */\n"
+        html_content += "  a:link {color:#0000FF;}  /* unvisited link */\n"
+        html_content += "  a:visited {color:#0000FF;}  /* visited link */\n"
+        html_content += "</STYLE>\n"
+    
 
-		html_script = "<SCRIPT>\n\
-		function toggle(className)\n\
-		{\n\
-		className = className.replace(/ /g,\".\");\n\
-		var elements = document.querySelectorAll(\".\" + className); for(var i=0; i<elements.length; i++)\n\
-		{\n\
-			if( elements[i].style.display=='none' )\n\
-				{\n\
-					elements[i].style.display = '';\n\
-				}\n\
-				else\n\
-				{\n\
-					elements[i].style.display = 'none';\n\
-				}\n\
-		}\n\
-		}\n\n\
-		function showPattern(patternOutput,patternLocation)\n\
-		{\n\
-		alert(patternOutput + \"\\n\\n\" + \"Pattern: \" + patternLocation);\n\
-		}\n\
-		</SCRIPT>"
+        html_script = "<SCRIPT>\n\
+        function toggle(className)\n\
+        {\n\
+        className = className.replace(/ /g,\".\");\n\
+        var elements = document.querySelectorAll(\".\" + className); for(var i=0; i<elements.length; i++)\n\
+        {\n\
+            if( elements[i].style.display=='none' )\n\
+                {\n\
+                    elements[i].style.display = '';\n\
+                }\n\
+                else\n\
+                {\n\
+                    elements[i].style.display = 'none';\n\
+                }\n\
+        }\n\
+        }\n\n\
+        function showPattern(patternOutput,patternLocation)\n\
+        {\n\
+        alert(patternOutput + \"\\n\\n\" + \"Pattern: \" + patternLocation);\n\
+        }\n\
+        </SCRIPT>"
 
-		html_content += html_script + "\n"
-		html_content += "</HEAD>\n"
-		html_content += "<BODY BGPROPERTIES=FIXED BGCOLOR=\"#FFFFFF\" TEXT=\"#000000\">\n"
+        html_content += html_script + "\n"
+        html_content += "</HEAD>\n"
+        html_content += "<BODY BGPROPERTIES=FIXED BGCOLOR=\"#FFFFFF\" TEXT=\"#000000\">\n"
 
-		#create HTML from the data we just got
-		html_content += '<H1>Supportconfig Analysis Report</H1>\n'
-		html_content += '<H2><HR />Server Information</H2>\n'
+        #create HTML from the data we just got
+        html_content += '<H1>Supportconfig Analysis Report</H1>\n'
+        html_content += '<H2><HR />Server Information</H2>\n'
 
-		html_content += '<TABLE CELLPADDING="5">\n'
-		html_content += '<TR><TD><B>Analysis Date:</B></TD><TD>'
-		html_content += self.data['sc_info']['timeAnalysis']
-		html_content += '</TD></TR>\n'
-		html_content += '<TR><TD><B>Supportconfig Run Date:</B></TD><TD>'
-		html_content += self.data['sc_info']['timeArchiveRun']
-		html_content += '</TD></TR>\n'
-		html_content += '<TR><TD><B>Supportconfig File:</B></TD><TD>'
-		html_content += self.data['sc_info']['name']
-		html_content += '</TD></TR>\n'
-		html_content += '</TABLE>\n'
+        html_content += '<TABLE CELLPADDING="5">\n'
+        html_content += '<TR><TD><B>Analysis Date:</B></TD><TD>'
+        html_content += self.data['sc_info']['timeAnalysis']
+        html_content += '</TD></TR>\n'
+        html_content += '<TR><TD><B>Supportconfig Run Date:</B></TD><TD>'
+        html_content += self.data['sc_info']['timeArchiveRun']
+        html_content += '</TD></TR>\n'
+        html_content += '<TR><TD><B>Supportconfig File:</B></TD><TD>'
+        html_content += self.data['sc_info']['name']
+        html_content += '</TD></TR>\n'
+        html_content += '</TABLE>\n'
 
-		html_content += '<TABLE CELLPADDING="5">\n'
-		html_content += '<TR><TD>&nbsp;</TD></TR>\n'
-		html_content += '<TR></TR>\n'
+        html_content += '<TABLE CELLPADDING="5">\n'
+        html_content += '<TR><TD>&nbsp;</TD></TR>\n'
+        html_content += '<TR></TR>\n'
 
-		#Server name and hardWare
-		html_content += '<TR><TD><B>Server Name:</B></TD><TD>'
-		html_content += self.data['sc_info']['serverName']
-		html_content += '</TD><TD><B>Hardware:</B></TD><TD>'
-		html_content += self.data['sc_info']['hardWare']
-		html_content += '</TD></TR>\n'
+        #Server name and hardWare
+        html_content += '<TR><TD><B>Server Name:</B></TD><TD>'
+        html_content += self.data['sc_info']['serverName']
+        html_content += '</TD><TD><B>Hardware:</B></TD><TD>'
+        html_content += self.data['sc_info']['hardWare']
+        html_content += '</TD></TR>\n'
 
-		#Products included in supportconfig
-		for product in self.data['prod_info']:
-			html_content += '<TR><TD><B>'
-			html_content += str(product['nameTag'])
-			html_content += '</B></TD><TD>'
-			html_content += str(product['name'])
-			html_content += '</TD><TD><B>'
-			html_content += str(product['versionTag'])
-			html_content += '</B></TD><TD>'
-			html_content += str(product['version'])
-			html_content += '</TD></TR>\n'
+        #Products included in supportconfig
+        for product in self.data['prod_info']:
+            html_content += '<TR><TD><B>'
+            html_content += str(product['nameTag'])
+            html_content += '</B></TD><TD>'
+            html_content += str(product['name'])
+            html_content += '</TD><TD><B>'
+            html_content += str(product['versionTag'])
+            html_content += '</B></TD><TD>'
+            html_content += str(product['version'])
+            html_content += '</TD></TR>\n'
 
-		if self.data['sc_info']['virtualization'] != "None" and self.data['sc_info']['virtualization'] != "":
-			#hypervisor stuff
-			html_content += '<TR><TD><B>Hypervisor:</B></TD><TD>'
-			html_content += self.data['sc_info']['virtualization']
-			html_content += '</TD><TD><B>Identity:</B></TD><TD>'
-			html_content += self.data['sc_info']['vmIdentity']
-			html_content += '</TD></TR>\n'
+        if self.data['sc_info']['virtualization'] != "None" and self.data['sc_info']['virtualization'] != "":
+            #hypervisor stuff
+            html_content += '<TR><TD><B>Hypervisor:</B></TD><TD>'
+            html_content += self.data['sc_info']['virtualization']
+            html_content += '</TD><TD><B>Identity:</B></TD><TD>'
+            html_content += self.data['sc_info']['vmIdentity']
+            html_content += '</TD></TR>\n'
 
-		#kernel Version and Supportconfig version
-		html_content += '<TR><TD><B>Kernel Version:</B></TD><TD>'
-		html_content += self.data['sc_info']['kernelVersion']
-		html_content += '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
-		html_content += self.data['sc_info']['supportconfigVersion']
-		html_content += '</TD></TR>\n'
-		html_content += '</TABLE>\n'
-		html_content += '<HR />\n'
-		return html_content
+        #kernel Version and Supportconfig version
+        html_content += '<TR><TD><B>Kernel Version:</B></TD><TD>'
+        html_content += self.data['sc_info']['kernelVersion']
+        html_content += '</TD><TD><B>Supportconfig Version:</B></TD><TD>'
+        html_content += self.data['sc_info']['supportconfigVersion']
+        html_content += '</TD></TR>\n'
+        html_content += '</TABLE>\n'
+        html_content += '<HR />\n'
+        return html_content
 
-	def __build_severity_table(self, given_severity):
-		'''Build the specified severity table for the body of the HTML report'''
-		pattern_source_url = ""
-		primary_link_url = ""
-		severity_table = ""
-		solution_links = ""
-		expandable_class_entries = []
-		class_entries_header = ""
-		class_entries_footer = ""
+    def __build_severity_table(self, given_severity):
+        '''Build the specified severity table for the body of the HTML report'''
+        pattern_source_url = ""
+        primary_link_url = ""
+        severity_table = ""
+        solution_links = ""
+        expandable_class_entries = []
+        class_entries_header = ""
+        class_entries_footer = ""
 
-		#set the color.
-		if given_severity == 4:
-			#red (critical)
-			severity_tag = "Critical "
-			stats_tag = 'critical'
-			color = "FF0000"
-		elif given_severity == 3:
-			#yellow (warning)
-			severity_tag = "Warning "
-			stats_tag = 'warning'
-			color = "FFFF00"
-		elif given_severity == 1:
-			#blue.. ish (recommended)
-			severity_tag = "Recommended "
-			stats_tag = 'recommend'
-			color = "1975FF"
-		elif given_severity == 0:
-			#green (success)
-			severity_tag = "Success "
-			stats_tag = 'success'
-			color ="00FF00"
-		else:
-			#fallback (gray)
-			severity_tag = ""
-			color = "222222"
+        #set the color.
+        if given_severity == 4:
+            #red (critical)
+            severity_tag = "Critical "
+            stats_tag = 'critical'
+            color = "FF0000"
+        elif given_severity == 3:
+            #yellow (warning)
+            severity_tag = "Warning "
+            stats_tag = 'warning'
+            color = "FFFF00"
+        elif given_severity == 1:
+            #blue.. ish (recommended)
+            severity_tag = "Recommended "
+            stats_tag = 'recommend'
+            color = "1975FF"
+        elif given_severity == 0:
+            #green (success)
+            severity_tag = "Success "
+            stats_tag = 'success'
+            color ="00FF00"
+        else:
+            #fallback (gray)
+            severity_tag = ""
+            color = "222222"
 
-		# for each meta_class found in all the applied patterns
-		for meta_class in self.meta_class_names:
-			expandable_class_entries = []
-			class_entries_header = ""
-			class_entries_footer = ""
-			patterns_in_class_and_severity = 0
-			# for each valid pattern that matches this meta_class and the given_severity
-			for this_pattern in self.data['results'].keys():
-				solution_links = ""
-				if self.data['results'][this_pattern]['valid']:
-					if self.data['results'][this_pattern]['META_CLASS'] == meta_class and self.data['results'][this_pattern]['OVERALL'] == given_severity:
-						primary_link_id = self.data['results'][this_pattern]['PRIMARY_LINK']
-						primary_link_url = self.data['results'][this_pattern][primary_link_id]
-						pattern_source_url = self.data['results'][this_pattern]['source']
+        # for each meta_class found in all the applied patterns
+        for meta_class in self.meta_class_names:
+            expandable_class_entries = []
+            class_entries_header = ""
+            class_entries_footer = ""
+            patterns_in_class_and_severity = 0
+            # for each valid pattern that matches this meta_class and the given_severity
+            for this_pattern in self.data['results'].keys():
+                solution_links = ""
+                if self.data['results'][this_pattern]['valid']:
+                    if self.data['results'][this_pattern]['META_CLASS'] == meta_class and self.data['results'][this_pattern]['OVERALL'] == given_severity:
+                        primary_link_id = self.data['results'][this_pattern]['PRIMARY_LINK']
+                        primary_link_url = self.data['results'][this_pattern][primary_link_id]
+                        pattern_source_url = self.data['results'][this_pattern]['source']
 
-						# get all the solutions tags and URL links for this pattern
-						for key, value in self.data['results'][this_pattern].items():
-							if key.startswith('META_LINK_'):
-								link_tag = key.split("_")[-1] # Get the last part of META_LINK_ for the tag ID
-								link_url = value
-								solution_links += '<A HREF="{}" TARGET="_blank">{}&nbsp;</A>'.format(link_url, link_tag)
+                        # get all the solutions tags and URL links for this pattern
+                        for key, value in self.data['results'][this_pattern].items():
+                            if key.startswith('META_LINK_'):
+                                link_tag = key.split("_")[-1] # Get the last part of META_LINK_ for the tag ID
+                                link_url = value
+                                solution_links += '<A HREF="{}" TARGET="_blank">{}&nbsp;</A>'.format(link_url, link_tag)
 
-						expandable_class_entries.append('<TR STYLE="border:1px solid black; background: #FFFFFF; display:none;" CLASS="' + meta_class + '">'\
-							'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
-							'<TD BGCOLOR="#EEEEEE" WIDTH="6%">' + self.data['results'][this_pattern]['META_CLASS'] + '</TD>'\
-							'<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_CATEGORY'] + '</TD>'\
-							'<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_COMPONENT'] + '</TD>'\
-							'<TD><A HREF="' + primary_link_url + '" TARGET="_blank">' + self.data['results'][this_pattern]['OVERALL_INFO'] + '</A>&nbsp;&nbsp;'\
-							'<A ID="PatternLocation" HREF="' + pattern_source_url + '" TARGET="_blank">&nbsp;</A></TD>'\
-							'<TD WIDTH="8%">' + solution_links + '&nbsp;&nbsp;</TD>'\
-							'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
+                        expandable_class_entries.append('<TR STYLE="border:1px solid black; background: #FFFFFF; display:none;" CLASS="' + meta_class + '">'\
+                            '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
+                            '<TD BGCOLOR="#EEEEEE" WIDTH="6%">' + self.data['results'][this_pattern]['META_CLASS'] + '</TD>'\
+                            '<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_CATEGORY'] + '</TD>'\
+                            '<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_COMPONENT'] + '</TD>'\
+                            '<TD><A HREF="' + primary_link_url + '" TARGET="_blank">' + self.data['results'][this_pattern]['OVERALL_INFO'] + '</A>&nbsp;&nbsp;'\
+                            '<A ID="PatternLocation" HREF="' + pattern_source_url + '" TARGET="_blank">&nbsp;</A></TD>'\
+                            '<TD WIDTH="8%">' + solution_links + '&nbsp;&nbsp;</TD>'\
+                            '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
 
-			patterns_in_class_and_severity = len(expandable_class_entries)
-			if patterns_in_class_and_severity > 0:
-				class_entries_header = '<TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal">'\
-				'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
-				'<TD BGCOLOR="#FFCC99" WIDTH="6%"><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\''+ meta_class + '\');return false;">' + meta_class + '</A></TD>'\
-				'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
-				'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
-				'<TD><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\'' + meta_class + '\');return false;">' + str(patterns_in_class_and_severity) + " " + severity_tag + meta_class + " Message(s)" + '</A></TD>'\
-				'<TD WIDTH="8%">&nbsp;</TD>'\
-				'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
+            patterns_in_class_and_severity = len(expandable_class_entries)
+            if patterns_in_class_and_severity > 0:
+                class_entries_header = '<TR STYLE="border:1px solid black;color: #0000FF; background: #FFCC99; font-size:80%; font-weight:normal">'\
+                '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
+                '<TD BGCOLOR="#FFCC99" WIDTH="6%"><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\''+ meta_class + '\');return false;">' + meta_class + '</A></TD>'\
+                '<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
+                '<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
+                '<TD><A ID="NewClass" TITLE="Click to Expand/Collapse" HREF="#" onClick="toggle(\'' + meta_class + '\');return false;">' + str(patterns_in_class_and_severity) + " " + severity_tag + meta_class + " Message(s)" + '</A></TD>'\
+                '<TD WIDTH="8%">&nbsp;</TD>'\
+                '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
 
-				severity_table += class_entries_header
-				severity_table += ''.join(expandable_class_entries)
+                severity_table += class_entries_header
+                severity_table += ''.join(expandable_class_entries)
 
-		if self.data['pattern_stats'][stats_tag] > 0:
-			if self.data['pattern_stats'][stats_tag] > 1:
-				footer_msg = "{} {} Conditions Found".format(self.data['pattern_stats'][stats_tag], severity_tag)
-			else:
-				footer_msg = "{} {} Condition Found".format(self.data['pattern_stats'][stats_tag], severity_tag)
-			class_entries_footer = '<TR STYLE="border:1px solid black;color: #000000; background: #FFCC99; font-size:80%; font-weight:normal">'\
-			'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
-			'<TD BGCOLOR="#FFCC99" WIDTH="6%">TOTAL</TD>'\
-			'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
-			'<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
-			'<TD>' + footer_msg + '</TD>'\
-			'<TD WIDTH="8%">&nbsp;</TD>'\
-			'<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
+        if self.data['pattern_stats'][stats_tag] > 0:
+            if self.data['pattern_stats'][stats_tag] > 1:
+                footer_msg = "{} {} Conditions Found".format(self.data['pattern_stats'][stats_tag], severity_tag)
+            else:
+                footer_msg = "{} {} Condition Found".format(self.data['pattern_stats'][stats_tag], severity_tag)
+            class_entries_footer = '<TR STYLE="border:1px solid black;color: #000000; background: #FFCC99; font-size:80%; font-weight:normal">'\
+            '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
+            '<TD BGCOLOR="#FFCC99" WIDTH="6%">TOTAL</TD>'\
+            '<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
+            '<TD BGCOLOR="#FFCC99" WIDTH="5%">&nbsp;</TD>'\
+            '<TD>' + footer_msg + '</TD>'\
+            '<TD WIDTH="8%">&nbsp;</TD>'\
+            '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n'
 
-		severity_table += class_entries_footer
+        severity_table += class_entries_footer
 
-		return(severity_table)
+        return(severity_table)
 
-	def __build_html_footer(self):
-		'''Build the HTML report footer'''
-		footer_content = '\n\n<HR />\n\n<TABLE WIDTH="100%">\n<TR>'\
-			'<TD ALIGN="left" WIDTH="30%">Client: ' + self.data['file_data']['analyzer'] + ' (Report Generated by: SCA Tool)</TD>'\
-			'<TD ALIGN="center">Patterns Evaluated: ' + str(self.data['pattern_stats']['applicable']) + ', Appliable to Server: ' + str(self.data['pattern_stats']['applied']) + '</TD>'\
-			'<TD ALIGN="right" WIDTH="30%"><A HREF="https://www.suse.com/support/" ALT="SUSE Technical Support" TARGET="_blank">SUSE Technical Support</A></TD>'\
-			'</TR>\n</TABLE>\n'
+    def __build_html_footer(self):
+        '''Build the HTML report footer'''
+        footer_content = '\n\n<HR />\n\n<TABLE WIDTH="100%">\n<TR>'\
+            '<TD ALIGN="left" WIDTH="30%">Client: ' + self.data['file_data']['analyzer'] + ' (Report Generated by: SCA Tool)</TD>'\
+            '<TD ALIGN="center">Patterns Evaluated: ' + str(self.data['pattern_stats']['applicable']) + ', Appliable to Server: ' + str(self.data['pattern_stats']['applied']) + '</TD>'\
+            '<TD ALIGN="right" WIDTH="30%"><A HREF="https://www.suse.com/support/" ALT="SUSE Technical Support" TARGET="_blank">SUSE Technical Support</A></TD>'\
+            '</TR>\n</TABLE>\n'
 
-		return footer_content
+        return footer_content
 
-	def __generate_html_report(self):
-		'''Build the complete HTML report'''
-		self.msg.verbose("+ Building HTML report", "Header")
-		self.__get_meta_class_names()
-		self.content += self.__build_html_header()
+    def __generate_html_report(self):
+        '''Build the complete HTML report'''
+        self.msg.verbose("+ Building HTML report", "Header")
+        self.__get_meta_class_names()
+        self.content += self.__build_html_header()
 
-		self.msg.verbose("+ Building HTML report", "Body")
-		#Critical table
-		self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
-		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FF0000"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FF0000"></TH></TR>' + "\n"
-		self.content += self.__build_severity_table(4)
-		self.content += "</TABLE>" + "\n"
+        self.msg.verbose("+ Building HTML report", "Body")
+        #Critical table
+        self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FF0000"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FF0000"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(4)
+        self.content += "</TABLE>" + "\n"
 
-		#Warning table
-		self.content += '<H2>Conditions Evaluated as Warning<A NAME="Warning"></A></H2>' + "\n"
-		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FFFF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FFFF00"></TH></TR>' + "\n"
-		self.content += self.__build_severity_table(3)
-		self.content += "</TABLE>" + "\n"
+        #Warning table
+        self.content += '<H2>Conditions Evaluated as Warning<A NAME="Warning"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FFFF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FFFF00"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(3)
+        self.content += "</TABLE>" + "\n"
 
-		#Recommended table
-		self.content += '<H2>Conditions Evaluated as Recommended<A NAME="Recommended"></A></H2>' + "\n"
-		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#1975FF"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#1975FF"></TH></TR>' + "\n"
-		self.content += self.__build_severity_table(1)
-		self.content += "</TABLE>" + "\n"
+        #Recommended table
+        self.content += '<H2>Conditions Evaluated as Recommended<A NAME="Recommended"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#1975FF"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#1975FF"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(1)
+        self.content += "</TABLE>" + "\n"
 
-		#Success table
-		self.content += '<H2>Conditions Evaluated as Success<A NAME="Success"></A></H2>' + "\n"
-		self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-		self.content += '<TR COLOR="#000000"><TH BGCOLOR="#00FF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#00FF00"></TH></TR>' + "\n"
-		self.content += self.__build_severity_table(0)
-		self.content += "</TABLE>" + "\n"
+        #Success table
+        self.content += '<H2>Conditions Evaluated as Success<A NAME="Success"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#00FF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#00FF00"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(0)
+        self.content += "</TABLE>" + "\n"
 
-		self.msg.verbose("+ Building HTML report", "Footer")
-		self.content += self.__build_html_footer()
+        self.msg.verbose("+ Building HTML report", "Footer")
+        self.content += self.__build_html_footer()
 
-		self.msg.verbose("+ Building HTML report", "Saving File")
-		try:
-			with open(self.report_file, "w") as f:
-				f.write(self.content)
-		except Exception as e:
-			self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
-			self.msg.min()
-			sys.exit(13)
-		self.msg.min("SCA Report File", self.report_file)
+        self.msg.verbose("+ Building HTML report", "Saving File")
+        try:
+            with open(self.report_file, "w") as f:
+                f.write(self.content)
+        except Exception as e:
+            self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
+            self.msg.min()
+            sys.exit(13)
+        self.msg.min("SCA Report File", self.report_file)
 
-	def generate_report(self):
-		'''Generate an HTML SCA Report'''
-		if self.data['pattern_stats']['runtime_errors'] > 0:
-		    separator_line('-')
+    def generate_report(self):
+        '''Generate an HTML SCA Report'''
+        if self.data['pattern_stats']['runtime_errors'] > 0:
+            separator_line('-')
 
-		self.msg.normal("SCA Report Type", self.report_type)
-		if self.report_type == "html":
-			self.__generate_html_report()
-		elif self.report_type == "json":
-			self.__generate_json_report()
-		elif self.report_type == "all":
-			self.__set_report_type('html')
-			self.__generate_html_report()
-			self.__set_report_type('json')
-			self.__generate_json_report()
+        self.msg.normal("SCA Report Type", self.report_type)
+        if self.report_type == "html":
+            self.__generate_html_report()
+        elif self.report_type == "json":
+            self.__generate_json_report()
+        elif self.report_type == "all":
+            self.__set_report_type('html')
+            self.__generate_html_report()
+            self.__set_report_type('json')
+            self.__generate_json_report()
 
-	def email_report(self, updated_addrs):
-		'''Email the SCA Report to the list of recipients'''
-		self.generate_report()
-		self.email_list = updated_addrs.split(',')
-		self.msg.min("Email Report Recipients", ' '.join(self.email_list))
+    def email_report(self, updated_addrs):
+        '''Email the SCA Report to the list of recipients'''
+        self.generate_report()
+        self.email_list = updated_addrs.split(',')
+        self.msg.min("Email Report Recipients", ' '.join(self.email_list))
 
-		email_server = 'localhost'
-		email_to = self.email_list
-		email_from = 'SCA Tool <root>'
-		email_subject = "SCA Report for " + str(self.data['sc_info']['serverName']) + ": " + str(self.data['pattern_stats']['applied']) + "/" + str(self.data['pattern_stats']['applicable']) + ", " + str(self.data['pattern_stats']['critical']) + ":" + str(self.data['pattern_stats']['warning']) + ":" + str(self.data['pattern_stats']['recommend']) + ":" + str(self.data['pattern_stats']['success'])
-		content_type = self.report_type
+        email_server = 'localhost'
+        email_to = self.email_list
+        email_from = 'SCA Tool <root>'
+        email_subject = "SCA Report for " + str(self.data['sc_info']['serverName']) + ": " + str(self.data['pattern_stats']['applied']) + "/" + str(self.data['pattern_stats']['applicable']) + ", " + str(self.data['pattern_stats']['critical']) + ":" + str(self.data['pattern_stats']['warning']) + ":" + str(self.data['pattern_stats']['recommend']) + ":" + str(self.data['pattern_stats']['success'])
+        content_type = self.report_type
 
-		# create text email
-		text = "* Supportconfig Analysis Report *\n"
-		text += "Analysis Date:            " + str(self.data['sc_info']['timeAnalysis']) + "\n"
-		text += "Supportconfig Archive:    " + str(self.data['file_data']['embedded_dir']) + "\n"
-		text += "Server Analyzed:          " + str(self.data['sc_info']['serverName']) + "\n"
-		text += "Total Patterns Evaluated: " + str(self.data['pattern_stats']['applicable']) + "\n"
-		text += "Applicable to Server:     " + str(self.data['pattern_stats']['applied']) + "\n"
-		text += "  Critical:               " + str(self.data['pattern_stats']['critical']) + "\n"
-		text += "  Warning:                " + str(self.data['pattern_stats']['warning']) + "\n"
-		text += "  Recommended:            " + str(self.data['pattern_stats']['recommend']) + "\n"
-		text += "  Success:                " + str(self.data['pattern_stats']['success']) + "\n"
-		text += "Source:                   " + str(self.data['file_data']['analyzer']) + "\n"
+        # create text email
+        text = "* Supportconfig Analysis Report *\n"
+        text += "Analysis Date:            " + str(self.data['sc_info']['timeAnalysis']) + "\n"
+        text += "Supportconfig Archive:    " + str(self.data['file_data']['embedded_dir']) + "\n"
+        text += "Server Analyzed:          " + str(self.data['sc_info']['serverName']) + "\n"
+        text += "Total Patterns Evaluated: " + str(self.data['pattern_stats']['applicable']) + "\n"
+        text += "Applicable to Server:     " + str(self.data['pattern_stats']['applied']) + "\n"
+        text += "  Critical:               " + str(self.data['pattern_stats']['critical']) + "\n"
+        text += "  Warning:                " + str(self.data['pattern_stats']['warning']) + "\n"
+        text += "  Recommended:            " + str(self.data['pattern_stats']['recommend']) + "\n"
+        text += "  Success:                " + str(self.data['pattern_stats']['success']) + "\n"
+        text += "Source:                   " + str(self.data['file_data']['analyzer']) + "\n"
 
-		# create html email
-		html = '<!DOCTYPE html PUBLIC "-//W3C//DTD Xself.content 1.0 Transitional//EN" '
-		html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">\n'
-		html += '<body>\n'
-		html += '<h1>Supportconfig Analysis Report</h1>\n'
-		html += '<table>\n'
-		html += "<tr><td>Analysis Date:</td><td>" + str(self.data['sc_info']['timeAnalysis']) + '</td></tr>\n'
-		html += "<tr><td>Supportconfig Archive:</td><td>" + str(self.data['file_data']['embedded_dir']) + '</td></tr>\n'
-		html += "<tr><td>Server Analyzed:</td><td>" + str(self.data['sc_info']['serverName']) + '</td></tr>\n'
-		html += "<tr><td>Total Patterns Evaluated:</td><td>" + str(self.data['pattern_stats']['applicable']) + '</td></tr>\n'
-		html += "<tr><td>Applicable to Server:</td><td>" + str(self.data['pattern_stats']['applied']) + '</td></tr>\n'
-		html += "<tr><td>&nbsp;&nbsp;Critical:</td><td>" + str(self.data['pattern_stats']['critical']) + '</td></tr>\n'
-		html += "<tr><td>&nbsp;&nbsp;Warning:</td><td>" + str(self.data['pattern_stats']['warning']) + '</td></tr>\n'
-		html += "<tr><td>&nbsp;&nbsp;Recommended:</td><td>" + str(self.data['pattern_stats']['recommend']) + '</td></tr>\n'
-		html += "<tr><td>&nbsp;&nbsp;Success:</td><td>" + str(self.data['pattern_stats']['success']) + '</td></tr>\n'
-		html += "<tr><td>Source:</td><td>" + str(self.data['file_data']['analyzer']) + '</td></tr>\n'
-		html += "</table>\n</body></html>\n\n"
-		email_msg = MIMEMultipart()
-		email_msg['Subject'] = email_subject
-		email_msg['From'] = email_from
-		email_msg['To'] = ', '.join(email_to)
-		email_msg.attach(MIMEText(text,'plain'))
-		email_msg.attach(MIMEText(html,'html'))
+        # create html email
+        html = '<!DOCTYPE html PUBLIC "-//W3C//DTD Xself.content 1.0 Transitional//EN" '
+        html += '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">\n'
+        html += '<body>\n'
+        html += '<h1>Supportconfig Analysis Report</h1>\n'
+        html += '<table>\n'
+        html += "<tr><td>Analysis Date:</td><td>" + str(self.data['sc_info']['timeAnalysis']) + '</td></tr>\n'
+        html += "<tr><td>Supportconfig Archive:</td><td>" + str(self.data['file_data']['embedded_dir']) + '</td></tr>\n'
+        html += "<tr><td>Server Analyzed:</td><td>" + str(self.data['sc_info']['serverName']) + '</td></tr>\n'
+        html += "<tr><td>Total Patterns Evaluated:</td><td>" + str(self.data['pattern_stats']['applicable']) + '</td></tr>\n'
+        html += "<tr><td>Applicable to Server:</td><td>" + str(self.data['pattern_stats']['applied']) + '</td></tr>\n'
+        html += "<tr><td>&nbsp;&nbsp;Critical:</td><td>" + str(self.data['pattern_stats']['critical']) + '</td></tr>\n'
+        html += "<tr><td>&nbsp;&nbsp;Warning:</td><td>" + str(self.data['pattern_stats']['warning']) + '</td></tr>\n'
+        html += "<tr><td>&nbsp;&nbsp;Recommended:</td><td>" + str(self.data['pattern_stats']['recommend']) + '</td></tr>\n'
+        html += "<tr><td>&nbsp;&nbsp;Success:</td><td>" + str(self.data['pattern_stats']['success']) + '</td></tr>\n'
+        html += "<tr><td>Source:</td><td>" + str(self.data['file_data']['analyzer']) + '</td></tr>\n'
+        html += "</table>\n</body></html>\n\n"
+        email_msg = MIMEMultipart()
+        email_msg['Subject'] = email_subject
+        email_msg['From'] = email_from
+        email_msg['To'] = ', '.join(email_to)
+        email_msg.attach(MIMEText(text,'plain'))
+        email_msg.attach(MIMEText(html,'html'))
 
-		# now attach the file
-		with open(self.report_file, 'rb') as f:
-			email_file_msg = MIMEApplication(f.read(), _subtype=content_type)
-		email_file_msg.add_header('Content-Disposition','attachment;filename=' + self.report_name)
-		email_msg.attach(email_file_msg)
+        # now attach the file
+        with open(self.report_file, 'rb') as f:
+            email_file_msg = MIMEApplication(f.read(), _subtype=content_type)
+        email_file_msg.add_header('Content-Disposition','attachment;filename=' + self.report_name)
+        email_msg.attach(email_file_msg)
 
-		# send email
-		smtp_server = None
-		try:
-			smtp_server = smtplib.SMTP(email_server, timeout=15)
-			smtp_server.sendmail(email_from,email_to,email_msg.as_string())
-			return True
-		except Exception as error:
-			print("  Error: Unable to send email: '%s'." % str(error), file=sys.stderr)
-			pass
-		finally:
-			if smtp_server:
-				smtp_server.quit()
-		return False
+        # send email
+        smtp_server = None
+        try:
+            smtp_server = smtplib.SMTP(email_server, timeout=15)
+            smtp_server.sendmail(email_from,email_to,email_msg.as_string())
+            return True
+        except Exception as error:
+            print("  Error: Unable to send email: '%s'." % str(error), file=sys.stderr)
+            pass
+        finally:
+            if smtp_server:
+                smtp_server.quit()
+        return False
 
-	def clean_up(self):
-		if self.data['file_data']['type'] == 'dir':
-			if self.data['file_data']['remove_directory']:
-				self.msg.verbose("+ Removing Directory", self.data['file_data']['source'])
-				shutil.rmtree(self.data['file_data']['source'])
-		elif self.data['file_data']['type'] == 'file':
-			if self.data['file_data']['remove_directory']:
-				self.msg.verbose("+ Removing Directory", self.data['file_data']['embedded_dir'])
-				shutil.rmtree(self.data['file_data']['embedded_dir'])
-			if self.data['file_data']['remove_tarball']:
-				self.msg.verbose("+ Removing File", self.data['file_data']['source'])
-				os.remove(self.data['file_data']['source'])
+    def clean_up(self):
+        if self.data['file_data']['type'] == 'dir':
+            if self.data['file_data']['remove_directory']:
+                self.msg.verbose("+ Removing Directory", self.data['file_data']['source'])
+                shutil.rmtree(self.data['file_data']['source'])
+        elif self.data['file_data']['type'] == 'file':
+            if self.data['file_data']['remove_directory']:
+                self.msg.verbose("+ Removing Directory", self.data['file_data']['embedded_dir'])
+                shutil.rmtree(self.data['file_data']['embedded_dir'])
+            if self.data['file_data']['remove_tarball']:
+                self.msg.verbose("+ Removing File", self.data['file_data']['source'])
+                os.remove(self.data['file_data']['source'])
 
 def get_local_supportconfig(msg, config):
-	'''Run supportconfig on the local server if root access available'''
-	local_hostname = str(os.uname()[1])
-	msg.min('Running Supportconfig On', local_hostname)
-	analysis_datetime = datetime.datetime.now()
-	date_stamp = analysis_datetime.strftime("%y%m%d")
-	time_stamp = str(analysis_datetime.hour).zfill(2) + str(analysis_datetime.minute).zfill(2) + str(analysis_datetime.second).zfill(2)
-	supportconfig_output_lines = config_entry(config.get("Supportconfig", "output_lines"))
-	supportconfig_filename_prefix = config_entry(config.get("Supportconfig", "filename_prefix"))
-	local_supportconfig_path = config_entry(config.get("Supportconfig", "path_local"), '/')
-	local_supportconfig_name = local_hostname + "_" + str(date_stamp) + "_" + str(time_stamp)
-	supportconfig_path = local_supportconfig_path + supportconfig_filename_prefix + local_supportconfig_name
+    '''Run supportconfig on the local server if root access available'''
+    local_hostname = str(os.uname()[1])
+    msg.min('Running Supportconfig On', local_hostname)
+    analysis_datetime = datetime.datetime.now()
+    date_stamp = analysis_datetime.strftime("%y%m%d")
+    time_stamp = str(analysis_datetime.hour).zfill(2) + str(analysis_datetime.minute).zfill(2) + str(analysis_datetime.second).zfill(2)
+    supportconfig_output_lines = config_entry(config.get("Supportconfig", "output_lines"))
+    supportconfig_filename_prefix = config_entry(config.get("Supportconfig", "filename_prefix"))
+    local_supportconfig_path = config_entry(config.get("Supportconfig", "path_local"), '/')
+    local_supportconfig_name = local_hostname + "_" + str(date_stamp) + "_" + str(time_stamp)
+    supportconfig_path = local_supportconfig_path + supportconfig_filename_prefix + local_supportconfig_name
 
-	try:
-		cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
-		msg.debug('Process Command', cmd)
-		p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-	#if we cannot run supportconfig
-	except Exception:
-		print("Error: Cannot run supportconfig\n", file=sys.stderr)
-		return
-	condition = True
+    try:
+        cmd = "supportconfig -bB " + local_supportconfig_name + " -t " + local_supportconfig_path
+        msg.debug('Process Command', cmd)
+        p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    #if we cannot run supportconfig
+    except Exception:
+        print("Error: Cannot run supportconfig\n", file=sys.stderr)
+        return
+    condition = True
 
-	if( msg.get_level() == msg.LOG_MIN ):
-		if progress_bar_active:
-			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
+    if( msg.get_level() == msg.LOG_MIN ):
+        if progress_bar_active:
+            scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
 
-	if( msg.get_level() >= msg.LOG_VERBOSE ):
-		msg.verbose('Gathering Supportconfig', 'In Progress')
-	elif( msg.get_level() >= msg.LOG_MIN ):
-		if progress_bar_active:
-			scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
-		else:
-			msg.min('Gathering Supportconfig', 'In Progress')
+    if( msg.get_level() >= msg.LOG_VERBOSE ):
+        msg.verbose('Gathering Supportconfig', 'In Progress')
+    elif( msg.get_level() >= msg.LOG_MIN ):
+        if progress_bar_active:
+            scbar = ProgressBar("Gathering Supportconfig: ", supportconfig_output_lines)
+        else:
+            msg.min('Gathering Supportconfig', 'In Progress')
 
-	while condition:
-		out = p.stdout.read(1)
-		if out != '':
-			if( msg.get_level() >= msg.LOG_VERBOSE ):
-				sys.stdout.write(out)
-				sys.stdout.flush()
-			elif( msg.get_level() >= msg.LOG_MIN ):
-				if out == "\n":
-					if progress_bar_active:
-						scbar.inc_count()
-						scbar.update()
-		condition = not bool(out == "" and p.poll() != None)
+    while condition:
+        out = p.stdout.read(1)
+        if out != '':
+            if( msg.get_level() >= msg.LOG_VERBOSE ):
+                sys.stdout.write(out)
+                sys.stdout.flush()
+            elif( msg.get_level() >= msg.LOG_MIN ):
+                if out == "\n":
+                    if progress_bar_active:
+                        scbar.inc_count()
+                        scbar.update()
+        condition = not bool(out == "" and p.poll() != None)
 
-	if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
-		if progress_bar_active:
-			scbar.finish()
-	
-	return supportconfig_path
+    if( msg.get_level() > msg.LOG_QUIET and msg.get_level() <= msg.LOG_NORMAL ):
+        if progress_bar_active:
+            scbar.finish()
+    
+    return supportconfig_path
 
 
 ##############################################################################
@@ -1423,180 +1485,182 @@ def get_local_supportconfig(msg, config):
 ##############################################################################
 
 def main(argv):
-	'''main entry point'''
-	global SVER, progress_bar_active, config_file
-	global width, description_width
+    '''main entry point'''
+    global SVER, progress_bar_active, config_file
+    global width, description_width
 
-	this_file_data = {}
-	file_data = {}
-	supportconfig_received = ''
-	remove_archive = False
-	analyze_server = False
-	pattern_library = False
+    this_file_data = {}
+    file_data = {}
+    supportconfig_received = ''
+    remove_archive = False
+    analyze_server = False
+    pattern_library = False
 
-	if( os.path.exists(config_file) ):
-		config.read(config_file)
-		width = int(config_entry(config.get("Common", "display_width")))
-		description_width = int(config_entry(config.get("Common", "description_width")))
-		sca_library_path = config_entry(config.get("Common", "sca_library_path"), '/')
-		sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
-		email_addr_str = config_entry(config.get("Common", "report_email_list"))
-		msg.set_width(description_width)
-		config_logging = msg.validate_level(config_entry(config.get("Common", "log_level")))
-		if( config_logging >= msg.LOG_QUIET ):
-			msg.set_level(config_logging)
-		else:
-			msg.verbose("Warning: Invalid log level in config file, using instance default")
-		sca_report = SCAReport(msg, config)
-	else:
-		title()
-		print("Error: File not found - " + config_file + "\n")
-		sys.exit(1)
+    if( os.path.exists(config_file) ):
+        config.read(config_file)
+        width = int(config_entry(config.get("Common", "display_width")))
+        description_width = int(config_entry(config.get("Common", "description_width")))
+        sca_library_path = config_entry(config.get("Common", "sca_library_path"), '/')
+        sca_patterns_path = config_entry(config.get("Common", "sca_pattern_path"), '/')
+        email_addr_str = config_entry(config.get("Common", "report_email_list"))
+        msg.set_width(description_width)
+        config_logging = msg.validate_level(config_entry(config.get("Common", "log_level")))
+        if( config_logging >= msg.LOG_QUIET ):
+            msg.set_level(config_logging)
+        else:
+            msg.verbose("Warning: Invalid log level in config file, using instance default")
+        sca_report = SCAReport(msg, config)
+    else:
+        title()
+        print("Error: File not found - " + config_file + "\n")
+        sys.exit(1)
 
-	os.environ['PYTHONPATH'] = os.path.abspath(sca_library_path + 'python')
-	os.environ['PERL5LIB'] = os.path.abspath(sca_library_path + 'perl')
-	os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
+    os.environ['PYTHONPATH'] = os.path.abspath('/usr/lib/sca/python')
+# %%% Revert
+#    os.environ['PYTHONPATH'] = os.path.abspath(sca_library_path + 'python')
+    os.environ['PERL5LIB'] = os.path.abspath(sca_library_path + 'perl')
+    os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
 
-	try:
-		(optlist, args) = getopt.gnu_getopt(argv[1:], "hbe:o:pl:qrst:v", ["help", "batch", "email=", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose"])
-	except getopt.GetoptError as exc:
-		title()
-		print("Error:", exc, file=sys.stderr)
-		print()
-		usage()
-		sys.exit(2)
-	for opt, arg in optlist:
-		if opt in {"-h", "--help"}:
-			title()
-			usage()
-			sys.exit(0)
-		elif opt in {"-b", "--batch"}:
-			progress_bar_active = False
-		elif opt in {"-e", "--email"}:
-			email_addr_str = arg
-		elif opt in {"-o", "--output"}:
-			sca_report.set_path(arg)
-		elif opt in {"-p", "--summary"}:
-			pattern_library = True
-		elif opt in {"-r", "--remove"}:
-			remove_archive = True
-		elif opt in {"-s", "--server"}:
-			analyze_server = True
-		elif opt in {"-t", "--type"}:
-			sca_report.set_type(arg)
-		elif opt in {"-q", "--quiet"}:
-			msg.set_level(msg.LOG_QUIET)
-		elif opt in {"-v", "--verbose"}:
-			msg.set_level(msg.LOG_VERBOSE)
-		elif opt in {"-l", "--log_level"}:
-			user_logging = msg.validate_level(arg)
-			if( user_logging >= msg.LOG_QUIET ):
-				msg.set_level(user_logging)
-			else:
-				print("Warning: Invalid log level, using instance default")
+    try:
+        (optlist, args) = getopt.gnu_getopt(argv[1:], "hbe:o:pl:qrst:v", ["help", "batch", "email=", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose"])
+    except getopt.GetoptError as exc:
+        title()
+        print("Error:", exc, file=sys.stderr)
+        print()
+        usage()
+        sys.exit(2)
+    for opt, arg in optlist:
+        if opt in {"-h", "--help"}:
+            title()
+            usage()
+            sys.exit(0)
+        elif opt in {"-b", "--batch"}:
+            progress_bar_active = False
+        elif opt in {"-e", "--email"}:
+            email_addr_str = arg
+        elif opt in {"-o", "--output"}:
+            sca_report.set_path(arg)
+        elif opt in {"-p", "--summary"}:
+            pattern_library = True
+        elif opt in {"-r", "--remove"}:
+            remove_archive = True
+        elif opt in {"-s", "--server"}:
+            analyze_server = True
+        elif opt in {"-t", "--type"}:
+            sca_report.set_type(arg)
+        elif opt in {"-q", "--quiet"}:
+            msg.set_level(msg.LOG_QUIET)
+        elif opt in {"-v", "--verbose"}:
+            msg.set_level(msg.LOG_VERBOSE)
+        elif opt in {"-l", "--log_level"}:
+            user_logging = msg.validate_level(arg)
+            if( user_logging >= msg.LOG_QUIET ):
+                msg.set_level(user_logging)
+            else:
+                print("Warning: Invalid log level, using instance default")
 
-	if( msg.get_level() > msg.LOG_QUIET ):
-		title()
+    if( msg.get_level() > msg.LOG_QUIET ):
+        title()
 
-	if pattern_library:
-		show_pattern_library(msg, sca_patterns_path)
-		sys.exit(0)
+    if pattern_library:
+        show_pattern_library(msg, sca_patterns_path)
+        sys.exit(0)
 
-	total_args_given = len(args)
-	process_dirs = {} # key = supportconfig directory, value = the supportconfig tarball
-	if total_args_given > 0:
-		if total_args_given > 1:
-			msg.min("Number of supportconfigs", total_args_given)
-		for given_source in args:
-			msg.normal("Checking", given_source)
-			this_file_data = evaluate_supportconfig_given(msg, given_source)
-			this_file_data['analyzer'] = "scatool v" + str(SVER)
-			this_file_data['remove_tarball'] = False
-			this_file_data['remove_directory'] = False
-			supportconfig_dir = ''
-			if this_file_data['valid']:
-				if this_file_data['type'] == 'dir':
-					if remove_archive:
-						this_file_data['remove_directory'] = True
-					supportconfig_dir = this_file_data['source']
-					if valid_supportconfig_dir(msg, supportconfig_dir):
-						process_dirs[supportconfig_dir] = ''
-						file_data[supportconfig_dir] = this_file_data
-				elif this_file_data['type'] == 'file':
-					if remove_archive:
-						this_file_data['remove_tarball'] = True
-					this_file_data['remove_directory'] = True
-					supportconfig_dir = extract_supportconfig(msg, this_file_data['source'])
-					if valid_supportconfig_dir(msg, supportconfig_dir):
-						this_file_data['embedded_dir'] = supportconfig_dir
-						process_dirs[supportconfig_dir] = this_file_data['embedded_dir']
-						file_data[supportconfig_dir] = this_file_data
-			else:
-				msg.min("Error: Supportconfig file or directory not found - " + given_source)
-		msg.normal()
-	elif analyze_server:
-		if i_am_root():
-			given_source = get_local_supportconfig(msg, config)
-			this_file_data = evaluate_supportconfig_given(msg, given_source)
-			this_file_data['analyzer'] = "scatool v" + str(SVER)	
-			this_file_data['remove_tarball'] = False
-			this_file_data['remove_directory'] = True
-			file_data[this_file_data['source']] = this_file_data
-			if this_file_data['valid']:
-					supportconfig_dir = this_file_data['source']
-					if valid_supportconfig_dir(msg, supportconfig_dir):
-						process_dirs[supportconfig_dir] = ''
-						file_data[supportconfig_dir] = this_file_data
-			else:
-				msg.min("Error: Invalid supportconfig source - " + given_source)
-		else:
-			msg.min("Analyze Local Server", "Root access required to run supportconfig")
-	else:
-		usage()
-		sys.exit(0)
+    total_args_given = len(args)
+    process_dirs = {} # key = supportconfig directory, value = the supportconfig tarball
+    if total_args_given > 0:
+        if total_args_given > 1:
+            msg.min("Number of supportconfigs", total_args_given)
+        for given_source in args:
+            msg.normal("Checking", given_source)
+            this_file_data = evaluate_supportconfig_given(msg, given_source)
+            this_file_data['analyzer'] = "scatool v" + str(SVER)
+            this_file_data['remove_tarball'] = False
+            this_file_data['remove_directory'] = False
+            supportconfig_dir = ''
+            if this_file_data['valid']:
+                if this_file_data['type'] == 'dir':
+                    if remove_archive:
+                        this_file_data['remove_directory'] = True
+                    supportconfig_dir = this_file_data['source']
+                    if valid_supportconfig_dir(msg, supportconfig_dir):
+                        process_dirs[supportconfig_dir] = ''
+                        file_data[supportconfig_dir] = this_file_data
+                elif this_file_data['type'] == 'file':
+                    if remove_archive:
+                        this_file_data['remove_tarball'] = True
+                    this_file_data['remove_directory'] = True
+                    supportconfig_dir = extract_supportconfig(msg, this_file_data['source'])
+                    if valid_supportconfig_dir(msg, supportconfig_dir):
+                        this_file_data['embedded_dir'] = supportconfig_dir
+                        process_dirs[supportconfig_dir] = this_file_data['embedded_dir']
+                        file_data[supportconfig_dir] = this_file_data
+            else:
+                msg.min("Error: Supportconfig file or directory not found - " + given_source)
+        msg.normal()
+    elif analyze_server:
+        if i_am_root():
+            given_source = get_local_supportconfig(msg, config)
+            this_file_data = evaluate_supportconfig_given(msg, given_source)
+            this_file_data['analyzer'] = "scatool v" + str(SVER)    
+            this_file_data['remove_tarball'] = False
+            this_file_data['remove_directory'] = True
+            file_data[this_file_data['source']] = this_file_data
+            if this_file_data['valid']:
+                    supportconfig_dir = this_file_data['source']
+                    if valid_supportconfig_dir(msg, supportconfig_dir):
+                        process_dirs[supportconfig_dir] = ''
+                        file_data[supportconfig_dir] = this_file_data
+            else:
+                msg.min("Error: Invalid supportconfig source - " + given_source)
+        else:
+            msg.min("Analyze Local Server", "Root access required to run supportconfig")
+    else:
+        usage()
+        sys.exit(0)
 
-	dict1 = {}
-	dict2 = {}
-	num_of_supportconfigs = len(process_dirs)
-	if num_of_supportconfigs > 1:
-		count = 0
-		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
-			count += 1
-			msg.min("Processing [{}/{}]".format(count, num_of_supportconfigs), supportconfig_directory)
-			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
-			dict1['file_data'] = file_data[supportconfig_directory]
-			dict2 = sca_data.get_results()
-			sca_results = {**dict1, **dict2}
-			sca_report.set_data(sca_results)
-			if len(email_addr_str) > 0:
-				sca_report.email_report(email_addr_str)
-			else:
-				sca_report.generate_report()
-			if( msg.get_level() < msg.LOG_DEBUG ):
-				sca_report.clean_up()
-			separator_line('=')
-			msg.min()
-		msg.min()
-	elif num_of_supportconfigs > 0:
-		for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
-			msg.min("Processing Supportconfig", supportconfig_directory)
-			sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
-			dict1['file_data'] = file_data[supportconfig_directory]
-			dict2 = sca_data.get_results()
-			sca_results = {**dict1, **dict2}
-			sca_report.set_data(sca_results)
-			if len(email_addr_str) > 0:
-				sca_report.email_report(email_addr_str)
-			else:
-				sca_report.generate_report()
-			if( msg.get_level() < msg.LOG_DEBUG ):
-				sca_report.clean_up()
-	msg.min()
-			
+    dict1 = {}
+    dict2 = {}
+    num_of_supportconfigs = len(process_dirs)
+    if num_of_supportconfigs > 1:
+        count = 0
+        for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
+            count += 1
+            msg.min("Processing [{}/{}]".format(count, num_of_supportconfigs), supportconfig_directory)
+            sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
+            dict1['file_data'] = file_data[supportconfig_directory]
+            dict2 = sca_data.get_results()
+            sca_results = {**dict1, **dict2}
+            sca_report.set_data(sca_results)
+            if len(email_addr_str) > 0:
+                sca_report.email_report(email_addr_str)
+            else:
+                sca_report.generate_report()
+            if( msg.get_level() < msg.LOG_DEBUG ):
+                sca_report.clean_up()
+            separator_line('=')
+            msg.min()
+        msg.min()
+    elif num_of_supportconfigs > 0:
+        for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
+            msg.min("Processing Supportconfig", supportconfig_directory)
+            sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
+            dict1['file_data'] = file_data[supportconfig_directory]
+            dict2 = sca_data.get_results()
+            sca_results = {**dict1, **dict2}
+            sca_report.set_data(sca_results)
+            if len(email_addr_str) > 0:
+                sca_report.email_report(email_addr_str)
+            else:
+                sca_report.generate_report()
+            if( msg.get_level() < msg.LOG_DEBUG ):
+                sca_report.clean_up()
+    msg.min()
+            
 # Entry point
 if __name__ == "__main__":
-	signal.signal(signal.SIGINT, signal_handler)
-	config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-	msg = DisplayMessages()
-	main(sys.argv)
+    signal.signal(signal.SIGINT, signal_handler)
+    config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+    msg = DisplayMessages()
+    main(sys.argv)
 
