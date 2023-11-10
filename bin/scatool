@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev16'
+SVER = '3.0.0_dev17'
 # To do list: %%%
 
 ##############################################################################
@@ -7,7 +7,7 @@ SVER = '3.0.0_dev16'
 # Copyright (c) 2023 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2023 Nov 09
+# Modified:     2023 Nov 10
 #
 ##############################################################################
 #
@@ -267,6 +267,10 @@ class DisplayMessages():
                 print()
 
 class SupportconfigAnalysis():
+    '''
+    Gathers information about the supportconfig. The information includes:
+        Server, SUSE distribution, targeted OS products installed, applicable patterns, applicable pattern results
+    '''
     REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
     REQUIRED_JSON_KEYS = ['generation', 'class', 'category', 'component', 'id', 'primary_solution', 'severity', 'description']
     REQUIRED_ELEMENT_CONV = {
@@ -1486,12 +1490,14 @@ def main(argv):
     global SVER, progress_bar_active, config_file
     global width, description_width
 
+    file_data = {} # Final dictionary will be: {'valid': False, 'type': 'Unknown', 'source': '', 'analyzer': 'scaool', 'remove_tarball': False, 'remove_directory': False}
     this_file_data = {}
-    file_data = {}
     supportconfig_received = ''
     remove_archive = False
     analyze_server = False
     pattern_library = False
+    given_type = ''
+    given_output_path = ''
 
     if( os.path.exists(config_file) ):
         config.read(config_file)
@@ -1506,7 +1512,7 @@ def main(argv):
             msg.set_level(config_logging)
         else:
             msg.verbose("Warning: Invalid log level in config file, using instance default")
-        sca_report = SCAReport(msg, config)
+#        sca_report = SCAReport(msg, config)
     else:
         title()
         print("Error: File not found - " + config_file + "\n")
@@ -1534,7 +1540,8 @@ def main(argv):
         elif opt in {"-e", "--email"}:
             email_addr_str = arg
         elif opt in {"-o", "--output"}:
-            sca_report.set_path(arg)
+#            sca_report.set_path(arg)
+            given_output_path = arg
         elif opt in {"-p", "--summary"}:
             pattern_library = True
         elif opt in {"-r", "--remove"}:
@@ -1542,7 +1549,8 @@ def main(argv):
         elif opt in {"-s", "--server"}:
             analyze_server = True
         elif opt in {"-t", "--type"}:
-            sca_report.set_type(arg)
+#            sca_report.set_type(arg)
+            given_type = arg
         elif opt in {"-q", "--quiet"}:
             msg.set_level(msg.LOG_QUIET)
         elif opt in {"-v", "--verbose"}:
@@ -1622,6 +1630,11 @@ def main(argv):
         for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
             count += 1
             msg.min("Processing [{}/{}]".format(count, num_of_supportconfigs), supportconfig_directory)
+            sca_report = SCAReport(msg, config)
+            if given_type:
+                sca_report.set_type(given_type)
+            if given_output_path:
+                sca_report.set_path(given_output_path)
             sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
             dict1['file_data'] = file_data[supportconfig_directory]
             dict2 = sca_data.get_results()
@@ -1639,6 +1652,11 @@ def main(argv):
     elif num_of_supportconfigs > 0:
         for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
             msg.min("Processing Supportconfig", supportconfig_directory)
+            sca_report = SCAReport(msg, config)
+            if given_type:
+                sca_report.set_type(given_type)
+            if given_output_path:
+                sca_report.set_path(given_output_path)
             sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
             dict1['file_data'] = file_data[supportconfig_directory]
             dict2 = sca_data.get_results()
