@@ -893,17 +893,45 @@ def show_pattern_library(msg, location):
     msg.quiet(display.format(total_count, 'Total Available Patterns'))
     msg.min()
 
+def valid_supportconfig_dir(msg, given_path):
+    test_files = ['basic-environment.txt', 'rpm.txt']
+    for test_file in test_files:
+        file_path = given_path + '/' + test_file
+        if not os.path.isfile(file_path):
+            msg.min("Error: Invalid supportconfig directory", given_path)
+            msg.min("       + Missing {0}".format(file_path))
+            return False
+    return True
+
 def evaluate_supportconfig_given(msg, given_path):
     type_found = {'valid': False, 'type': 'Unknown', 'source': ''}
+    valid_mime_types = ['application/x-xz', 'application/x-bzip', 'application/x-gzip', 'application/x-tar']
     msg.debug("Evaluating", given_path)
     if os.path.exists(given_path):
         if os.path.isfile(given_path):
-            type_found['valid'] = True
             type_found['type'] = 'file'
+            cmd = "file --brief --mime-type " + given_path
+            msg.debug('Process Command', cmd)
+            process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            stdout, stderr = process.communicate()
+            file_type = stdout.strip()
+            msg.debug('File Type', file_type)
+            if file_type in valid_mime_types:
+                type_found['valid'] = True
+            else:
+                msg.min("Error: Invalid supportconfig file", given_path)
+                msg.min("       + Incorrect MIME type - {0}".format(file_type))
+                type_found['valid'] = False
         elif os.path.isdir(given_path):
-            type_found['valid'] = True
             type_found['type'] = 'dir'
+            if valid_supportconfig_dir(msg, given_path):
+                type_found['valid'] = True
+            else:
+                type_found['valid'] = False
         type_found['source'] = os.path.abspath(given_path)
+    else:
+        msg.min("Error: Supportconfig directory or file not found: " + given_path)
+        
 
     msg.debug("Supportconfig Evaluation", type_found)
     return type_found
@@ -944,12 +972,6 @@ def evaluate_remote_server(msg, given_hostname):
 def extract_supportconfig(msg, tarball):
     path_in_tarball = ''
     msg.verbose("Extracting File", tarball)
-    cmd = "file --brief --mime-type " + tarball
-    msg.debug('Process Command', cmd)
-    process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    stdout, stderr = process.communicate()
-    file_type = stdout.strip()
-    msg.debug('File Type', file_type)
     archdir = os.path.dirname(tarball)
     cmd = "tar -xvf "  + tarball + " -C " + archdir
     msg.debug('Process Command', cmd)
@@ -967,18 +989,6 @@ def extract_supportconfig(msg, tarball):
         msg.verbose('Embedded Directory', path_in_tarball)
 
     return path_in_tarball
-
-def valid_supportconfig_dir(msg, check_dir):
-    test_files = ['basic-environment.txt', 'rpm.txt']
-    for test_file in test_files:
-        file_path = check_dir + '/' + test_file
-        if not os.path.isfile(file_path):
-            #not a supportconfig. quit out
-            msg.min("Error: Invalid supportconfig archive - missing " + file_path)
-            return False
-
-    msg.normal("Valid Supportconfig", check_dir)
-    return True
 
 def i_am_root():
     if not os.environ.get("SUDO_UID") and os.geteuid() != 0:
@@ -1586,9 +1596,8 @@ def main(argv):
                     if remove_archive:
                         this_file_data['remove_directory'] = True
                     supportconfig_dir = this_file_data['source']
-                    if valid_supportconfig_dir(msg, supportconfig_dir):
-                        process_dirs[supportconfig_dir] = ''
-                        file_data[supportconfig_dir] = this_file_data
+                    process_dirs[supportconfig_dir] = ''
+                    file_data[supportconfig_dir] = this_file_data
                 elif this_file_data['type'] == 'file':
                     if remove_archive:
                         this_file_data['remove_tarball'] = True
@@ -1598,8 +1607,6 @@ def main(argv):
                         this_file_data['embedded_dir'] = supportconfig_dir
                         process_dirs[supportconfig_dir] = this_file_data['embedded_dir']
                         file_data[supportconfig_dir] = this_file_data
-            else:
-                msg.min("Error: Supportconfig file or directory not found - " + given_source)
         msg.normal()
     elif analyze_server:
         if i_am_root():
@@ -1614,8 +1621,6 @@ def main(argv):
                     if valid_supportconfig_dir(msg, supportconfig_dir):
                         process_dirs[supportconfig_dir] = ''
                         file_data[supportconfig_dir] = this_file_data
-            else:
-                msg.min("Error: Invalid supportconfig source - " + given_source)
         else:
             msg.min("Analyze Local Server", "Root access required to run supportconfig")
     else:
