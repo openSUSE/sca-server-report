@@ -1045,6 +1045,22 @@ Class instance of {}
             self.report_path = self.__normalize_path(self.data['sc_info']['path'])
         self.__set_report_type(self.report_type)
 
+    def generate_report(self):
+        '''Generate an HTML SCA Report'''
+        if self.data['pattern_stats']['runtime_errors'] > 0:
+            separator_line('-')
+
+        self.msg.normal("SCA Report Type", self.report_type)
+        if self.report_type == "html":
+            self.__generate_html_report()
+        elif self.report_type == "json":
+            self.__generate_json_report()
+        elif self.report_type == "all":
+            self.__set_report_type('html')
+            self.__generate_html_report()
+            self.__set_report_type('json')
+            self.__generate_json_report()
+
     def __set_report_type(self, this_type):
         self.report_type = this_type
         self.report_name = self.data['sc_info']['name'] + "_report." + self.report_type
@@ -1063,12 +1079,60 @@ Class instance of {}
             sys.exit(13)
         self.msg.min("SCA Report File", self.report_file)
 
+    def __generate_html_report(self):
+        '''Build the complete HTML report'''
+        self.msg.verbose("+ Building HTML report", "Header")
+        self.__get_meta_class_names()
+        self.content += self.__build_html_header()
+
+        self.msg.verbose("+ Building HTML report", "Body")
+        #Critical table
+        self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FF0000"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FF0000"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(4)
+        self.content += "</TABLE>" + "\n"
+
+        #Warning table
+        self.content += '<H2>Conditions Evaluated as Warning<A NAME="Warning"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FFFF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FFFF00"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(3)
+        self.content += "</TABLE>" + "\n"
+
+        #Recommended table
+        self.content += '<H2>Conditions Evaluated as Recommended<A NAME="Recommended"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#1975FF"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#1975FF"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(1)
+        self.content += "</TABLE>" + "\n"
+
+        #Success table
+        self.content += '<H2>Conditions Evaluated as Success<A NAME="Success"></A></H2>' + "\n"
+        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
+        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#00FF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#00FF00"></TH></TR>' + "\n"
+        self.content += self.__build_severity_table(0)
+        self.content += "</TABLE>" + "\n"
+
+        self.msg.verbose("+ Building HTML report", "Footer")
+        self.content += self.__build_html_footer()
+
+        self.msg.verbose("+ Building HTML report", "Saving File")
+        try:
+            with open(self.report_file, "w") as f:
+                f.write(self.content)
+        except Exception as e:
+            self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
+            self.msg.min()
+            sys.exit(13)
+        self.msg.min("SCA Report File", self.report_file)
+
     def __get_meta_class_names(self):
-        '''Gathers all the unique META_CLASS names used in all the applied results'''
+        '''Gathers all the unique class names used in all the applied results'''
         unique_classes = {}
         for this_pattern in self.data['results'].keys():
             if self.data['results'][this_pattern]['valid']:
-                unique_classes[self.data['results'][this_pattern]['META_CLASS']] = True
+                unique_classes[self.data['results'][this_pattern]['class']] = True
         self.meta_class_names = list(unique_classes.keys())
 
     def __build_html_header(self):
@@ -1215,24 +1279,21 @@ Class instance of {}
             for this_pattern in self.data['results'].keys():
                 solution_links = ""
                 if self.data['results'][this_pattern]['valid']:
-                    if self.data['results'][this_pattern]['META_CLASS'] == meta_class and self.data['results'][this_pattern]['OVERALL'] == given_severity:
-                        primary_link_id = self.data['results'][this_pattern]['PRIMARY_LINK']
-                        primary_link_url = self.data['results'][this_pattern][primary_link_id]
+                    if self.data['results'][this_pattern]['class'] == meta_class and self.data['results'][this_pattern]['severity'] == given_severity:
+                        primary_link_id = self.data['results'][this_pattern]['primary_solution']
+                        primary_link_url = self.data['results'][this_pattern]['solution_links'][primary_link_id]
                         pattern_source_url = self.data['results'][this_pattern]['source']
 
                         # get all the solutions tags and URL links for this pattern
-                        for key, value in self.data['results'][this_pattern].items():
-                            if key.startswith('META_LINK_'):
-                                link_tag = key.split("_")[-1] # Get the last part of META_LINK_ for the tag ID
-                                link_url = value
-                                solution_links += '<A HREF="{}" TARGET="_blank">{}&nbsp;</A>'.format(link_url, link_tag)
+                        for link_tag, link_url in self.data['results'][this_pattern]['solution_links'].items():
+                            solution_links += '<A HREF="{}" TARGET="_blank">{}&nbsp;</A>'.format(link_url, link_tag)
 
                         expandable_class_entries.append('<TR STYLE="border:1px solid black; background: #FFFFFF; display:none;" CLASS="' + meta_class + '">'\
                             '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD>'\
-                            '<TD BGCOLOR="#EEEEEE" WIDTH="6%">' + self.data['results'][this_pattern]['META_CLASS'] + '</TD>'\
-                            '<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_CATEGORY'] + '</TD>'\
-                            '<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['META_COMPONENT'] + '</TD>'\
-                            '<TD><A HREF="' + primary_link_url + '" TARGET="_blank">' + self.data['results'][this_pattern]['OVERALL_INFO'] + '</A>&nbsp;&nbsp;'\
+                            '<TD BGCOLOR="#EEEEEE" WIDTH="6%">' + self.data['results'][this_pattern]['class'] + '</TD>'\
+                            '<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['category'] + '</TD>'\
+                            '<TD BGCOLOR="#EEEEEE" WIDTH="5%">' + self.data['results'][this_pattern]['component'] + '</TD>'\
+                            '<TD><A HREF="' + primary_link_url + '" TARGET="_blank">' + self.data['results'][this_pattern]['description'] + '</A>&nbsp;&nbsp;'\
                             '<A ID="PatternLocation" HREF="' + pattern_source_url + '" TARGET="_blank">&nbsp;</A></TD>'\
                             '<TD WIDTH="8%">' + solution_links + '&nbsp;&nbsp;</TD>'\
                             '<TD BGCOLOR="#' + color + '" WIDTH="2%">&nbsp;</TD></TR>\n')
@@ -1278,70 +1339,6 @@ Class instance of {}
             '</TR>\n</TABLE>\n'
 
         return footer_content
-
-    def __generate_html_report(self):
-        '''Build the complete HTML report'''
-        self.msg.verbose("+ Building HTML report", "Header")
-        self.__get_meta_class_names()
-        self.content += self.__build_html_header()
-
-        self.msg.verbose("+ Building HTML report", "Body")
-        #Critical table
-        self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
-        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FF0000"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FF0000"></TH></TR>' + "\n"
-        self.content += self.__build_severity_table(4)
-        self.content += "</TABLE>" + "\n"
-
-        #Warning table
-        self.content += '<H2>Conditions Evaluated as Warning<A NAME="Warning"></A></H2>' + "\n"
-        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#FFFF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#FFFF00"></TH></TR>' + "\n"
-        self.content += self.__build_severity_table(3)
-        self.content += "</TABLE>" + "\n"
-
-        #Recommended table
-        self.content += '<H2>Conditions Evaluated as Recommended<A NAME="Recommended"></A></H2>' + "\n"
-        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#1975FF"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#1975FF"></TH></TR>' + "\n"
-        self.content += self.__build_severity_table(1)
-        self.content += "</TABLE>" + "\n"
-
-        #Success table
-        self.content += '<H2>Conditions Evaluated as Success<A NAME="Success"></A></H2>' + "\n"
-        self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
-        self.content += '<TR COLOR="#000000"><TH BGCOLOR="#00FF00"></TH><TH BGCOLOR="#EEEEEE" COLSPAN="3">Category</TH><TH>Message</TH><TH>Solutions</TH><TH BGCOLOR="#00FF00"></TH></TR>' + "\n"
-        self.content += self.__build_severity_table(0)
-        self.content += "</TABLE>" + "\n"
-
-        self.msg.verbose("+ Building HTML report", "Footer")
-        self.content += self.__build_html_footer()
-
-        self.msg.verbose("+ Building HTML report", "Saving File")
-        try:
-            with open(self.report_file, "w") as f:
-                f.write(self.content)
-        except Exception as e:
-            self.msg.min("Error: Cannot write {} file - {}".format(self.report_type, str(e)))
-            self.msg.min()
-            sys.exit(13)
-        self.msg.min("SCA Report File", self.report_file)
-
-    def generate_report(self):
-        '''Generate an HTML SCA Report'''
-        if self.data['pattern_stats']['runtime_errors'] > 0:
-            separator_line('-')
-
-        self.msg.normal("SCA Report Type", self.report_type)
-        if self.report_type == "html":
-            self.__generate_html_report()
-        elif self.report_type == "json":
-            self.__generate_json_report()
-        elif self.report_type == "all":
-            self.__set_report_type('html')
-            self.__generate_html_report()
-            self.__set_report_type('json')
-            self.__generate_json_report()
 
     def email_report(self, updated_addrs):
         '''Email the SCA Report to the list of recipients'''
@@ -1515,9 +1512,7 @@ def main(argv):
         print("Error: File not found - " + config_file + "\n")
         sys.exit(1)
 
-    os.environ['PYTHONPATH'] = os.path.abspath('/usr/lib/sca/python')
-# %%% Revert
-#    os.environ['PYTHONPATH'] = os.path.abspath(sca_library_path + 'python')
+    os.environ['PYTHONPATH'] = os.path.abspath(sca_library_path + 'python')
     os.environ['PERL5LIB'] = os.path.abspath(sca_library_path + 'perl')
     os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
 
