@@ -898,8 +898,8 @@ def valid_supportconfig_dir(msg, given_path):
     for test_file in test_files:
         file_path = given_path + '/' + test_file
         if not os.path.isfile(file_path):
-            msg.min("Error: Invalid supportconfig directory", given_path)
-            msg.min("       + Missing {0}".format(file_path))
+            msg.min("Error: Invalid supportconfig directory: {0}".format(given_path))
+            msg.verbose("       + Missing {0}".format(file_path))
             return False
     return True
 
@@ -908,6 +908,7 @@ def evaluate_supportconfig_given(msg, given_path):
     valid_mime_types = ['application/x-xz', 'application/x-bzip', 'application/x-gzip', 'application/x-tar']
     msg.debug("Evaluating", given_path)
     if os.path.exists(given_path):
+        type_found['source'] = os.path.abspath(given_path)
         if os.path.isfile(given_path):
             type_found['type'] = 'file'
             cmd = "file --brief --mime-type " + given_path
@@ -919,16 +920,15 @@ def evaluate_supportconfig_given(msg, given_path):
             if file_type in valid_mime_types:
                 type_found['valid'] = True
             else:
-                msg.min("Error: Invalid supportconfig file", given_path)
-                msg.min("       + Incorrect MIME type - {0}".format(file_type))
+                msg.min("Error: Invalid supportconfig file: {0}".format(type_found['source']))
+                msg.verbose("       + Incorrect MIME type - {0}".format(file_type))
                 type_found['valid'] = False
         elif os.path.isdir(given_path):
             type_found['type'] = 'dir'
-            if valid_supportconfig_dir(msg, given_path):
+            if valid_supportconfig_dir(msg, type_found['source']):
                 type_found['valid'] = True
             else:
                 type_found['valid'] = False
-        type_found['source'] = os.path.abspath(given_path)
     else:
         msg.min("Error: Supportconfig directory or file not found: " + given_path)
         
