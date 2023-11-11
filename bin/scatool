@@ -272,7 +272,7 @@ class SupportconfigAnalysis():
         Server, SUSE distribution, targeted OS products installed, applicable patterns, applicable pattern results
     '''
     REQUIRED_ELEMENTS = ["META_CLASS", "META_CATEGORY", "META_COMPONENT", "PATTERN_ID", "PRIMARY_LINK", "OVERALL", "OVERALL_INFO", "META_LINK_"]
-    REQUIRED_JSON_KEYS = ['generation', 'class', 'category', 'component', 'id', 'primary_solution', 'severity', 'description']
+    REQUIRED_JSON_KEYS = ['generation', 'class', 'category', 'component', 'id', 'primary_solution', 'severity', 'description', 'solution_links']
     REQUIRED_ELEMENT_CONV = {
     'META_CLASS': 'class', 
     'META_CATEGORY': 'category', 
@@ -377,6 +377,7 @@ Class instance of {}
 
     def __parse_results_output(self, out, error, pat):
         output = {}
+        error_display = "{} -- {}: {}"
         output['valid'] = True
         output['error_tag'] = 'None'
         output['error_str'] = 'None'
@@ -390,11 +391,16 @@ Class instance of {}
 
         missing_json_keys = []
         if json_data:
+            msg.debug(" > Processing JSON output data")
             for key in self.REQUIRED_JSON_KEYS:
                 if not key in json_object:
                     missing_json_keys.append(key)
             if len(missing_json_keys) > 0:
-                pass
+                output['valid'] = False
+                output['error_tag'] = 'Missing JSON keys'
+                output['error_str'] = ' '.join(missing_json_keys)
+                self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
+                self.pattern_stats['runtime_errors'] += 1
             else:
                 dict1 = output
                 output = {**dict1, **json_object}
@@ -402,11 +408,11 @@ Class instance of {}
                 self.pattern_stats[self.SEV_TABLE[output['severity']]] += 1
                 if output['severity'] >= 0 and output['severity'] < 5:
                     self.pattern_stats['applied'] += 1
-                self.results[pat] = output
+            self.results[pat] = output
         else:
+            msg.debug(" > Processing pipe separated output data")
             output['generation'] = 1
             output['solution_links'] = {}
-            error_display = "{} -- {}: {}"
             if error == "":
                 pattern_return_list = out.strip().split("|")
 
@@ -448,7 +454,6 @@ Class instance of {}
                 if output['severity'] >= 0 and output['severity'] < 5:
                     self.pattern_stats['applied'] += 1
                 self.results[pat] = output
-                return True
             else:
                 output['valid'] = False
                 output['error_tag'] = 'Output error'
@@ -456,7 +461,9 @@ Class instance of {}
                 self.runtime_error_list.append(error_display.format(pat, output['error_tag'], output['error_str']))
                 self.pattern_stats['runtime_errors'] += 1
                 self.results[pat] = output
-                return False
+
+        return output['valid']
+
 
     def __apply_patterns(self):
         pattern_count = 0
