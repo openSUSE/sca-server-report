@@ -45,8 +45,8 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
 #%%% Change to correct path
-#config_file = '/etc/sca/scatool.conf'
-config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
+config_file = '/etc/sca/scatool.conf'
+#config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
 width = 0
 description_width = 0
 progress_bar_active = True
