@@ -1,13 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.0_dev17'
-# To do list: %%%
+SVER = '3.0.1'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
-# Copyright (c) 2023 SUSE LLC
+# Copyright (c) 2024 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2023 Nov 10
+# Modified:     2024 Jan 09
 #
 ##############################################################################
 #
@@ -44,9 +43,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
-#%%% Change to correct path
 config_file = '/etc/sca/scatool.conf'
-#config_file = '/home/opt/gitwork/sca-server-report/config/scatool.conf'
 width = 0
 description_width = 0
 progress_bar_active = True
