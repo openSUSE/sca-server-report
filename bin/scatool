@@ -296,6 +296,7 @@ class SupportconfigAnalysis():
 
         self.required_element_count = len(self.REQUIRED_ELEMENTS)
         self.results = {}
+        self.supportconfig_keys = []
         self.runtime_error_list = []
         self.pattern_stats = {
             'total': 0,
@@ -626,7 +627,7 @@ Class instance of {}
         except:
             basic_env_file = []
 
-        product_info = {'tag': 'Unknown', 'patternTag': 'Unknown', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
+        product_info = {'tag': 'Unknown', 'patternTag': 'Unknown', 'supportconfigKey': 'Unknown', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
 
         #read basic-environment line by line to pull out data.
         in_date = False
@@ -738,6 +739,9 @@ Class instance of {}
                         else:
                             self.distro_info['Summary'] = line.strip()
 
+        product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + "sp" + str(product_info['verminor'])
+        self.supportconfig_keys.append(product_info['supportconfigKey'])
+
         products_found.append(product_info)
 
         del basic_env_file
@@ -758,7 +762,7 @@ Class instance of {}
         #detect SLE for VMWARE
         product_name = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
         product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {'tag': 'vmw', 'patternTag': 'VMware', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        summary_info = {'tag': 'vmw', 'patternTag': 'VMware', 'supportconfigKey': 'Unknown', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
         for line in summary_file:
             if( in_product ):
                 if product_end.search(line):
@@ -780,6 +784,8 @@ Class instance of {}
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
+                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
+                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     products_found.append(summary_info)
                     break
             elif product_start.search(line):
@@ -788,7 +794,7 @@ Class instance of {}
         #detect SLE for SAP
         product_name = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
         product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {'tag': 'sap', 'patternTag': 'SAP', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        summary_info = {'tag': 'sap', 'patternTag': 'SAP', 'supportconfigKey': 'Unknown', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
         for line in summary_file:
             if( in_product ):
                 if product_end.search(line):
@@ -810,6 +816,8 @@ Class instance of {}
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
+                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
+                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     products_found.append(summary_info)
                     break
             elif product_start.search(line):
@@ -818,7 +826,7 @@ Class instance of {}
         #get HAE information
         product_name = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
         product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {'tag': 'hae', 'patternTag': 'HAE', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        summary_info = {'tag': 'hae', 'patternTag': 'HAE', 'supportconfigKey': 'Unknown', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
         for line in summary_file:
             if( in_product ):
                 if product_end.search(line):
@@ -840,6 +848,8 @@ Class instance of {}
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
+                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
+                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     products_found.append(summary_info)
                     break
             elif product_start.search(line):
@@ -847,6 +857,8 @@ Class instance of {}
 
         #get SUSE Manager information
         # email_to DO
+
+        self.msg.min('Supportconfig Key', ' '.join(self.supportconfig_keys))
 
         del summary_file
         self.distro_info['name'] = os.path.basename(self.location)
