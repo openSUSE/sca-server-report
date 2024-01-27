@@ -584,10 +584,10 @@ Class instance of {}
         pattern_directories = [self.sca_patterns_path + 'local/']
         for product_included in self.products_list:
             base_pattern_path = str(self.sca_patterns_path) + str(product_included['patternTag']) + "/"
-            pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "all/"
+            pattern_filter_path = base_pattern_path + str(product_included['use_tag']) + str(product_included['use_vermajor']) + "all/"
             if os.path.isdir(pattern_filter_path):
                 pattern_directories.append(pattern_filter_path)
-            pattern_filter_path = base_pattern_path + str(product_included['tag']) + str(product_included['vermajor']) + "sp" + str(product_included['verminor']) + "/"
+            pattern_filter_path = base_pattern_path + str(product_included['use_tag']) + str(product_included['use_vermajor']) + "sp" + str(product_included['use_verminor']) + "/"
             if os.path.isdir(pattern_filter_path):
                 pattern_directories.append(pattern_filter_path)
 
@@ -627,7 +627,20 @@ Class instance of {}
         except:
             basic_env_file = []
 
-        product_info = {'tag': 'Unknown', 'patternTag': 'Unknown', 'supportconfigKey': 'Unknown', 'nameTag': 'Distribution:', 'name': '', 'versionTag': 'Service Pack:', 'version': '', 'vermajor': '', 'verminor': ''}
+        product_info = {
+            'patternTag': 'Unknown',        # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
+            'tag': 'Unknown',               # The product's identity tag
+            'vermajor': '',                 # The product's major version
+            'verminor': '',                 # The product's minor version
+            'use_tag': 'Unknown',           # The tag used to select patterns
+            'use_vermajor': '',             # The major version used to select patterns
+            'use_verminor': '',             # The minor version used to select patterns
+            'supportconfigKey': '',         # Identifies the current supportconfig product
+            'nameTag': 'Distribution:',     # HTML report's nameTag, name pair
+            'name': '',                     # HTML report's nameTag, name pair 
+            'versionTag': 'Service Pack:',  # HTML report's versionTag, version pair
+            'version': '',                  # HTML report's versionTag, version pair
+            }
 
         #read basic-environment line by line to pull out data.
         in_date = False
@@ -704,12 +717,23 @@ Class instance of {}
                         tmp_pretty_name = line.lower()
                         if "suse alp" in tmp_pretty_name:
                             product_info['tag'] = 'alp'
+                            product_info['use_tag'] = product_info['tag']
                             product_info['patternTag'] = 'ALP'
+                        elif "suse linux enterprise micro" in tmp_pretty_name:
+                            product_info['tag'] = 'slem'
+                            product_info['use_tag'] = 'sle'
+                            product_info['patternTag'] = 'SLE'
+                        elif "suse linux enterprise high performance computing" in tmp_pretty_name:
+                            product_info['tag'] = 'hpc'
+                            product_info['use_tag'] = 'sle'
+                            product_info['patternTag'] = 'SLE'
                         elif "suse linux enterprise" in tmp_pretty_name:
                             product_info['tag'] = 'sle'
+                            product_info['use_tag'] = product_info['tag']
                             product_info['patternTag'] = 'SLE'
                         elif "opensuse leap" in tmp_pretty_name:
                             product_info['tag'] = 'sle'
+                            product_info['use_tag'] = product_info['tag']
                             product_info['patternTag'] = 'SLE'
                     elif line.lower().startswith("version_id"):
                         version_id = line.replace('"', "").strip().split('=')[1].split('.')
@@ -739,7 +763,23 @@ Class instance of {}
                         else:
                             self.distro_info['Summary'] = line.strip()
 
-        product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + "sp" + str(product_info['verminor'])
+        if( product_info['tag'] == 'slem' ):
+            if( product_info['vermajor'] == "6" ):
+                product_info['patternTag'] = 'ALP'
+                product_info['use_tag'] = 'alp'
+                product_info['use_vermajor'] = "1"
+            else:
+                product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
+            product_info['use_verminor'] = product_info['verminor']
+            product_info['nameTag'] = 'Product:'
+            product_info['versionTag'] = 'Version:'
+            product_info['version'] = str(product_info['vermajor']) + "." + str(product_info['verminor'])
+            product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + str(product_info['verminor'])
+        else:
+            product_info['use_vermajor'] = product_info['vermajor']
+            product_info['use_verminor'] = product_info['verminor']
+            product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + "sp" + str(product_info['verminor'])
+
         self.supportconfig_keys.append(product_info['supportconfigKey'])
 
         products_found.append(product_info)
@@ -762,7 +802,20 @@ Class instance of {}
         #detect SLE for VMWARE
         product_name = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
         product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {'tag': 'vmw', 'patternTag': 'VMware', 'supportconfigKey': 'Unknown', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        summary_info = {
+            'patternTag': 'VMware',     # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
+            'tag': 'vmw',               # The product's identity tag
+            'vermajor': '',             # The product's major version
+            'verminor': '',             # The product's minor version
+            'use_tag': '',              # The tag used to select patterns
+            'use_vermajor': '',         # The major version used to select patterns
+            'use_verminor': '',         # The minor version used to select patterns
+            'supportconfigKey': '',     # Identifies the current supportconfig product
+            'nameTag': 'Product:',      # HTML report's nameTag, name pair
+            'name': '',                 # HTML report's nameTag, name pair 
+            'versionTag': 'Version:',   # HTML report's versionTag, version pair
+            'version': '',              # HTML report's versionTag, version pair
+            }
         for line in summary_file:
             if( in_product ):
                 if product_end.search(line):
@@ -784,6 +837,9 @@ Class instance of {}
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
+                    summary_info['use_tag'] = summary_info['tag']
+                    summary_info['use_vermajor'] = summary_info['vermajor']
+                    summary_info['use_verminor'] = summary_info['verminor']
                     summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
                     self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     products_found.append(summary_info)
@@ -794,7 +850,20 @@ Class instance of {}
         #detect SLE for SAP
         product_name = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
         product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {'tag': 'sap', 'patternTag': 'SAP', 'supportconfigKey': 'Unknown', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        summary_info = {
+            'patternTag': 'SAP',        # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
+            'tag': 'sap',               # The product's identity tag
+            'vermajor': '',             # The product's major version
+            'verminor': '',             # The product's minor version
+            'use_tag': '',              # The tag used to select patterns
+            'use_vermajor': '',         # The major version used to select patterns
+            'use_verminor': '',         # The minor version used to select patterns
+            'supportconfigKey': '',     # Identifies the current supportconfig product
+            'nameTag': 'Product:',      # HTML report's nameTag, name pair
+            'name': '',                 # HTML report's nameTag, name pair 
+            'versionTag': 'Version:',   # HTML report's versionTag, version pair
+            'version': '',              # HTML report's versionTag, version pair
+            }
         for line in summary_file:
             if( in_product ):
                 if product_end.search(line):
@@ -816,6 +885,9 @@ Class instance of {}
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
+                    summary_info['use_tag'] = summary_info['tag']
+                    summary_info['use_vermajor'] = summary_info['vermajor']
+                    summary_info['use_verminor'] = summary_info['verminor']
                     summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
                     self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     products_found.append(summary_info)
@@ -826,7 +898,20 @@ Class instance of {}
         #get HAE information
         product_name = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
         product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {'tag': 'hae', 'patternTag': 'HAE', 'supportconfigKey': 'Unknown', 'nameTag': 'Product:', 'name': '', 'versionTag': 'Version:', 'version': '', 'vermajor': '', 'verminor': ''}
+        summary_info = {
+            'patternTag': 'HAE',        # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
+            'tag': 'hae',               # The product's identity tag
+            'vermajor': '',             # The product's major version
+            'verminor': '',             # The product's minor version
+            'use_tag': '',              # The tag used to select patterns
+            'use_vermajor': '',         # The major version used to select patterns
+            'use_verminor': '',         # The minor version used to select patterns
+            'supportconfigKey': '',     # Identifies the current supportconfig product
+            'nameTag': 'Product:',      # HTML report's nameTag, name pair
+            'name': '',                 # HTML report's nameTag, name pair 
+            'versionTag': 'Version:',   # HTML report's versionTag, version pair
+            'version': '',              # HTML report's versionTag, version pair
+            }
         for line in summary_file:
             if( in_product ):
                 if product_end.search(line):
@@ -848,6 +933,9 @@ Class instance of {}
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
+                    summary_info['use_tag'] = summary_info['tag']
+                    summary_info['use_vermajor'] = summary_info['vermajor']
+                    summary_info['use_verminor'] = summary_info['verminor']
                     summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
                     self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     products_found.append(summary_info)
@@ -858,7 +946,7 @@ Class instance of {}
         #get SUSE Manager information
         # email_to DO
 
-        self.msg.min('Supportconfig Key', ' '.join(self.supportconfig_keys))
+        self.msg.min('Supportconfig Products', ' '.join(self.supportconfig_keys))
 
         del summary_file
         self.distro_info['name'] = os.path.basename(self.location)
