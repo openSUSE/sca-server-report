@@ -617,8 +617,153 @@ Class instance of {}
                     pattern_file_dict[check_pattern] = generational_value
         return pattern_file_dict
 
+    def __get_products_summary_simple(self, this_pattern_tag, this_tag, re_name, summary_file):
+        # Extracts product information in the summary.xml file from supportconfig
+        # Pattern directory simple SP format: patterns/<patternTag>/<tag><vermajor>sp<verminor>
+        re_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
+        re_end = re.compile(r'</product>', re.IGNORECASE)
+        re_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+        these_products = []
+        in_product = False
+        summary_info = {
+            'patternTag': this_pattern_tag, # Used to filter patterns for analysis
+            'tag': this_tag,                # The product's identity tag
+            'vermajor': '',                 # The product's major version
+            'verminor': '',                 # The product's minor version
+            'use_tag': this_tag,            # The tag used to select patterns
+            'use_vermajor': '',             # The major version used to select patterns
+            'use_verminor': '',             # The minor version used to select patterns
+            'supportconfigKey': '',         # Identifies the current supportconfig product
+            'nameTag': 'Product:',          # HTML report's nameTag, name pair
+            'name': '',                     # HTML report's nameTag, name pair 
+            'versionTag': 'Version:',       # HTML report's versionTag, version pair
+            'version': '',                  # HTML report's versionTag, version pair
+            }
+        for line in summary_file:
+            if( in_product ):
+                if re_end.search(line):
+                    in_product = False
+                elif re_name.search(line):
+                    try:
+                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+                    except:
+                        True
+                elif re_version.search(line):
+                    try:
+                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+                        if( "." in summary_info['version'] ):
+                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+                        else:
+                            summary_info['vermajor'] = summary_info['version']
+                            summary_info['verminor'] = "0"
+                    except:
+                        True
+                if( summary_info['name'] and summary_info['version'] ):
+                    in_product = False
+                    summary_info['use_vermajor'] = summary_info['vermajor']
+                    summary_info['use_verminor'] = summary_info['verminor']
+                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
+                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
+                    these_products.append(summary_info)
+                    break
+            elif re_start.search(line):
+                in_product = True
+        return these_products
+
+    def __get_products_summary_flat(self, this_pattern_tag, this_tag, use_this_tag, re_name, summary_file):
+        # Extracts product information in the summary.xml file from supportconfig
+        # Pattern directory flat format: patterns/<patternTag>/<use_tag><vermajor><verminor>
+        # Support
+        re_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
+        re_end = re.compile(r'</product>', re.IGNORECASE)
+        re_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
+        these_products = []
+        in_product = False
+        summary_info = {
+            'patternTag': this_pattern_tag, # Used to filter patterns for analysis
+            'tag': this_tag,                # The product's identity tag
+            'vermajor': '',                 # The product's major version
+            'verminor': '',                 # The product's minor version
+            'use_tag': use_this_tag,        # The tag used to select patterns
+            'use_vermajor': '',             # The major version used to select patterns
+            'use_verminor': '',             # The minor version used to select patterns
+            'supportconfigKey': '',         # Identifies the current supportconfig product
+            'nameTag': 'Product:',          # HTML report's nameTag, name pair
+            'name': '',                     # HTML report's nameTag, name pair 
+            'versionTag': 'Version:',       # HTML report's versionTag, version pair
+            'version': '',                  # HTML report's versionTag, version pair
+            }
+        for line in summary_file:
+            if( in_product ):
+                if re_end.search(line):
+                    in_product = False
+                elif re_name.search(line):
+                    try:
+                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
+                    except:
+                        True
+                elif re_version.search(line):
+                    try:
+                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
+                        if( "." in summary_info['version'] ):
+                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+                        else:
+                            summary_info['vermajor'] = summary_info['version']
+                            summary_info['verminor'] = "0"
+                    except:
+                        True
+                if( summary_info['name'] and summary_info['version'] ):
+                    in_product = False
+                    summary_info['use_vermajor'] = summary_info['vermajor']
+                    summary_info['use_verminor'] = summary_info['verminor']
+                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + str(summary_info['verminor'])
+                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
+                    these_products.append(summary_info)
+                    break
+            elif re_start.search(line):
+                in_product = True
+        return these_products
+
     def __get_products_list(self):
         products_found = []
+
+        #load summary.xml
+        try:
+            with open(self.location + "/summary.xml") as f:
+                summary_file = f.read().splitlines()
+                f.close()
+        except:
+            summary_file = []
+
+        #detect SLE for VMWARE
+        product_name = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
+        product_list = self.__get_products_summary_simple('VMware', 'vmw', product_name, summary_file)
+        products_found = products_found + product_list
+
+        #detect SLE for SAP
+        product_name = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
+        product_list = self.__get_products_summary_simple('SAP', 'sap', product_name, summary_file)
+        products_found = products_found + product_list
+
+        #get HAE information
+        product_name = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
+        product_list = self.__get_products_summary_simple('HAE', 'hae', product_name, summary_file)
+        products_found = products_found + product_list
+
+        #get SUSE Manager Server information
+        product_name = re.compile(r'<summary>SUSE Manager Server.*</summary>', re.IGNORECASE)
+        product_list = self.__get_products_summary_flat('suma', 'sumasrv', 'suma', product_name, summary_file)
+        products_found = products_found + product_list
+        
+        #get SUSE Manager Retail Branch Server information
+        product_name = re.compile(r'<summary>SUSE Manager Retail Branch Server.*</summary>', re.IGNORECASE)
+        product_list = self.__get_products_summary_flat('suma', 'sumarbs', 'suma', product_name, summary_file)
+        products_found = products_found + product_list
+        
+        # email_to DO
+        del summary_file
+
+
         #load basic-environment.txt
         try:
             with open(self.location + "/basic-environment.txt") as f:
@@ -786,169 +931,8 @@ Class instance of {}
 
         del basic_env_file
 
-
-        #load summary.xml
-        try:
-            with open(self.location + "/summary.xml") as f:
-                summary_file = f.read().splitlines()
-                f.close()
-        except:
-            summary_file = []
-
-        product_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
-        product_end = re.compile(r'</product>', re.IGNORECASE)
-        in_product = False
-
-        #detect SLE for VMWARE
-        product_name = re.compile(r'<summary>SUSE Linux Enterprise Server .* for VMware</summary>', re.IGNORECASE)
-        product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {
-            'patternTag': 'VMware',     # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
-            'tag': 'vmw',               # The product's identity tag
-            'vermajor': '',             # The product's major version
-            'verminor': '',             # The product's minor version
-            'use_tag': '',              # The tag used to select patterns
-            'use_vermajor': '',         # The major version used to select patterns
-            'use_verminor': '',         # The minor version used to select patterns
-            'supportconfigKey': '',     # Identifies the current supportconfig product
-            'nameTag': 'Product:',      # HTML report's nameTag, name pair
-            'name': '',                 # HTML report's nameTag, name pair 
-            'versionTag': 'Version:',   # HTML report's versionTag, version pair
-            'version': '',              # HTML report's versionTag, version pair
-            }
-        for line in summary_file:
-            if( in_product ):
-                if product_end.search(line):
-                    in_product = False
-                elif product_name.search(line):
-                    try:
-                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
-                    except:
-                        True
-                elif product_version.search(line):
-                    try:
-                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
-                        if( "." in summary_info['version'] ):
-                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
-                        else:
-                            summary_info['vermajor'] = summary_info['version']
-                            summary_info['verminor'] = "0"
-                    except:
-                        True
-                if( summary_info['name'] and summary_info['version'] ):
-                    in_product = False
-                    summary_info['use_tag'] = summary_info['tag']
-                    summary_info['use_vermajor'] = summary_info['vermajor']
-                    summary_info['use_verminor'] = summary_info['verminor']
-                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
-                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
-                    products_found.append(summary_info)
-                    break
-            elif product_start.search(line):
-                in_product = True
-
-        #detect SLE for SAP
-        product_name = re.compile(r'<summary>SUSE LINUX Enterprise Server for SAP Applications.*</summary>', re.IGNORECASE)
-        product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {
-            'patternTag': 'SAP',        # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
-            'tag': 'sap',               # The product's identity tag
-            'vermajor': '',             # The product's major version
-            'verminor': '',             # The product's minor version
-            'use_tag': '',              # The tag used to select patterns
-            'use_vermajor': '',         # The major version used to select patterns
-            'use_verminor': '',         # The minor version used to select patterns
-            'supportconfigKey': '',     # Identifies the current supportconfig product
-            'nameTag': 'Product:',      # HTML report's nameTag, name pair
-            'name': '',                 # HTML report's nameTag, name pair 
-            'versionTag': 'Version:',   # HTML report's versionTag, version pair
-            'version': '',              # HTML report's versionTag, version pair
-            }
-        for line in summary_file:
-            if( in_product ):
-                if product_end.search(line):
-                    in_product = False
-                elif product_name.search(line):
-                    try:
-                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
-                    except:
-                        True
-                elif product_version.search(line):
-                    try:
-                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
-                        if( "." in summary_info['version'] ):
-                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
-                        else:
-                            summary_info['vermajor'] = summary_info['version']
-                            summary_info['verminor'] = "0"
-                    except:
-                        True
-                if( summary_info['name'] and summary_info['version'] ):
-                    in_product = False
-                    summary_info['use_tag'] = summary_info['tag']
-                    summary_info['use_vermajor'] = summary_info['vermajor']
-                    summary_info['use_verminor'] = summary_info['verminor']
-                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
-                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
-                    products_found.append(summary_info)
-                    break
-            elif product_start.search(line):
-                in_product = True
-
-        #get HAE information
-        product_name = re.compile(r'<summary>SUSE Linux Enterprise High Availability Extension.*</summary>', re.IGNORECASE)
-        product_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
-        summary_info = {
-            'patternTag': 'HAE',        # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
-            'tag': 'hae',               # The product's identity tag
-            'vermajor': '',             # The product's major version
-            'verminor': '',             # The product's minor version
-            'use_tag': '',              # The tag used to select patterns
-            'use_vermajor': '',         # The major version used to select patterns
-            'use_verminor': '',         # The minor version used to select patterns
-            'supportconfigKey': '',     # Identifies the current supportconfig product
-            'nameTag': 'Product:',      # HTML report's nameTag, name pair
-            'name': '',                 # HTML report's nameTag, name pair 
-            'versionTag': 'Version:',   # HTML report's versionTag, version pair
-            'version': '',              # HTML report's versionTag, version pair
-            }
-        for line in summary_file:
-            if( in_product ):
-                if product_end.search(line):
-                    in_product = False
-                elif product_name.search(line):
-                    try:
-                        summary_info['name'] = re.search(r'>(.+?)<', line).group(1).replace('-', ' ')
-                    except:
-                        True
-                elif product_version.search(line):
-                    try:
-                        summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
-                        if( "." in summary_info['version'] ):
-                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
-                        else:
-                            summary_info['vermajor'] = summary_info['version']
-                            summary_info['verminor'] = "0"
-                    except:
-                        True
-                if( summary_info['name'] and summary_info['version'] ):
-                    in_product = False
-                    summary_info['use_tag'] = summary_info['tag']
-                    summary_info['use_vermajor'] = summary_info['vermajor']
-                    summary_info['use_verminor'] = summary_info['verminor']
-                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
-                    self.supportconfig_keys.append(summary_info['supportconfigKey'])
-                    products_found.append(summary_info)
-                    break
-            elif product_start.search(line):
-                in_product = True
-
-        #get SUSE Manager information
-        # email_to DO
-
         self.msg.min('Supportconfig Products', ' '.join(self.supportconfig_keys))
 
-        del summary_file
         self.distro_info['name'] = os.path.basename(self.location)
         self.distro_info['path'] = os.path.dirname(self.location)
         self.json_data['sc_info'] = self.distro_info
