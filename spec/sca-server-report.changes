@@ -1,14 +1,15 @@
 -------------------------------------------------------------------
 Wed Sep 27 17:02:55 UTC 2023 - jason.record@suse.com
 
-- Changes to version 1.0.3
+- Changes to version 0.9.3
+  + Corrected version numbers
   + Fixed failed supportconfig extractions (bsc#1213851)
   + Removed unused module imports
 
 -------------------------------------------------------------------
 Mon Oct  4 17:56:01 UTC 2021 - Jason Record <jason.record@suse.com>
 
-- Changes and additions to version 1.0.2
+- Changes and additions to version 0.9.2
   + Added python2 to requires (bsc#1191199)
   + Fixed sca report header supportconfig file (bsc#1186442)
   + Fixed report file output path (bsc#1180894)
@@ -18,7 +19,7 @@ Mon Oct  4 17:56:01 UTC 2021 - Jason Record <jason.record@suse.com>
 -------------------------------------------------------------------
 Thu Nov 12 15:29:10 UTC 2020 - jason.record@suse.com
 
-- Additional to version 1.0.1
+- Additional to version 0.9.1
   + Updated the man pages with -r
   + -k is retained for compatibility, but keeping the archive is default
   + Fixed service pack version when GA
@@ -28,7 +29,7 @@ Thu Nov 12 15:29:10 UTC 2020 - jason.record@suse.com
 -------------------------------------------------------------------
 Fri Nov  6 17:14:48 UTC 2020 - jason.record@suse.com
 
-- Additions to version 1.0.1
+- Additions to version 0.9.1
   + Updated man pages for scatool(8) and scatool.conf(5)
   + Removed CONSOLE_MODE from scatool.conf
   + should support archive or server argument and not require -a (bsc#1178229)
@@ -39,7 +40,7 @@ Fri Nov  6 17:14:48 UTC 2020 - jason.record@suse.com
 -------------------------------------------------------------------
 Sat Oct 24 17:19:11 UTC 2020 - jason.record@suse.com
 
-- Additions to version 1.0.1
+- Additions to version 0.9.1
   + Arg with / treated as files, not remote servers (bsc#1178099)
   + Optimized tar ball extraction (bsc#1178093)
   + Added /etc/os-release support (bsc#1178092)

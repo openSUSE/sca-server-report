@@ -1,6 +1,6 @@
 # spec file for package sca-server-report
 #
-# Copyright (c) 2017-2021 SUSE LINUX GmbH, Nuernberg, Germany.
+# Copyright (c) 2017-2024 SUSE LINUX GmbH, Nuernberg, Germany.
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -17,7 +17,7 @@
 %define sca_python %{libbase}/python
 
 Name:         sca-server-report
-Version:      1.0.3
+Version:      0.9.3
 Release:      0
 Summary:      Supportconfig Analysis Server Report
 License:      GPL-2.0
