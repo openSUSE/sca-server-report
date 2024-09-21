@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.2-5'
+SVER = '3.0.2-6'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
@@ -908,17 +908,22 @@ Class instance of {}
                         else:
                             self.distro_info['Summary'] = line.strip()
 
-        if( product_info['tag'] == 'slem' ):
-            product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
-            product_info['use_verminor'] = product_info['verminor']
-            product_info['nameTag'] = 'Product:'
-            product_info['versionTag'] = 'Version:'
-            product_info['version'] = str(product_info['vermajor']) + "." + str(product_info['verminor'])
-            product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + str(product_info['verminor'])
+        if( product_info['tag'] == 'Unknown' ):
+            msg.debug("Product Evaluation", product_info)
+            msg.min("\nError: Unknown OS - {0}\n".format(product_info['name']))
+            sys.exit(1)
         else:
-            product_info['use_vermajor'] = product_info['vermajor']
-            product_info['use_verminor'] = product_info['verminor']
-            product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + "sp" + str(product_info['verminor'])
+            if( product_info['tag'] == 'slem' ):
+                product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
+                product_info['use_verminor'] = product_info['verminor']
+                product_info['nameTag'] = 'Product:'
+                product_info['versionTag'] = 'Version:'
+                product_info['version'] = str(product_info['vermajor']) + "." + str(product_info['verminor'])
+                product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + str(product_info['verminor'])
+            else:
+                product_info['use_vermajor'] = product_info['vermajor']
+                product_info['use_verminor'] = product_info['verminor']
+                product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + "sp" + str(product_info['verminor'])
 
         self.supportconfig_keys.append(product_info['supportconfigKey'])
 
