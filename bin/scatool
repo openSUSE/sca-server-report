@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.2-6'
+SVER = '3.0.2-7'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
@@ -983,12 +983,19 @@ def show_pattern_library(msg, location):
 
 def valid_supportconfig_dir(msg, given_path):
     test_files = ['basic-environment.txt', 'rpm.txt']
-    for test_file in test_files:
-        file_path = given_path + '/' + test_file
-        if not os.path.isfile(file_path):
-            msg.min("Error: Invalid supportconfig directory: {0}".format(given_path))
-            msg.verbose("       + Missing {0}".format(file_path))
-            return False
+    if not os.access(given_path, os.R_OK | os.X_OK):
+        msg.min("Error: Directory permission denied: {0}".format(given_path))
+        return False
+    else:
+        for test_file in test_files:
+            file_path = given_path + '/' + test_file
+            if not os.access(file_path, os.F_OK):
+                msg.min("Error: Invalid supportconfig directory: {0}".format(given_path))
+                msg.verbose("       + Missing {0}".format(file_path))
+                return False
+            elif not os.access(file_path, os.R_OK):
+                msg.min("Error: File permission denied: {0}".format(file_path))
+                return False
     return True
 
 def evaluate_supportconfig_given(msg, given_path):
@@ -996,27 +1003,31 @@ def evaluate_supportconfig_given(msg, given_path):
     valid_mime_types = ['application/x-xz', 'application/x-bzip', 'application/x-gzip', 'application/x-tar']
     msg.debug("Evaluating", given_path)
     if os.path.exists(given_path):
-        type_found['source'] = os.path.abspath(given_path)
-        if os.path.isfile(given_path):
-            type_found['type'] = 'file'
-            cmd = "file --brief --mime-type " + given_path
-            msg.debug('Process Command', cmd)
-            process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-            stdout, stderr = process.communicate()
-            file_type = stdout.strip()
-            msg.debug('File Type', file_type)
-            if file_type in valid_mime_types:
-                type_found['valid'] = True
-            else:
-                msg.min("Error: Invalid supportconfig file: {0}".format(type_found['source']))
-                msg.verbose("       + Incorrect MIME type - {0}".format(file_type))
-                type_found['valid'] = False
-        elif os.path.isdir(given_path):
-            type_found['type'] = 'dir'
-            if valid_supportconfig_dir(msg, type_found['source']):
-                type_found['valid'] = True
-            else:
-                type_found['valid'] = False
+        if not os.access(given_path, os.R_OK):
+            type_found['source'] = os.path.abspath(given_path)
+            msg.min("Error: File permission denied: {0}".format(type_found['source']))
+        else:
+            type_found['source'] = os.path.abspath(given_path)
+            if os.path.isfile(given_path):
+                type_found['type'] = 'file'
+                cmd = "file --brief --mime-type " + given_path
+                msg.debug('Process Command', cmd)
+                process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                stdout, stderr = process.communicate()
+                file_type = stdout.strip()
+                msg.debug('File Type', file_type)
+                if file_type in valid_mime_types:
+                    type_found['valid'] = True
+                else:
+                    msg.min("Error: Invalid supportconfig file: {0}".format(type_found['source']))
+                    msg.verbose("       + Incorrect MIME type - {0}".format(file_type))
+                    type_found['valid'] = False
+            elif os.path.isdir(given_path):
+                type_found['type'] = 'dir'
+                if valid_supportconfig_dir(msg, type_found['source']):
+                    type_found['valid'] = True
+                else:
+                    type_found['valid'] = False
     else:
         msg.min("Error: Supportconfig directory or file not found: " + given_path)
         
