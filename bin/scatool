@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.2'
+SVER = '3.0.2-5'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2024 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2024 Jan 29
+# Modified:     2024 Sep 21
 #
 ##############################################################################
 #
@@ -860,11 +860,11 @@ Class instance of {}
                     if line.lower().startswith("pretty_name"):
                         self.distro_info['Summary'] = line.split('=')[-1].replace('"', '').strip()
                         tmp_pretty_name = line.lower()
-                        if "suse alp" in tmp_pretty_name:
-                            product_info['tag'] = 'alp'
-                            product_info['use_tag'] = product_info['tag']
-                            product_info['patternTag'] = 'ALP'
-                        elif "suse linux enterprise micro" in tmp_pretty_name:
+                        if "suse linux enterprise micro" in tmp_pretty_name:
+                            product_info['tag'] = 'slem'
+                            product_info['use_tag'] = 'sle'
+                            product_info['patternTag'] = 'SLE'
+                        elif "suse linux micro" in tmp_pretty_name:
                             product_info['tag'] = 'slem'
                             product_info['use_tag'] = 'sle'
                             product_info['patternTag'] = 'SLE'
@@ -909,12 +909,7 @@ Class instance of {}
                             self.distro_info['Summary'] = line.strip()
 
         if( product_info['tag'] == 'slem' ):
-            if( product_info['vermajor'] == "6" ):
-                product_info['patternTag'] = 'ALP'
-                product_info['use_tag'] = 'alp'
-                product_info['use_vermajor'] = "1"
-            else:
-                product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
+            product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
             product_info['use_verminor'] = product_info['verminor']
             product_info['nameTag'] = 'Product:'
             product_info['versionTag'] = 'Version:'
