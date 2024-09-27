@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.2-7'
+SVER = '3.0.2-240927.TEST.1'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2024 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2024 Sep 21
+# Modified:     2024 Sep 27
 #
 ##############################################################################
 #
@@ -255,10 +255,11 @@ class DisplayMessages():
     def debug(self, msgtag = None, msgstr = None):
         "Write all messages, including debug level"
         if msgtag:
+            updated_msgtag = "+ " + msgtag
             if msgstr:
-                self.__write_paired_msg(self.LOG_DEBUG, msgtag, msgstr)
+                self.__write_paired_msg(self.LOG_DEBUG, updated_msgtag, msgstr)
             else:
-                self.__write_msg(self.LOG_DEBUG, msgtag)
+                self.__write_msg(self.LOG_DEBUG, updated_msgtag)
         else:
             if( self.level >= self.LOG_DEBUG ):
                 print()
@@ -389,7 +390,7 @@ Class instance of {}
 
         missing_json_keys = []
         if json_data:
-            msg.debug(" > Processing JSON output data")
+            msg.debug("+ Processing JSON output data")
             for key in self.REQUIRED_JSON_KEYS:
                 if not key in json_object:
                     missing_json_keys.append(key)
@@ -408,7 +409,7 @@ Class instance of {}
                     self.pattern_stats['applied'] += 1
             self.results[pat] = output
         else:
-            msg.debug(" > Processing pipe separated output data")
+            msg.debug("Processing pipe separated output data")
             output['generation'] = 1
             output['solution_links'] = {}
             if error == "":
@@ -502,7 +503,7 @@ Class instance of {}
                         continue
 
                     self.msg.debug()
-                    self.msg.debug(' Process Command', ' '.join(cmd))
+                    self.msg.debug('Process Command', ' '.join(cmd))
                     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
                     out, error = p.communicate()
                     pattern_is_valid = self.__parse_results_output(out, error, test_pattern)
@@ -515,10 +516,10 @@ Class instance of {}
                         pattern_skipped = False
                     else:
                         if pattern_is_valid:
-                            self.msg.debug(" Output", self.results[test_pattern]['output_str'])
+                            self.msg.debug("+ Output", self.results[test_pattern]['output_str'])
                             self.msg.verbose(verbose_line.format('Done:', pattern_count, self.pattern_stats['applicable'], test_pattern))
                         else:
-                            self.msg.debug(" Output", self.results[test_pattern]['error_str'])
+                            self.msg.debug("+ Output", self.results[test_pattern]['error_str'])
                             self.msg.verbose(verbose_line.format('ERROR:', pattern_count, self.pattern_stats['applicable'], test_pattern + " - " + str(self.results[test_pattern]['error_tag'])))
                 elif( msg.get_level() >= msg.LOG_MIN ):
                     if progress_bar_active:
@@ -544,16 +545,16 @@ Class instance of {}
             separator_line('-')
         self.msg.normal('Total Patterns', str(self.pattern_stats['total']))
         self.msg.normal('Patterns Evaluated', str(self.pattern_stats['applicable']))
-        self.msg.normal('+ Critical', str(self.pattern_stats['critical']))
-        self.msg.normal('+ Warning', str(self.pattern_stats['warning']))
-        self.msg.normal('+ Recommended', str(self.pattern_stats['recommend']))
-        self.msg.verbose('+ Promotion', str(self.pattern_stats['promotion']))
-        self.msg.normal('+ Success', str(self.pattern_stats['success']))
-        self.msg.verbose('+ Error', str(self.pattern_stats['error']))
-        self.msg.verbose('+ Ignore', str(self.pattern_stats['ignore']))
-        self.msg.verbose('+ Partial', str(self.pattern_stats['partial']))
-        self.msg.verbose('+ Temporary', str(self.pattern_stats['temp']))
-        self.msg.verbose('+ Exec Errors', str(self.pattern_stats['runtime_errors']))
+        self.msg.normal('- Critical', str(self.pattern_stats['critical']))
+        self.msg.normal('- Warning', str(self.pattern_stats['warning']))
+        self.msg.normal('- Recommended', str(self.pattern_stats['recommend']))
+        self.msg.verbose('- Promotion', str(self.pattern_stats['promotion']))
+        self.msg.normal('- Success', str(self.pattern_stats['success']))
+        self.msg.verbose('- Error', str(self.pattern_stats['error']))
+        self.msg.verbose('- Ignore', str(self.pattern_stats['ignore']))
+        self.msg.verbose('- Partial', str(self.pattern_stats['partial']))
+        self.msg.verbose('- Temporary', str(self.pattern_stats['temp']))
+        self.msg.verbose('- Exec Errors', str(self.pattern_stats['runtime_errors']))
         self.msg.min('Applicable to Server', str(self.pattern_stats['applied']))
 
         self.msg.min()
@@ -937,15 +938,10 @@ Class instance of {}
         self.distro_info['path'] = os.path.dirname(self.location)
         self.json_data['sc_info'] = self.distro_info
         self.json_data['prod_info'] = products_found
-        if( self.msg.get_level() >= self.msg.LOG_DEBUG ):
-            print()
-            print("Distro Info: {}\n".format(self.distro_info))
-            print("Products List")
-            print("[")
-            for summary_info in products_found:
-                print(str(summary_info))
-            print("]")
-#            sys.exit()
+        self.msg.debug('Distro Info', self.distro_info)
+        self.msg.debug()
+        self.msg.debug('Products Found', products_found)
+        self.msg.debug()
 
         return products_found
 
@@ -1194,11 +1190,11 @@ Class instance of {}
 
     def __generate_html_report(self):
         '''Build the complete HTML report'''
-        self.msg.verbose("+ Building HTML report", "Header")
+        self.msg.verbose(" Building HTML report", "Header")
         self.__get_meta_class_names()
         self.content += self.__build_html_header()
 
-        self.msg.verbose("+ Building HTML report", "Body")
+        self.msg.verbose(" Building HTML report", "Body")
         #Critical table
         self.content += '<H2>Conditions Evaluated as Critical<A NAME="Critical"></A></H2>' + "\n"
         self.content += '<TABLE STYLE="border:3px solid black;border-collapse:collapse;" WIDTH="100%" CELLPADDING="2">' + "\n"
@@ -1227,10 +1223,10 @@ Class instance of {}
         self.content += self.__build_severity_table(0)
         self.content += "</TABLE>" + "\n"
 
-        self.msg.verbose("+ Building HTML report", "Footer")
+        self.msg.verbose(" Building HTML report", "Footer")
         self.content += self.__build_html_footer()
 
-        self.msg.verbose("+ Building HTML report", "Saving File")
+        self.msg.verbose(" Building HTML report", "Saving File")
         try:
             with open(self.report_file, "w") as f:
                 f.write(self.content)
