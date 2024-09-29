@@ -18,7 +18,7 @@
 
 Name:         sca-server-report
 Version:      1.6.2
-Release:      240927.TEST.1
+Release:      240928.TEST.3
 Summary:      Supportconfig Analysis Server Report
 License:      GPL-2.0
 URL:          https://github.com/g23guy/sca-server-report
