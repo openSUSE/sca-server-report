@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.2-240930.TEST.5'
+SVER = '3.0.2-240930.TEST.9'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
