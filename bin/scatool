@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.2-240930.TEST.9'
+SVER = '3.0.2-241002.TEST.6'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2024 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2024 Sep 30
+# Modified:     2024 Oct 02
 #
 ##############################################################################
 #
@@ -64,8 +64,10 @@ def usage():
     print("OPTIONS")
     print(display.format('-h, --help', "Displays this screen"))
     print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
+    print(display.format('-d, --debug', "Use log level 4"))
     print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
     print(display.format('-j, --json', "Set report --type json"))
+    print(display.format('-n, --normal', "Use log level 2, default log level: Minimal"))
     print(display.format('-o <path>, --output <path>', "SCA Report file output directory"))
     print(display.format('-p, --summary', "Print a pattern summary"))
     print(display.format('-q, --quiet', "Use log level 0"))
@@ -74,8 +76,8 @@ def usage():
     print(display.format('-t, --type', "SCA Report file output type, options: json, html, all. Default: html"))
     print(display.format('-v, --verbose', "Use log level 3"))
     print(display.format('-x <path>, --extract_here <path>', "Extract any supportconfig archives to this alternate extraction directory"))
-    print(display.format('-l <level>, --log_level <level>', "Set log level, default: Normal"))
-    print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
+#    print(display.format('-l <level>, --log_level <level>', "Set log level, default: Minimal"))
+#    print(display.format('', "0 Quiet, 1 Minimal, 2 Normal, 3 Verbose, 4 Debug"))
     print()
 
 def option_error(msg):
@@ -991,7 +993,8 @@ def show_pattern_library(msg, location):
 def valid_supportconfig_dir(msg, given_path):
     TEST_FILES = ['basic-environment.txt', 'rpm.txt']
     if not os.access(given_path, os.R_OK | os.X_OK):
-        msg.min(" Error: Directory permission denied: {0}".format(given_path))
+        msg.min(" Error", "Directory permission denied: {0}".format(given_path))
+        msg.min(" * Suggestion", "Try sudo scatool {0}".format(given_path))
         return False
     else:
         for test_file in TEST_FILES:
@@ -1001,7 +1004,8 @@ def valid_supportconfig_dir(msg, given_path):
                 msg.verbose(" * Missing", "{0}".format(file_path))
                 return False
             elif not os.access(file_path, os.R_OK):
-                msg.min(" Error: File permission denied: {0}".format(file_path))
+                msg.min(" Error", "Read file permission denied: {0}".format(file_path))
+                msg.min(" * Suggestion", "Try sudo scatool {0}".format(given_path))
                 return False
     return True
 
@@ -1496,14 +1500,14 @@ Class instance of {}
     def clean_up(self):
         if self.data['file_data']['type'] == 'dir':
             if self.data['file_data']['remove_directory']:
-                self.msg.verbose("+ Removing Directory", self.data['file_data']['path'])
+                self.msg.verbose(" Removing Directory", self.data['file_data']['path'])
                 shutil.rmtree(self.data['file_data']['path'])
         elif self.data['file_data']['type'] == 'file':
             if self.data['file_data']['remove_directory']:
-                self.msg.verbose("+ Removing Directory", self.data['file_data']['embedded_dir'])
+                self.msg.verbose(" Removing Directory", self.data['file_data']['embedded_dir'])
                 shutil.rmtree(self.data['file_data']['embedded_dir'])
             if self.data['file_data']['remove_tarball']:
-                self.msg.verbose("+ Removing File", self.data['file_data']['path'])
+                self.msg.verbose(" Removing File", self.data['file_data']['path'])
                 os.remove(self.data['file_data']['path'])
 
 def get_local_supportconfig(msg, config):
@@ -1652,7 +1656,7 @@ def main(argv):
     os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
 
     try:
-        (optlist, args) = getopt.gnu_getopt(argv[1:], "hbe:jo:pl:qrst:vx:", ["help", "batch", "email=", "json", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose", "extract_here="])
+        (optlist, args) = getopt.gnu_getopt(argv[1:], "hbde:jno:pl:qrst:vx:", ["help", "batch", "debug", "email=", "json", "normal", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose", "extract_here="])
     except getopt.GetoptError as exc:
         title()
         print("Error:", exc, file=sys.stderr)
@@ -1666,10 +1670,14 @@ def main(argv):
             sys.exit(0)
         elif opt in {"-b", "--batch"}:
             progress_bar_active = False
+        elif opt in {"-d", "--debug"}:
+            msg.set_level(msg.LOG_DEBUG)
         elif opt in {"-e", "--email"}:
             email_addr_str = arg
         elif opt in {"-j", "--json"}:
             given_type = "json"
+        elif opt in {"-n", "--normal"}:
+            msg.set_level(msg.LOG_NORMAL)
         elif opt in {"-o", "--output"}:
             given_report_output_path = evaluate_given_path(msg, arg)
         elif opt in {"-p", "--summary"}:
@@ -1730,26 +1738,38 @@ def main(argv):
                         msg.min(" Skipping file", "Not a supportconfig compressed file - {0}".format(this_src_data['path']))
                         continue
                     if given_extract_path:
-                        if given_extract_path['write_tail']:
-                            this_src_data['extract_here'] = given_extract_path['path']
+                        if given_extract_path['exists']:
+                            if given_extract_path['write_tail']:
+                                this_src_data['extract_here'] = given_extract_path['path']
+                                msg.normal("Extraction Directory Change", "From command line: {0}".format(given_extract_path['path']))
+                            else:
+                                msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(given_extract_path['path']))
+                                msg.min(" * Suggestion", "Fix the -x, --extract_here directory")
+                                continue
                         else:
-                            msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(given_extract_path['path']))
-                            msg.min(" * Suggestion", "Fix the -x, --extract_here directory")
+                            msg.min(" Error", "Directory not found - {0}".format(given_extract_path['given_path']))
+                            msg.min(" * Suggestion", "Try mkdir -p {0} or fix the -x, --extract_here directory".format(given_extract_path['given_path']))
                             continue
                     elif extract_path:
                         config_extract_path = evaluate_given_path(msg, extract_path)
-                        if config_extract_path['write_tail']:
-                            this_src_data['extract_here'] = config_extract_path['path']
+                        if config_extract_path['exists']:
+                            if config_extract_path['write_tail']:
+                                this_src_data['extract_here'] = config_extract_path['path']
+                                msg.normal("Extraction Directory Change", "From config file: {0}".format(config_extract_path['path']))
+                            else:
+                                msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(config_extract_path['path']))
+                                msg.min(" * Suggestion", "Fix the extract_path in {0}".format(config_file))
+                                continue
                         else:
-                            msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(config_extract_path['path']))
-                            msg.min(" * Suggestion", "Fix the extract_path in the config file")
+                            msg.min(" Error", "Directory not found - {0}".format(config_extract_path['given_path']))
+                            msg.min(" * Suggestion", "Try mkdir -p {0} or fix the extract_path in {1}".format(config_extract_path['given_path'], config_file))
                             continue
                     else:
                         if this_src_data['write_head']:
                             this_src_data['extract_here'] = this_src_data['head']
                         else:
                             msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(this_src_data['head']))
-                            msg.min(" * Suggestion", "Use -x, --extract_here to specify and alternate extraction directory")
+                            msg.min(" * Suggestion", "Use -x, --extract_here to specify an alternate extraction directory")
                             continue
                     if remove_archive:
                         this_src_data['remove_tarball'] = True
@@ -1769,7 +1789,6 @@ def main(argv):
             msg.debug("Checked this_src_data", this_src_data) # dict1 below
         msg.normal()
     elif analyze_server:
-#%%% needs testing
         if i_am_root():
             given_source = get_local_supportconfig(msg, config)
             this_src_data = evaluate_given_path(msg, given_source)
@@ -1804,26 +1823,38 @@ def main(argv):
         if given_type:
             sca_report.set_type(given_type)
         if given_report_output_path:
-            if given_report_output_path['write_tail']:
-                this_report_output_path = given_report_output_path['path']
+            if given_report_output_path['exists']:
+                if given_report_output_path['write_tail']:
+                    this_report_output_path = given_report_output_path['path']
+                    msg.normal("SCA Report Directory Change", "From command line: {0}".format(this_report_output_path))
+                else:
+                    msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(given_report_output_path['path']))
+                    msg.min(" * Suggestion", "Fix the -o, --output directory")
+                    continue
             else:
-                msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(given_report_output_path['path']))
-                msg.min(" * Suggestion", "Fix the -o, --output directory")
+                msg.min(" Error", "Directory not found - {0}".format(given_report_output_path['given_path']))
+                msg.min(" * Suggestion", "Try mkdir -p {0} or fix the -o, --output directory".format(given_report_output_path['given_path']))
                 continue
         elif report_output_path:
             config_report_output_path = evaluate_given_path(msg, report_output_path)
-            if config_report_output_path['write_tail']:
-                this_report_output_path = config_report_output_path['path']
+            if config_report_output_path['exists']:
+                if config_report_output_path['write_tail']:
+                    this_report_output_path = config_report_output_path['path']
+                    msg.normal("SCA Report Directory Change", "From config file: {0}".format(this_report_output_path))
+                else:
+                    msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(config_report_output_path['path']))
+                    msg.min(" * Suggestion", "Fix the report_output_path in {0}".format(config_file))
+                    continue
             else:
-                msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(config_report_output_path['path']))
-                msg.min(" * Suggestion", "Fix the report_output_path in the config file")
+                msg.min(" Error", "Directory not found - {0}".format(config_report_output_path['given_path']))
+                msg.min(" * Suggestion", "Try mkdir -p {0} or fix the report_output_path in {1}".format(config_report_output_path['given_path'], config_file))
                 continue
         else:
             if file_data[supportconfig_directory]['write_head']:
                 this_report_output_path = file_data[supportconfig_directory]['head']
             else:
                 msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(file_data[supportconfig_directory]['head']))
-                msg.min(" * Suggestion", "Use -o, --output to specify and alternate report file directory")
+                msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
                 continue
         sca_report.set_path(this_report_output_path)
         sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
