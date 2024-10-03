@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.2-241002.TEST.6'
+SVER = '3.0.2-241003.TEST.1'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2024 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2024 Oct 02
+# Modified:     2024 Oct 03
 #
 ##############################################################################
 #
@@ -1621,7 +1621,7 @@ def main(argv):
     global width, description_width
     VALID_MIME_TYPES = [ 'application/x-xz', 'application/x-bzip', 'application/x-gzip', 'application/x-tar' ]
 
-    file_data = {} # Final dictionary will be: {'valid': False, 'type': 'Unknown', 'source': '', 'analyzer': 'scaool', 'remove_tarball': False, 'remove_directory': False}
+    file_data = {} # Final dictionary will be: {'valid': False, 'type': 'Unknown', 'analyzer': 'scaool', 'remove_tarball': False, 'remove_directory': False}
     this_src_data = {}
     supportconfig_received = ''
     remove_archive = False
@@ -1724,6 +1724,7 @@ def main(argv):
             this_src_data['analyzer'] = "scatool v" + str(SVER)
             this_src_data['remove_tarball'] = False
             this_src_data['remove_directory'] = False
+            this_src_data['extract_here_for_reports'] = False
             supportconfig_dir = ''
             if this_src_data['exists']:
                 if this_src_data['type'] == 'dir':
@@ -1741,6 +1742,7 @@ def main(argv):
                         if given_extract_path['exists']:
                             if given_extract_path['write_tail']:
                                 this_src_data['extract_here'] = given_extract_path['path']
+                                this_src_data['extract_here_for_reports'] = True
                                 msg.normal("Extraction Directory Change", "From command line: {0}".format(given_extract_path['path']))
                             else:
                                 msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(given_extract_path['path']))
@@ -1755,6 +1757,7 @@ def main(argv):
                         if config_extract_path['exists']:
                             if config_extract_path['write_tail']:
                                 this_src_data['extract_here'] = config_extract_path['path']
+                                this_src_data['extract_here_for_reports'] = True
                                 msg.normal("Extraction Directory Change", "From config file: {0}".format(config_extract_path['path']))
                             else:
                                 msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(config_extract_path['path']))
@@ -1795,6 +1798,7 @@ def main(argv):
             this_src_data['analyzer'] = "scatool v" + str(SVER)    
             this_src_data['remove_tarball'] = False
             this_src_data['remove_directory'] = True
+            this_src_data['extract_here_for_reports'] = False
             supportconfig_dir = this_src_data['path']
             if valid_supportconfig_dir(msg, supportconfig_dir):
                 process_dirs[supportconfig_dir] = ''
@@ -1850,12 +1854,16 @@ def main(argv):
                 msg.min(" * Suggestion", "Try mkdir -p {0} or fix the report_output_path in {1}".format(config_report_output_path['given_path'], config_file))
                 continue
         else:
-            if file_data[supportconfig_directory]['write_head']:
-                this_report_output_path = file_data[supportconfig_directory]['head']
+            if this_src_data['extract_here_for_reports']:
+                this_report_output_path = file_data[supportconfig_directory]['extract_here']
+                msg.normal("SCA Report Directory Change", "Match extract path: {0}".format(this_report_output_path))
             else:
-                msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(file_data[supportconfig_directory]['head']))
-                msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
-                continue
+                if file_data[supportconfig_directory]['write_head']:
+                    this_report_output_path = file_data[supportconfig_directory]['head']
+                else:
+                    msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(file_data[supportconfig_directory]['head']))
+                    msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
+                    continue
         sca_report.set_path(this_report_output_path)
         sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
         dict1['file_data'] = file_data[supportconfig_directory]
