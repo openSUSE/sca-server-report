@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-SVER = '3.0.2-241004.TEST.6'
+SVER = '3.0.2-241004.TEST.11'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
@@ -304,7 +304,7 @@ class SupportconfigAnalysis():
         self.github_base = config_entry(config.get("Supportconfig", "github_base"), '/')
         self.location = extracted_path
         self.analysis_datetime = datetime.datetime.now()
-        self.distro_info = {'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
+        self.distro_info = {'valid': True, 'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
         self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
 
         self.required_element_count = len(self.REQUIRED_ELEMENTS)
@@ -328,10 +328,11 @@ class SupportconfigAnalysis():
             'filter': []
         }
         self.products_list = self.__get_products_list()
-        self.all_patterns = self.__get_available_patterns()
-        self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
-        self.applicable_patterns = self.__get_applicable_patterns()
-        self.__apply_patterns()
+        if self.distro_info['valid']:
+            self.all_patterns = self.__get_available_patterns()
+            self.pattern_filtered_directories = self.__get_pattern_filtered_directories()
+            self.applicable_patterns = self.__get_applicable_patterns()
+            self.__apply_patterns()
 
     # runpats gets the pattern results. runpats calls patternPreProcessor
     # getHtml(htmlOutputFile, self.location, supportconfigPath.split("/")[-1])
@@ -343,19 +344,16 @@ class SupportconfigAnalysis():
     def __str__ (self):
         pattern = '''
 Class instance of {}
-  sca_patterns_path = {}
   location = {}
   distro_info = {}\n
-  products_list = {}\n
-  patterns_available = {}
-  pattern_filtered_directories = {}
-  applicable_patterns = {}
-  pattern_stats = {}
 '''
-        return pattern.format(self.__class__.__name__, self.sca_patterns_path, self.location, self.distro_info, self.products_list, self.patterns_available, self.pattern_filtered_directories, str(len(self.applicable_patterns)), self.pattern_stats)
+        return pattern.format(self.__class__.__name__, self.location, self.distro_info)
 
     def get_results(self):
         return self.json_data
+
+    def is_valid(self):
+        return self.distro_info['valid']
 
     def __get_pattern_source_url(self, pat):
         # relative_pattern_path should start with 'patterns/'
@@ -921,9 +919,11 @@ Class instance of {}
                             self.distro_info['Summary'] = line.strip()
 
         if( product_info['tag'] == 'Unknown' ):
+            self.distro_info['valid'] = False
+            msg.debug("Distro Evaluation", self.distro_info)
             msg.debug("Product Evaluation", product_info)
             msg.min(" Error: Unknown OS", product_info['name'])
-            sys.exit(5)
+            return
         else:
             if( product_info['tag'] == 'slem' ):
                 product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
@@ -949,9 +949,7 @@ Class instance of {}
         self.json_data['sc_info'] = self.distro_info
         self.json_data['prod_info'] = products_found
         self.msg.debug('Distro Info', self.distro_info)
-        self.msg.debug()
         self.msg.debug('Products Found', products_found)
-        self.msg.debug()
 
         return products_found
 
@@ -1689,6 +1687,7 @@ def check_report_path_given(msg, config_file, report_path_cmd, report_path_confi
 
 def separate_entry(msg, count):
     if count > 1:
+        msg.min()
         msg.separator(msg.LOG_MIN, '=')
         msg.min()
 
@@ -1697,16 +1696,18 @@ def analyze_supportconfig_directory(msg, config, report, data, email):
     dict2 = {}
 
     sca_data = SupportconfigAnalysis(msg, config, data['supportconfig_directory'])
-    dict1['file_data'] = data
-    dict2 = sca_data.get_results()
-    sca_results = {**dict1, **dict2}
-    report.set_data(sca_results)
-    if len(email) > 0:
-        report.email_report(email)
-    else:
-        report.generate_report()
-    if( msg.get_level() < msg.LOG_DEBUG ):
-        report.clean_up()
+    if sca_data.is_valid():
+        dict1['file_data'] = data
+        dict2 = sca_data.get_results()
+        sca_results = {**dict1, **dict2}
+        report.set_data(sca_results)
+        if len(email) > 0:
+            report.email_report(email)
+        else:
+            report.generate_report()
+        if( msg.get_level() < msg.LOG_DEBUG ):
+            report.clean_up()
+
 
 
 ##############################################################################
