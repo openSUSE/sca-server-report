@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.2-241003.TEST.3'
+SVER = '3.0.2-241004.TEST.6'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2024 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2024 Oct 03
+# Modified:     2024 Oct 04
 #
 ##############################################################################
 #
@@ -569,8 +569,6 @@ Class instance of {}
         self.msg.verbose('- Temporary', str(self.pattern_stats['temp']))
         self.msg.verbose('- Exec Errors', str(self.pattern_stats['runtime_errors']))
         self.msg.min('Applicable to Server', str(self.pattern_stats['applied']))
-
-        self.msg.min()
         level_now = msg.get_level()
         if( level_now >= msg.LOG_MIN ):
             if self.pattern_stats['runtime_errors'] > 0:
@@ -924,8 +922,8 @@ Class instance of {}
 
         if( product_info['tag'] == 'Unknown' ):
             msg.debug("Product Evaluation", product_info)
-            msg.min("\nError: Unknown OS - {0}\n".format(product_info['name']))
-            sys.exit(1)
+            msg.min(" Error: Unknown OS", product_info['name'])
+            sys.exit(5)
         else:
             if( product_info['tag'] == 'slem' ):
                 product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
@@ -940,7 +938,6 @@ Class instance of {}
                 product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + "sp" + str(product_info['verminor'])
 
         self.supportconfig_keys.append(product_info['supportconfigKey'])
-
         products_found.append(product_info)
 
         del basic_env_file
@@ -1690,6 +1687,28 @@ def check_report_path_given(msg, config_file, report_path_cmd, report_path_confi
 
     return path_data
 
+def separate_entry(msg, count):
+    if count > 1:
+        msg.separator(msg.LOG_MIN, '=')
+        msg.min()
+
+def analyze_supportconfig_directory(msg, config, report, data, email):
+    dict1 = {}
+    dict2 = {}
+
+    sca_data = SupportconfigAnalysis(msg, config, data['supportconfig_directory'])
+    dict1['file_data'] = data
+    dict2 = sca_data.get_results()
+    sca_results = {**dict1, **dict2}
+    report.set_data(sca_results)
+    if len(email) > 0:
+        report.email_report(email)
+    else:
+        report.generate_report()
+    if( msg.get_level() < msg.LOG_DEBUG ):
+        report.clean_up()
+
+
 ##############################################################################
 # Main
 ##############################################################################
@@ -1701,7 +1720,7 @@ def main(argv):
     VALID_MIME_TYPES = [ 'application/x-xz', 'application/x-bzip', 'application/x-gzip', 'application/x-tar' ]
 
     file_data = {} # Final dictionary will be: {'valid': False, 'type': 'Unknown', 'analyzer': 'scaool', 'remove_tarball': False, 'remove_directory': False}
-    this_src_data = {}
+    this_file_data = {}
     supportconfig_received = ''
     remove_archive = False
     analyze_server = False
@@ -1789,123 +1808,124 @@ def main(argv):
 
     preconfigured_extraction_path = check_extraction_path_given(msg, config_file, given_extract_path, extract_path)
     preconfigured_report_path = check_report_path_given(msg, config_file, given_report_output_path, report_output_path)
-    msg.min()
-    msg.min()
 
     total_args_given = len(args)
-    process_dirs = {} # key = supportconfig directory, value = the supportconfig tarball
+    supportconfig_dir = ''
+    count = 0
+
     if total_args_given > 0:
-        if total_args_given > 1:
-            msg.min("Number of Files", total_args_given)
         for given_source in args:
             msg.normal("Checking", given_source)
-            this_src_data = evaluate_given_path(msg, given_source)
-            this_src_data['analyzer'] = "scatool v" + str(SVER)
-            this_src_data['remove_tarball'] = False
-            this_src_data['remove_directory'] = False
-            this_src_data['extract_here_for_reports'] = False
-            supportconfig_dir = ''
-            if this_src_data['exists']:
-                if this_src_data['type'] == 'dir':
+            this_file_data = evaluate_given_path(msg, given_source)
+            this_file_data['analyzer'] = "scatool v" + str(SVER)
+            this_file_data['remove_tarball'] = False
+            this_file_data['remove_directory'] = False
+            this_file_data['extract_here_for_reports'] = False
+            if this_file_data['exists']:
+                count += 1
+                if total_args_given > 1:
+                    msg.min("Processing [{}/{}]".format(count, total_args_given), this_file_data['path'])
+                else:
+                    msg.min("Processing", this_file_data['path'])
+
+                if this_file_data['type'] == 'dir':
                     if remove_archive:
-                        this_src_data['remove_directory'] = True
-                    supportconfig_dir = this_src_data['path']
-                    if valid_supportconfig_dir(msg, supportconfig_dir):
-                        process_dirs[supportconfig_dir] = ''
-                        file_data[supportconfig_dir] = this_src_data
-                elif this_src_data['type'] == 'file':
-                    if not this_src_data['tail_mime_type'] in VALID_MIME_TYPES:
-                        msg.min(" Skipping file", "Not a supportconfig compressed file - {0}".format(this_src_data['path']))
-                        continue
-                    if preconfigured_extraction_path:
-                        this_src_data['extract_here'] = preconfigured_extraction_path['extract_here']
-                        this_src_data['extract_here_for_reports'] = preconfigured_extraction_path['extract_here_for_reports']
-                    else:
-                        if this_src_data['write_head']:
-                            this_src_data['extract_here'] = this_src_data['head']
+                        this_file_data['remove_directory'] = True
+                    if valid_supportconfig_dir(msg, this_file_data['path']):
+                        sca_report = SCAReport(msg, config)
+                        if given_type:
+                            sca_report.set_type(given_type)
+                        if preconfigured_report_path:
+                            sca_report.set_path(preconfigured_report_path['path'])
                         else:
-                            msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(this_src_data['head']))
-                            msg.min(" * Suggestion", "Use -x, --extract_here to specify an alternate extraction directory")
-                            continue
+                            if this_file_data['write_head']:
+                                sca_report.set_path(this_file_data['head'])
+                            else:
+                                msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(this_file_data['head']))
+                                msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
+                                separate_entry(msg, total_args_given)
+                                continue
+                        this_file_data['supportconfig_directory'] = this_file_data['path']
+                        analyze_supportconfig_directory(msg, config, sca_report, this_file_data, email_addr_str)
+                    separate_entry(msg, total_args_given)
+
+                elif this_file_data['type'] == 'file':
+                    if not this_file_data['tail_mime_type'] in VALID_MIME_TYPES:
+                        msg.min(" Skipping file", "Not a supportconfig compressed file - {0}".format(this_file_data['path']))
+                        separate_entry(msg, total_args_given)
+                        continue
                     if remove_archive:
-                        this_src_data['remove_tarball'] = True
-                    this_src_data['remove_directory'] = True
-                    supportconfig_dir = extract_supportconfig(msg, this_src_data)
+                        this_file_data['remove_tarball'] = True
+                    this_file_data['remove_directory'] = True
+
+                    if preconfigured_extraction_path:
+                        this_file_data['extract_here'] = preconfigured_extraction_path['extract_here']
+                        this_file_data['extract_here_for_reports'] = preconfigured_extraction_path['extract_here_for_reports']
+                    else:
+                        if this_file_data['write_head']:
+                            this_file_data['extract_here'] = this_file_data['head']
+                        else:
+                            msg.min(" Error", "Write permisson denied, cannot extract file to {0}".format(this_file_data['head']))
+                            msg.min(" * Suggestion", "Use -x, --extract_here to specify an alternate extraction directory")
+                            separate_entry(msg, total_args_given)
+                            continue
+                    supportconfig_dir = extract_supportconfig(msg, this_file_data)
                     if valid_supportconfig_dir(msg, supportconfig_dir):
-                        this_src_data['embedded_dir'] = supportconfig_dir
-                        process_dirs[supportconfig_dir] = this_src_data['embedded_dir']
-                        file_data[supportconfig_dir] = this_src_data
-                elif not this_src_data['read_tail']:
-                    msg.min(" Error", "Read permisson denied - {0}".format(this_src_data['path']))
+                        this_file_data['embedded_dir'] = supportconfig_dir
+                        this_file_data['supportconfig_directory'] = this_file_data['embedded_dir']
+
+                        sca_report = SCAReport(msg, config)
+                        if given_type:
+                            sca_report.set_type(given_type)
+                        if preconfigured_report_path:
+                            sca_report.set_path(preconfigured_report_path['path'])
+                        else:
+                            if this_file_data['write_head']:
+                                sca_report.set_path(this_file_data['head'])
+                            else:
+                                msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(this_file_data['head']))
+                                msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
+                                separate_entry(msg, total_args_given)
+                                continue
+                        analyze_supportconfig_directory(msg, config, sca_report, this_file_data, email_addr_str)
+                    separate_entry(msg, total_args_given)
+
+                elif not this_file_data['read_tail']:
+                    msg.min(" Error", "Read permisson denied - {0}".format(this_file_data['path']))
                     msg.min(" * Suggestion", "Use chmod or sudo to elevate read permissions")
+                    separate_entry(msg, total_args_given)
                     continue
                 else:
-                    msg.min(" Error", "Unknown file type - {0}".format(this_src_data['path']))
-
-            msg.debug("Checked this_src_data", this_src_data) # dict1 below
+                    msg.min(" Error", "Unknown file type - {0}".format(this_file_data['path']))
+                    separate_entry(msg, total_args_given)
+                    continue
         msg.normal()
     elif analyze_server:
         if i_am_root():
             given_source = get_local_supportconfig(msg, config)
-            this_src_data = evaluate_given_path(msg, given_source)
-            this_src_data['analyzer'] = "scatool v" + str(SVER)    
-            this_src_data['remove_tarball'] = False
-            this_src_data['remove_directory'] = True
-            this_src_data['extract_here_for_reports'] = False
-            supportconfig_dir = this_src_data['path']
-            if valid_supportconfig_dir(msg, supportconfig_dir):
-                process_dirs[supportconfig_dir] = ''
-                file_data[supportconfig_dir] = this_src_data
-            msg.debug("Checked this_src_data", this_src_data) # dict1 below
+            this_file_data = evaluate_given_path(msg, given_source)
+            this_file_data['analyzer'] = "scatool v" + str(SVER)    
+            this_file_data['remove_tarball'] = False
+            this_file_data['remove_directory'] = True
+            this_file_data['extract_here_for_reports'] = False
+            this_file_data['supportconfig_directory'] = this_file_data['path']
+            if valid_supportconfig_dir(msg, this_file_data['supportconfig_directory']):
+                sca_report = SCAReport(msg, config)
+                if given_type:
+                    sca_report.set_type(given_type)
+                if preconfigured_report_path:
+                    sca_report.set_path(preconfigured_report_path['path'])
+                else:
+                    sca_report.set_path(this_file_data['head'])
+                analyze_supportconfig_directory(msg, config, sca_report, this_file_data, email_addr_str)
         else:
             msg.min("Analyze Local Server", "Root access required to run supportconfig")
     else:
         usage()
         sys.exit(0)
 
-    dict1 = {}
-    dict2 = {}
-    this_report_output_path = ''
-    num_of_supportconfigs = len(process_dirs)
-    count = 0
-    for supportconfig_directory, suppportconfig_tarball in process_dirs.items():
-        count += 1
-        if num_of_supportconfigs > 1:
-            msg.min()
-            msg.separator(msg.LOG_MIN, '=')
-            msg.min("Processing [{}/{}]".format(count, num_of_supportconfigs), supportconfig_directory)
-        else:
-            msg.min("Processing Supportconfig", supportconfig_directory)
-        sca_report = SCAReport(msg, config)
-        if given_type:
-            sca_report.set_type(given_type)
-        if preconfigured_report_path:
-            this_report_output_path = preconfigured_report_path['path']
-        else:
-            if this_src_data['extract_here_for_reports']:
-                this_report_output_path = file_data[supportconfig_directory]['extract_here']
-                msg.normal("SCA Report Directory Change", "Match extract path: {0}".format(this_report_output_path))
-            else:
-                if file_data[supportconfig_directory]['write_head']:
-                    this_report_output_path = file_data[supportconfig_directory]['head']
-                else:
-                    msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(file_data[supportconfig_directory]['head']))
-                    msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
-                    continue
-        sca_report.set_path(this_report_output_path)
-        sca_data = SupportconfigAnalysis(msg, config, supportconfig_directory)
-        dict1['file_data'] = file_data[supportconfig_directory]
-        dict2 = sca_data.get_results()
-        sca_results = {**dict1, **dict2}
-        sca_report.set_data(sca_results)
-        if len(email_addr_str) > 0:
-            sca_report.email_report(email_addr_str)
-        else:
-            sca_report.generate_report()
-        if( msg.get_level() < msg.LOG_DEBUG ):
-            sca_report.clean_up()
     msg.min()
-            
+
 # Entry point
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
