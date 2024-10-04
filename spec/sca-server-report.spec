@@ -1,6 +1,7 @@
+#
 # spec file for package sca-server-report
 #
-# Copyright (c) 2023-2024 SUSE LLC
+# Copyright (c) 2024 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -11,26 +12,30 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
+# Please submit bugfixes or comments via https://bugs.opensuse.org/
+#
+
+
 %define sca_common sca
 %define sca_config sca
 %define libbase /usr/lib/%{sca_common}
 %define sca_python %{libbase}/python
 
-Name:         sca-server-report
-Version:      1.6.2
-Release:      241004.TEST.11
-Summary:      Supportconfig Analysis Server Report
-License:      GPL-2.0
-URL:          https://github.com/g23guy/sca-server-report
-Group:        System/Monitoring
-Source:       %{name}-%{version}.tar.gz
-Requires:     sca-patterns-template-gen2
-Requires:     python3-base
-BuildArch:    noarch
+Name:           sca-server-report
+Version:        1.6.3
+Release:        0
+Summary:        Supportconfig Analysis Server Report
+License:        GPL-2.0-only
+URL:            https://github.com/g23guy/sca-server-report
+Group:          System/Monitoring
+Source:         %{name}-%{version}.tar.gz
+Requires:       python3-base
+Requires:       sca-patterns-template-gen2
+BuildArch:      noarch
 
 %description
-A tool that primarily analyzes the local server, but can analyze other 
-supportconfigs that have been copied to the server. It uses the 
+A tool that primarily analyzes the local server, but can analyze other
+supportconfigs that have been copied to the server. It uses the
 Supportconfig Analysis patterns to perform the analysis.
 
 See %{_docdir}/sca-patterns-base/COPYING.GPLv2
@@ -63,4 +68,3 @@ install -m 644 man/*.8.gz %{buildroot}%{_mandir}/man8
 %doc %{_mandir}/man8/*
 
 %changelog
-
