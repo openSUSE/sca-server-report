@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Mon Oct  7 11:04:29 UTC 2024 - jason.record@suse.com
+
+- Fixed extract here for reports regression
+
+-------------------------------------------------------------------
 Fri Oct  4 20:02:27 UTC 2024 - jason.record@suse.com
 
 - Changes to version 1.6.3

@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.5'
+SVER = '3.0.5-1'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2024 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2024 Oct 04
+# Modified:     2024 Oct 07
 #
 ##############################################################################
 #
@@ -1881,13 +1881,16 @@ def main(argv):
                         if preconfigured_report_path:
                             sca_report.set_path(preconfigured_report_path['path'])
                         else:
-                            if this_file_data['write_head']:
-                                sca_report.set_path(this_file_data['head'])
+                            if this_file_data['extract_here_for_reports']:
+                                sca_report.set_path(this_file_data['extract_here'])
                             else:
-                                msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(this_file_data['head']))
-                                msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
-                                separate_entry(msg, total_args_given)
-                                continue
+                                if this_file_data['write_head']:
+                                    sca_report.set_path(this_file_data['head'])
+                                else:
+                                    msg.min(" Error", "Write permisson denied, cannot create report file in {0}".format(this_file_data['head']))
+                                    msg.min(" * Suggestion", "Use -o, --output to specify an alternate report file directory")
+                                    separate_entry(msg, total_args_given)
+                                    continue
                         analyze_supportconfig_directory(msg, config, sca_report, this_file_data, email_addr_str)
                     separate_entry(msg, total_args_given)
 
