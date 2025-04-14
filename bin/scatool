@@ -735,6 +735,7 @@ Class instance of {}
         return these_products
 
     def __get_products_list(self):
+        check_hardware = re.compile('unknown|hardware.txt', re.IGNORECASE)
         products_found = []
 
         #load summary.xml
@@ -918,6 +919,24 @@ Class instance of {}
                         else:
                             self.distro_info['Summary'] = line.strip()
 
+
+        if check_hardware.search(self.distro_info['hardWare']):
+            try:
+                with open(self.location + "/hardware.txt", errors="ignore") as f:
+                    hardware_file = f.read().splitlines()
+                    f.close()
+            except Exception as e:
+                print("+Error: Cannot read {} file - {}".format(self.location + "/hardware.txt", str(e)))
+                hardware_file = []
+
+            model_name = ''
+            for line in hardware_file:
+                if line.startswith('Model name:      '):
+                    model_name = line.split()[2]
+                    if 'power' in model_name.lower():
+                        self.distro_info['hardWare'] = model_name
+                    break
+
         if( product_info['tag'] == 'Unknown' ):
             self.distro_info['valid'] = False
             msg.debug("Distro Evaluation", self.distro_info)
@@ -925,7 +944,7 @@ Class instance of {}
             msg.min(" Error: Unknown OS", product_info['name'])
             return
         else:
-            if( product_info['tag'] == 'slem' ):
+            if( product_info['tag'] ==  'slem' ):
                 product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
                 product_info['use_verminor'] = product_info['verminor']
                 product_info['nameTag'] = 'Product:'
