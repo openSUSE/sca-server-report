@@ -63,6 +63,7 @@ def usage():
     print()
     print("OPTIONS")
     print(display.format('-h, --help', "Displays this screen"))
+    print(display.format('-a, --all_reports', "Set report --type all"))
     print(display.format('-b, --batch', "Batch mode that disables the progress bar"))
     print(display.format('-d, --debug', "Use log level 4"))
     print(display.format('-e <list>, --email <list>', "Send the SCA Report file to email address(es) provided. Comma separated list"))
@@ -1774,7 +1775,7 @@ def main(argv):
     os.environ['BASHLIB'] = os.path.abspath(sca_library_path + 'bash')
 
     try:
-        (optlist, args) = getopt.gnu_getopt(argv[1:], "hbde:jno:pl:qrst:vx:", ["help", "batch", "debug", "email=", "json", "normal", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose", "extract_here="])
+        (optlist, args) = getopt.gnu_getopt(argv[1:], "habde:jno:pl:qrst:vx:", ["help", "all_reports", "batch", "debug", "email=", "json", "normal", "output=", "summary", "log_level=", "quiet", "remove", "server", "type=", "verbose", "extract_here="])
     except getopt.GetoptError as exc:
         title()
         print("Error:", exc, file=sys.stderr)
@@ -1786,6 +1787,8 @@ def main(argv):
             title()
             usage()
             sys.exit(0)
+        elif opt in {"-a", "--all_reports"}:
+            given_type = "all"
         elif opt in {"-b", "--batch"}:
             progress_bar_active = False
         elif opt in {"-d", "--debug"}:
