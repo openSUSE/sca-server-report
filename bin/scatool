@@ -612,8 +612,8 @@ Class instance of {}
 
     def __get_applicable_patterns(self):
         pattern_file_dict = {}
-        scapattern_gen1 = re.compile('^Core.init\(META_CLASS|^\@PATTERN_RESULTS = \(', re.IGNORECASE)
-        scapattern_gen2 = re.compile('SCAPatternGen2\(')
+        scapattern_gen1 = re.compile(r'^Core.init\(META_CLASS|^\@PATTERN_RESULTS = \(', re.IGNORECASE)
+        scapattern_gen2 = re.compile(r'SCAPatternGen2\(')
         for check_pattern in self.all_patterns:
             for filtered_directory in self.pattern_filtered_directories:
                 if filtered_directory in check_pattern:
@@ -735,7 +735,7 @@ Class instance of {}
         return these_products
 
     def __get_products_list(self):
-        check_hardware = re.compile('unknown|hardware.txt', re.IGNORECASE)
+        check_hardware = re.compile(r'unknown|hardware.txt', re.IGNORECASE)
         products_found = []
 
         #load summary.xml
@@ -823,7 +823,7 @@ Class instance of {}
                     in_date = False
                 else:
                     dateLine = line
-                    dateLine = re.sub("\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
+                    dateLine = re.sub(r"\s+", " ", dateLine.rstrip("\n")) # replace multiple whitespace with single space
                     tmp_date = dateLine.split() # split into list based on a space
                     if( len(tmp_date) >= 4 ):
                         tmpMonth = tmp_date[1].strip()
