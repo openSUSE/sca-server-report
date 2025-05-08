@@ -305,7 +305,7 @@ class SupportconfigAnalysis():
         self.github_base = config_entry(config.get("Supportconfig", "github_base"), '/')
         self.location = extracted_path
         self.analysis_datetime = datetime.datetime.now()
-        self.distro_info = {'valid': True, 'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00"}
+        self.distro_info = {'valid': True, 'serverName': 'Unknown', 'hardWare': 'Unknown', 'virtualization': 'None', 'Summary': '', 'timeArchiveRun': "0000-00-00 00:00:00", 'report': {}}
         self.distro_info['timeAnalysis'] = str(self.analysis_datetime.year) + "-" + str(self.analysis_datetime.month).zfill(2) + "-" + str(self.analysis_datetime.day).zfill(2) + " " + str(self.analysis_datetime.hour).zfill(2) + ":" + str(self.analysis_datetime.minute).zfill(2) + ":" + str(self.analysis_datetime.second).zfill(2)
 
         self.required_element_count = len(self.REQUIRED_ELEMENTS)
@@ -1165,11 +1165,11 @@ Class instance of {}
             self.__generate_json_report()
 
     def __set_report_type(self, this_type):
-        self.report_type = this_type
-        self.report_name = self.data['sc_info']['name'] + "_report." + self.report_type
-        self.report_file = self.report_path + self.report_name
-        self.data['sc_info']['report_type'] = self.report_type
-        self.data['sc_info']['report_file'] = self.report_file
+        if not this_type == 'all':
+            self.report_type = this_type
+            self.report_name = self.data['sc_info']['name'] + "_report." + self.report_type
+            self.report_file = self.report_path + self.report_name
+            self.data['sc_info']['report'][self.report_type] = self.report_file
 
     def __generate_json_report(self):
         self.msg.verbose("+ Building JSON report", "Saving File")
