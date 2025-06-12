@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.5-5'
+SVER = '3.0.5-6'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2025 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2025 May 08
+# Modified:     2025 Jun 12
 #
 ##############################################################################
 #
