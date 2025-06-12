@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-SVER = '3.0.5-5'
+SVER = '3.0.5-6'
 
 ##############################################################################
 # scatool - Supportconfig Analysis (SCA) Tool
 # Copyright (c) 2025 SUSE LLC
 #
 # Description:  Analyzes supportconfig archives for known issues
-# Modified:     2025 May 08
+# Modified:     2025 Jun 12
 #
 ##############################################################################
 #
@@ -630,7 +630,7 @@ Class instance of {}
 
     def __get_products_summary_simple(self, this_pattern_tag, this_tag, re_name, summary_file):
         # Extracts product information in the summary.xml file from supportconfig
-        # Pattern directory simple SP format: patterns/<patternTag>/<tag><vermajor>sp<verminor>
+        # Pattern directory simple SP format: patterns/<patternTag>/<tag><vermajor_variant>sp<verminor_variant>
         re_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
         re_end = re.compile(r'</product>', re.IGNORECASE)
         re_version = re.compile(r'<version>.*</version>', re.IGNORECASE)
@@ -639,8 +639,10 @@ Class instance of {}
         summary_info = {
             'patternTag': this_pattern_tag, # Used to filter patterns for analysis
             'tag': this_tag,                # The product's identity tag
-            'vermajor': '',                 # The product's major version
-            'verminor': '',                 # The product's minor version
+            'vermajor_variant': '',         # The OS variant's major version
+            'verminor_variant': '',         # The OS variant's minor version
+            'vermajor_os': '',              # The OS's major version
+            'verminor_os': '',              # The OS's minor version
             'use_tag': this_tag,            # The tag used to select patterns
             'use_vermajor': '',             # The major version used to select patterns
             'use_verminor': '',             # The minor version used to select patterns
@@ -663,17 +665,17 @@ Class instance of {}
                     try:
                         summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
                         if( "." in summary_info['version'] ):
-                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+                            (summary_info['vermajor_variant'], summary_info['verminor_variant']) = summary_info['version'].split(".")
                         else:
-                            summary_info['vermajor'] = summary_info['version']
-                            summary_info['verminor'] = "0"
+                            summary_info['vermajor_variant'] = summary_info['version']
+                            summary_info['verminor_variant'] = "0"
                     except:
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
-                    summary_info['use_vermajor'] = summary_info['vermajor']
-                    summary_info['use_verminor'] = summary_info['verminor']
-                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + "sp" + str(summary_info['verminor'])
+                    summary_info['use_vermajor'] = summary_info['vermajor_variant']
+                    summary_info['use_verminor'] = summary_info['verminor_variant']
+                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor_variant']) + "sp" + str(summary_info['verminor_variant'])
                     self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     these_products.append(summary_info)
                     break
@@ -683,7 +685,7 @@ Class instance of {}
 
     def __get_products_summary_flat(self, this_pattern_tag, this_tag, use_this_tag, re_name, summary_file):
         # Extracts product information in the summary.xml file from supportconfig
-        # Pattern directory flat format: patterns/<patternTag>/<use_tag><vermajor><verminor>
+        # Pattern directory flat format: patterns/<patternTag>/<use_tag><vermajor_variant><verminor_variant>
         # Support
         re_start = re.compile(r'<product\s|<product>', re.IGNORECASE)
         re_end = re.compile(r'</product>', re.IGNORECASE)
@@ -693,8 +695,10 @@ Class instance of {}
         summary_info = {
             'patternTag': this_pattern_tag, # Used to filter patterns for analysis
             'tag': this_tag,                # The product's identity tag
-            'vermajor': '',                 # The product's major version
-            'verminor': '',                 # The product's minor version
+            'vermajor_variant': '',         # The OS variant's major version
+            'verminor_variant': '',         # The OS variant's minor version
+            'vermajor_os': '',              # The OS's major version
+            'verminor_os': '',              # The OS's minor version
             'use_tag': use_this_tag,        # The tag used to select patterns
             'use_vermajor': '',             # The major version used to select patterns
             'use_verminor': '',             # The minor version used to select patterns
@@ -717,17 +721,17 @@ Class instance of {}
                     try:
                         summary_info['version'] = re.search(r'>(.+?)<', line).group(1)
                         if( "." in summary_info['version'] ):
-                            (summary_info['vermajor'], summary_info['verminor']) = summary_info['version'].split(".")
+                            (summary_info['vermajor_variant'], summary_info['verminor_variant']) = summary_info['version'].split(".")
                         else:
-                            summary_info['vermajor'] = summary_info['version']
-                            summary_info['verminor'] = "0"
+                            summary_info['vermajor_variant'] = summary_info['version']
+                            summary_info['verminor_variant'] = "0"
                     except:
                         True
                 if( summary_info['name'] and summary_info['version'] ):
                     in_product = False
-                    summary_info['use_vermajor'] = summary_info['vermajor']
-                    summary_info['use_verminor'] = summary_info['verminor']
-                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor']) + str(summary_info['verminor'])
+                    summary_info['use_vermajor'] = summary_info['vermajor_variant']
+                    summary_info['use_verminor'] = summary_info['verminor_variant']
+                    summary_info['supportconfigKey'] = str(summary_info['tag']) + str(summary_info['vermajor_variant']) + str(summary_info['verminor_variant'])
                     self.supportconfig_keys.append(summary_info['supportconfigKey'])
                     these_products.append(summary_info)
                     break
@@ -787,8 +791,10 @@ Class instance of {}
         product_info = {
             'patternTag': 'Unknown',        # Used to filter patterns for analysis, format: patterns/<patternTag>/<use_tag><use_vermajor>sp<use_verminor>
             'tag': 'Unknown',               # The product's identity tag
-            'vermajor': '',                 # The product's major version
-            'verminor': '',                 # The product's minor version
+            'vermajor_variant': '',         # The OS variant's major version
+            'verminor_variant': '',         # The OS variant's minor version
+            'vermajor_os': '',              # The OS's major version
+            'verminor_os': '',              # The OS's minor version
             'use_tag': 'Unknown',           # The tag used to select patterns
             'use_vermajor': '',             # The major version used to select patterns
             'use_verminor': '',             # The minor version used to select patterns
@@ -869,7 +875,20 @@ Class instance of {}
                     in_os_release = False
                     product_info['name'] = str(self.distro_info['Summary']) + " (" + self.distro_info['osArch'] + ")"
                 else:
-                    if line.lower().startswith("pretty_name"):
+                    if line.lower().startswith("variant"):
+                        tmp_variant_name = line.lower()
+                        if "enterprise server" in tmp_variant_name:
+                            product_info['tag'] = 'sle'
+                            product_info['use_tag'] = product_info['tag']
+                            product_info['patternTag'] = 'SLE'
+                        elif "micro" in tmp_variant_name:
+                            product_info['tag'] = 'slem'
+                            product_info['use_tag'] = 'sle'
+                            product_info['patternTag'] = 'SLE'
+                            tmp_ver = line.lower().replace('"', '').strip().split()[-1]
+                            product_info['vermajor_variant'] = tmp_ver.split('.')[0]
+                            product_info['verminor_variant'] = tmp_ver.split('.')[1]
+                    elif line.lower().startswith("pretty_name"):
                         self.distro_info['Summary'] = line.split('=')[-1].replace('"', '').strip()
                         tmp_pretty_name = line.lower()
                         if "suse linux enterprise micro" in tmp_pretty_name:
@@ -894,12 +913,12 @@ Class instance of {}
                             product_info['patternTag'] = 'SLE'
                     elif line.lower().startswith("version_id"):
                         version_id = line.replace('"', "").strip().split('=')[1].split('.')
-                        product_info['vermajor'] = str(version_id[0])
+                        product_info['vermajor_os'] = str(version_id[0])
                         if( len(version_id) > 1 ):
-                            product_info['verminor'] = str(version_id[1])
+                            product_info['verminor_os'] = str(version_id[1])
                         else:
-                            product_info['verminor'] = "0"
-                        product_info['version'] = product_info['verminor']
+                            product_info['verminor_os'] = "0"
+                        product_info['version'] = product_info['verminor_os']
 
         # Look for SUSE release as a last resort
         if( len(self.distro_info['Summary']) == 0 ):
@@ -913,10 +932,10 @@ Class instance of {}
                     else:
                         if( len(self.distro_info['Summary']) > 0 ):
                             if line.lower().startswith("version"):
-                                product_info['vermajor'] = line.split('=')[-1].replace('"', '').strip()
+                                product_info['vermajor_os'] = line.split('=')[-1].replace('"', '').strip()
                             elif line.lower().startswith("patchlevel"):
-                                product_info['verminor'] = line.split('=')[-1].replace('"', '').strip()
-                            product_info['version'] = product_info['verminor']
+                                product_info['verminor_os'] = line.split('=')[-1].replace('"', '').strip()
+                            product_info['version'] = product_info['verminor_os']
                         else:
                             self.distro_info['Summary'] = line.strip()
 
@@ -938,6 +957,11 @@ Class instance of {}
                         self.distro_info['hardWare'] = model_name
                     break
 
+        if( len(product_info['vermajor_variant']) < 1 ):
+            product_info['vermajor_variant'] = product_info['vermajor_os']
+        if( len(product_info['verminor_variant']) < 1 ):
+            product_info['verminor_variant'] = product_info['verminor_os']
+
         if( product_info['tag'] == 'Unknown' ):
             self.distro_info['valid'] = False
             msg.debug("Distro Evaluation", self.distro_info)
@@ -946,16 +970,33 @@ Class instance of {}
             return
         else:
             if( product_info['tag'] ==  'slem' ):
-                product_info['use_vermajor'] = "1" + str(product_info['vermajor'])
-                product_info['use_verminor'] = product_info['verminor']
-                product_info['nameTag'] = 'Product:'
-                product_info['versionTag'] = 'Version:'
-                product_info['version'] = str(product_info['vermajor']) + "." + str(product_info['verminor'])
-                product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + str(product_info['verminor'])
+                if( int(product_info['vermajor_os']) >= 16 ):
+                    product_info['use_vermajor'] = product_info['vermajor_os']
+                    product_info['use_verminor'] = product_info['verminor_os']
+                    product_info['nameTag'] = 'Product:'
+                    product_info['versionTag'] = 'Version:'
+                    product_info['version'] = str(product_info['vermajor_variant']) + "." + str(product_info['verminor_variant'])
+                    product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor_variant']) + str(product_info['verminor_variant'])
+                elif( int(product_info['vermajor_os']) == 6 ):
+                    product_info['vermajor_os'] = "15"
+                    product_info['verminor_os'] = str(int(product_info['verminor_variant']) + 6)
+                    product_info['use_vermajor'] = product_info['vermajor_os']
+                    product_info['use_verminor'] = product_info['verminor_os']
+                    product_info['nameTag'] = 'Product:'
+                    product_info['versionTag'] = 'Version:'
+                    product_info['version'] = str(product_info['vermajor_variant']) + "." + str(product_info['verminor_variant'])
+                    product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor_variant']) + str(product_info['verminor_variant'])
+                else:
+                    product_info['use_vermajor'] = "1" + str(product_info['vermajor_variant'])
+                    product_info['use_verminor'] = product_info['verminor_variant']
+                    product_info['nameTag'] = 'Product:'
+                    product_info['versionTag'] = 'Version:'
+                    product_info['version'] = str(product_info['vermajor_variant']) + "." + str(product_info['verminor_variant'])
+                    product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor_variant']) + str(product_info['verminor_variant'])
             else:
-                product_info['use_vermajor'] = product_info['vermajor']
-                product_info['use_verminor'] = product_info['verminor']
-                product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor']) + "sp" + str(product_info['verminor'])
+                product_info['use_vermajor'] = product_info['vermajor_variant']
+                product_info['use_verminor'] = product_info['verminor_variant']
+                product_info['supportconfigKey'] = str(product_info['tag']) + str(product_info['vermajor_variant']) + "sp" + str(product_info['verminor_variant'])
 
         self.supportconfig_keys.append(product_info['supportconfigKey'])
         products_found.append(product_info)
