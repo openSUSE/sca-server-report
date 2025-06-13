@@ -30,8 +30,8 @@ URL:            https://github.com/g23guy/sca-server-report
 Group:          System/Monitoring
 Source:         %{name}-%{version}.tar.gz
 Requires:       python3-base
-Requires:       sca-patterns-template-gen2
 Requires:       sca-patterns-base >= 1.6.2
+Requires:       sca-patterns-template-gen2
 BuildArch:      noarch
 
 %description
